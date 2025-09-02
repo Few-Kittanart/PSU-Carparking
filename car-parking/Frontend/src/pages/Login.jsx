@@ -65,7 +65,7 @@ export default function Login() {
           <h1 style={{ 
             fontSize: titleSize, 
             fontWeight: 'bold', 
-            color: '#9333ea', 
+            color: '#ea7f33ff', 
             marginBottom: '0.8rem',
             letterSpacing: '-0.5px',
             lineHeight: '1.2' 
@@ -96,7 +96,7 @@ export default function Login() {
                 WebkitAppearance: 'none', // Remove iOS styling
                 appearance: 'none'
               }}
-              onFocus={(e) => e.target.style.borderColor = '#60a5fa'}
+              onFocus={(e) => e.target.style.borderColor = '#e79316ff'}
               onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
             />
           </div>
@@ -119,7 +119,7 @@ export default function Login() {
                 WebkitAppearance: 'none',
                 appearance: 'none'
               }}
-              onFocus={(e) => e.target.style.borderColor = '#60a5fa'}
+              onFocus={(e) => e.target.style.borderColor = '#e79316ff'}
               onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
             />
           </div>
@@ -130,7 +130,7 @@ export default function Login() {
               width: '100%',
               padding: inputPadding,
               borderRadius: '8px',
-              backgroundColor: '#3b82f6',
+              backgroundColor: '#e79316ff',
               color: 'white',
               fontWeight: '600',
               fontSize: fontSize,
@@ -143,22 +143,22 @@ export default function Login() {
             }}
             onMouseEnter={(e) => {
               if (!isMobile) { // Only hover effects on non-mobile
-                e.target.style.backgroundColor = '#2563eb';
+                e.target.style.backgroundColor = '#e99517ff';
                 e.target.style.transform = 'translateY(-1px)';
               }
             }}
             onMouseLeave={(e) => {
               if (!isMobile) {
-                e.target.style.backgroundColor = '#3b82f6';
+                e.target.style.backgroundColor = '#eb9c25ff';
                 e.target.style.transform = 'translateY(0)';
               }
             }}
             onTouchStart={(e) => { // Touch feedback for mobile
-              e.target.style.backgroundColor = '#2563eb';
+              e.target.style.backgroundColor = '#e79316ff';
             }}
             onTouchEnd={(e) => {
               setTimeout(() => {
-                e.target.style.backgroundColor = '#3b82f6';
+                e.target.style.backgroundColor = '#e79316ff';
               }, 100);
             }}
           >
