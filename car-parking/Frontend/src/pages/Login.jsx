@@ -1,13 +1,31 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom"; // import useNavigate
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const navigate = useNavigate(); // สร้าง navigate
+
+  // ข้อมูล test account
+  const testAccounts = [
+    { username: "admin", password: "1234" },
+    { username: "user1", password: "abcd" }
+  ];
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Username:", username, "Password:", password);
-    // TODO: เชื่อม backend เพื่อตรวจสอบ
+
+    // ตรวจสอบ account test
+    const user = testAccounts.find(
+      (acc) => acc.username === username && acc.password === password
+    );
+
+    if (user) {
+      alert("ล็อกอินสำเร็จ!");
+      navigate("/main"); // เปลี่ยนหน้าไป /main
+    } else {
+      alert("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+    }
   };
 
   return (

@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { FaCar, FaTools, FaChartLine, FaFileAlt, FaCog, FaUser, FaCarSide } from "react-icons/fa";
+import {
+  FaCar,
+  FaTools,
+  FaChartLine,
+  FaFileAlt,
+  FaCog,
+} from "react-icons/fa";
 
 export default function Sidebar() {
   const [openMenu, setOpenMenu] = useState({});
@@ -56,26 +62,51 @@ export default function Sidebar() {
 
   const renderMenu = (items, level = 0) =>
     items.map((item, index) => (
-      <div key={index} className={`ml-${level * 4} mt-1`}>
+      <div key={index} className={`mt-1`}>
         <div
           onClick={() => item.subMenu && toggleMenu(item.label)}
-          className="flex items-center cursor-pointer p-2 hover:bg-gray-200 rounded-md"
+          className={`flex items-center cursor-pointer px-3 py-2 rounded-lg transition-colors ${
+            item.subMenu
+              ? "hover:bg-orange-50"
+              : "hover:bg-orange-100"
+          }`}
         >
-          <span className="mr-2">{item.icon}</span>
-          <span className="font-medium">{item.label}</span>
+          <span className="mr-3 text-gray-600">{item.icon}</span>
+          <span
+            className={`font-medium text-gray-700 text-sm ${
+              level > 0 ? "ml-2" : ""
+            }`}
+          >
+            {item.label}
+          </span>
           {item.subMenu && (
-            <span className="ml-auto">{openMenu[item.label] ? "▾" : "▸"}</span>
+            <span className="ml-auto text-gray-500 text-xs">
+              {openMenu[item.label] ? "▾" : "▸"}
+            </span>
           )}
         </div>
         {item.subMenu && openMenu[item.label] && (
-          <div className="ml-4">{renderMenu(item.subMenu, level + 1)}</div>
+          <div className="ml-4 border-l border-gray-200 pl-3 mt-1 space-y-1">
+            {renderMenu(item.subMenu, level + 1)}
+          </div>
         )}
       </div>
     ));
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 p-4 min-h-screen">
-      {renderMenu(menuItems)}
+    <aside className="w-64 bg-white border-r border-gray-200 min-h-screen flex flex-col">
+      {/* Header */}
+      <div className="px-4 py-6 border-b border-gray-200">
+        <h1 className="text-xl font-bold text-orange-500 tracking-tight">
+          Car Parking
+        </h1>
+        <p className="text-xs text-gray-500">ระบบจัดการ</p>
+      </div>
+
+      {/* Menu */}
+      <nav className="flex-1 overflow-y-auto px-2 py-4">
+        {renderMenu(menuItems)}
+      </nav>
     </aside>
   );
 }
