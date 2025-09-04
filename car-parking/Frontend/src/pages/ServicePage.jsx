@@ -2,18 +2,9 @@ import React, { useState } from "react";
 import dayjs from "dayjs";
 import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
+import { CreateInput } from "thai-address-autocomplete-react";
 
-// ข้อมูลตัวอย่างสำหรับ AutoComplete
-const locationData = {
-  Thailand: {
-    กรุงเทพมหานคร: ["เขตพระนคร", "เขตดุสิต"],
-    เชียงใหม่: ["เมืองเชียงใหม่", "สารภี"],
-  },
-  Japan: {
-    Tokyo: ["Shinjuku", "Shibuya"],
-    Osaka: ["Kita", "Naniwa"],
-  },
-};
+const InputThaiAddress = CreateInput(); // สร้าง component ของ ThaiAddress
 
 const carBrands = {
   Toyota: ["Corolla", "Camry", "Hilux"],
@@ -40,15 +31,16 @@ export default function ServicePage() {
     houseNo: "",
     village: "",
     street: "",
-    country: null,
-    province: null,
-    district: null,
+    subdistrict: "",
+    amphoe: "",
+    province: "",
+    zipcode: "",
   });
 
   // Step 2: Vehicle & Services
   const [vehicle, setVehicle] = useState({
     plate: "",
-    province: null,
+    province: "",
     brand: null,
     model: null,
     color: null,
@@ -60,11 +52,9 @@ export default function ServicePage() {
 
   const currentTime = dayjs().format("MMMM D, YYYY h:mm A");
 
-  // Step navigation
   const handleProceed = () => setCurrentStep(2);
   const handleBack = () => setCurrentStep(1);
 
-  // Handle service checkbox
   const handleCheckboxChange = (id) => {
     const isSelected = selectedServices.includes(id);
     const updated = isSelected
@@ -90,6 +80,13 @@ export default function ServicePage() {
     });
   };
 
+  const handleChange = (scope) => (value) => {
+    setAddress((old) => ({ ...old, [scope]: value }));
+  };
+  const handleSelect = (addr) => {
+    setAddress((old) => ({ ...old, ...addr }));
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <div className="flex-1 flex flex-col">
@@ -101,23 +98,18 @@ export default function ServicePage() {
                 ข้อมูลลูกค้า
               </h2>
 
-              {/* ชื่อนามสกุล (ตัวอักษรเท่านั้น) */}
               <TextField
                 fullWidth
                 label="ชื่อนามสกุล"
                 variant="outlined"
                 value={customerName}
                 onChange={(e) => {
-                  const value = e.target.value;
-                  if (/^[ก-ฮะ-์a-zA-Z\s]*$/.test(value)) {
-                    // ✅ ไทย/อังกฤษ เท่านั้น
-                    setCustomerName(value);
-                  }
+                  const v = e.target.value;
+                  if (/^[ก-ฮะ-์a-zA-Z\s]*$/.test(v)) setCustomerName(v);
                 }}
                 sx={{ mb: 2 }}
               />
 
-              {/* เบอร์โทรศัพท์ (ตัวเลขเท่านั้น) / รหัสลูกค้า (อังกฤษ+ตัวเลข) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <TextField
                   fullWidth
@@ -125,11 +117,8 @@ export default function ServicePage() {
                   variant="outlined"
                   value={phone}
                   onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value)) {
-                      // ✅ ตัวเลขเท่านั้น
-                      setPhone(value);
-                    }
+                    const v = e.target.value;
+                    if (/^\d*$/.test(v)) setPhone(v);
                   }}
                 />
                 <TextField
@@ -138,16 +127,12 @@ export default function ServicePage() {
                   variant="outlined"
                   value={customerId}
                   onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^[A-Za-z0-9]*$/.test(value)) {
-                      // ✅ อังกฤษ + ตัวเลข เท่านั้น
-                      setCustomerId(value);
-                    }
+                    const v = e.target.value;
+                    if (/^[A-Za-z0-9]*$/.test(v)) setCustomerId(v);
                   }}
                 />
               </div>
 
-              {/* บ้านเลขที่ / หมู่บ้าน / ถนน */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                 <TextField
                   fullWidth
@@ -155,7 +140,7 @@ export default function ServicePage() {
                   variant="outlined"
                   value={address.houseNo}
                   onChange={(e) =>
-                    setAddress({ ...address, houseNo: e.target.value })
+                    setAddress((old) => ({ ...old, houseNo: e.target.value }))
                   }
                 />
                 <TextField
@@ -164,7 +149,7 @@ export default function ServicePage() {
                   variant="outlined"
                   value={address.village}
                   onChange={(e) =>
-                    setAddress({ ...address, village: e.target.value })
+                    setAddress((old) => ({ ...old, village: e.target.value }))
                   }
                 />
                 <TextField
@@ -173,72 +158,78 @@ export default function ServicePage() {
                   variant="outlined"
                   value={address.street}
                   onChange={(e) =>
-                    setAddress({ ...address, street: e.target.value })
+                    setAddress((old) => ({ ...old, street: e.target.value }))
                   }
                 />
               </div>
 
-              {/* ประเทศ / จังหวัด / อำเภอ/ตำบล */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                <Autocomplete
-                  disablePortal
-                  options={Object.keys(locationData)}
-                  value={address.country}
-                  onChange={(e, newValue) =>
-                    setAddress({
-                      ...address,
-                      country: newValue,
-                      province: null,
-                      district: null,
-                    })
-                  }
-                  renderInput={(params) => (
-                    <TextField {...params} label="ประเทศ" variant="outlined" />
-                  )}
-                />
-                <Autocomplete
-                  disablePortal
-                  options={
-                    address.country
-                      ? Object.keys(locationData[address.country])
-                      : []
-                  }
-                  value={address.province}
-                  onChange={(e, newValue) =>
-                    setAddress({
-                      ...address,
-                      province: newValue,
-                      district: null,
-                    })
-                  }
-                  renderInput={(params) => (
-                    <TextField {...params} label="จังหวัด" variant="outlined" />
-                  )}
-                  disabled={!address.country}
-                />
-                <Autocomplete
-                  disablePortal
-                  options={
-                    address.country && address.province
-                      ? locationData[address.country][address.province]
-                      : []
-                  }
-                  value={address.district}
-                  onChange={(e, newValue) =>
-                    setAddress({ ...address, district: newValue })
-                  }
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="อำเภอ/ตำบล"
-                      variant="outlined"
-                    />
-                  )}
-                  disabled={!address.province}
-                />
+              {/* Thai Address Inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    จังหวัด
+                  </label>
+                  <InputThaiAddress.Province
+                    value={address.province}
+                    onChange={(v) =>
+                      setAddress((old) => ({ ...old, province: v }))
+                    }
+                    onSelect={(addr) =>
+                      setAddress((old) => ({ ...old, ...addr }))
+                    } // จะ update amphoe, district, zipcode อัตโนมัติ
+                    placeholder="เลือกจังหวัด"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    อำเภอ/เขต
+                  </label>
+                  <InputThaiAddress.Amphoe
+                    province={address.province}
+                    value={address.amphoe}
+                    onChange={(v) =>
+                      setAddress((old) => ({ ...old, amphoe: v }))
+                    }
+                    onSelect={(addr) =>
+                      setAddress((old) => ({ ...old, ...addr }))
+                    }
+                    placeholder="เลือกอำเภอ/เขต"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    ตำบล/แขวง
+                  </label>
+                  <InputThaiAddress.District
+                    province={address.province}
+                    amphoe={address.amphoe}
+                    value={address.subdistrict}
+                    onChange={(v) =>
+                      setAddress((old) => ({ ...old, subdistrict: v }))
+                    }
+                    onSelect={(addr) =>
+                      setAddress((old) => ({ ...old, ...addr }))
+                    }
+                    placeholder="เลือกตำบล/แขวง"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    รหัสไปรษณีย์
+                  </label>
+                  <InputThaiAddress.Zipcode
+                    value={address.zipcode}
+                    onChange={handleChange("zipcode")}
+                    onSelect={handleSelect}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#ea7f33] focus:ring focus:ring-[#ea7f33]/50"
+                    placeholder="รหัสไปรษณีย์"
+                  />
+                </div>
               </div>
 
-              {/* ปุ่มดำเนินการต่อ */}
               <div className="flex justify-end mt-4">
                 <button
                   onClick={handleProceed}
@@ -265,7 +256,7 @@ export default function ServicePage() {
                 </button>
               </div>
 
-              {/* ข้อมูลรถ */}
+              {/* Vehicle Info */}
               <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm space-y-4">
                 <h3 className="text-xl font-bold text-[#ea7f33]">
                   ข้อมูลรถคันนี้
@@ -276,33 +267,31 @@ export default function ServicePage() {
                     variant="outlined"
                     value={vehicle.plate}
                     onChange={(e) =>
-                      setVehicle({ ...vehicle, plate: e.target.value })
+                      setVehicle((old) => ({ ...old, plate: e.target.value }))
                     }
                   />
-
-                  <Autocomplete
-                    disablePortal
-                    options={Object.keys(locationData)}
+                  <TextField
+                    label="จังหวัด (ป้ายทะเบียน)"
+                    variant="outlined"
                     value={vehicle.province}
-                    onChange={(e, newValue) =>
-                      setVehicle({ ...vehicle, province: newValue })
+                    onChange={(e) =>
+                      setVehicle((old) => ({
+                        ...old,
+                        province: e.target.value,
+                      }))
                     }
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="จังหวัด"
-                        variant="outlined"
-                      />
-                    )}
                   />
-
                   <Autocomplete
                     disablePortal
                     options={Object.keys(carBrands)}
                     value={vehicle.brand}
-                    onChange={(e, newValue) => {
-                      setVehicle({ ...vehicle, brand: newValue, model: null });
-                    }}
+                    onChange={(e, newV) =>
+                      setVehicle((old) => ({
+                        ...old,
+                        brand: newV,
+                        model: null,
+                      }))
+                    }
                     renderInput={(params) => (
                       <TextField
                         {...params}
@@ -311,13 +300,12 @@ export default function ServicePage() {
                       />
                     )}
                   />
-
                   <Autocomplete
                     disablePortal
                     options={vehicle.brand ? carBrands[vehicle.brand] : []}
                     value={vehicle.model}
-                    onChange={(e, newValue) =>
-                      setVehicle({ ...vehicle, model: newValue })
+                    onChange={(e, newV) =>
+                      setVehicle((old) => ({ ...old, model: newV }))
                     }
                     renderInput={(params) => (
                       <TextField
@@ -328,13 +316,12 @@ export default function ServicePage() {
                     )}
                     disabled={!vehicle.brand}
                   />
-
                   <Autocomplete
                     disablePortal
                     options={carColors}
                     value={vehicle.color}
-                    onChange={(e, newValue) =>
-                      setVehicle({ ...vehicle, color: newValue })
+                    onChange={(e, newV) =>
+                      setVehicle((old) => ({ ...old, color: newV }))
                     }
                     renderInput={(params) => (
                       <TextField {...params} label="สี" variant="outlined" />
@@ -343,10 +330,10 @@ export default function ServicePage() {
                 </div>
               </div>
 
-              {/* ปุ่มเลือกบริการ */}
+              {/* Services Buttons */}
               <div className="flex gap-4 mt-4">
                 <button
-                  onClick={() => setShowParkingForm(!showParkingForm)}
+                  onClick={() => setShowParkingForm((v) => !v)}
                   className={`flex-1 py-3 rounded-lg border-2 text-gray-800 font-semibold transition ${
                     showParkingForm
                       ? "border-[#ea7f33] bg-gray-50 shadow"
@@ -356,7 +343,7 @@ export default function ServicePage() {
                   🚗 เช่าที่จอด
                 </button>
                 <button
-                  onClick={() => setShowAdditionalForm(!showAdditionalForm)}
+                  onClick={() => setShowAdditionalForm((v) => !v)}
                   className={`flex-1 py-3 rounded-lg border-2 text-gray-800 font-semibold transition ${
                     showAdditionalForm
                       ? "border-[#ea7f33] bg-gray-50 shadow"
@@ -383,13 +370,12 @@ export default function ServicePage() {
                       label="วันที่/เวลาออก (optional)"
                       type="datetime-local"
                       fullWidth
-                      InputLabelProps={{ shrink: true }} // ทำให้ label ไม่ทับกับค่า
+                      InputLabelProps={{ shrink: true }}
                     />
                   </div>
                 </div>
               )}
 
-              {/* ฟอร์มบริการเพิ่มเติม */}
               {showAdditionalForm && (
                 <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm mt-4 space-y-4">
                   <h3 className="text-xl font-bold text-[#ea7f33]">

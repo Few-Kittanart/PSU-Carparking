@@ -4,6 +4,8 @@ import Main from "./pages/Main";
 import ServicePage from "./pages/ServicePage";
 import ManageParking from "./pages/ManageParking";
 import ParkingDetail from "./pages/ParkingDetail";
+import ManageAdditional from "./pages/ManageAdditional";
+import AdditionalDetail from "./pages/AdditionalDetail";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -37,7 +39,9 @@ function App() {
   return (
     <Router>
       <Routes>
+        {/* หน้า Login */}
         <Route path="/" element={<Login />} />
+
         {/* หน้า Main ไม่มี Sidebar */}
         <Route
           path="/main"
@@ -55,9 +59,16 @@ function App() {
             <AppLayoutWithSidebar>
               <Routes>
                 <Route path="service" element={<ServicePage />} />
+
+                {/* เช่าที่จอด */}
                 <Route path="manage/parking" element={<ManageParking />} />
                 <Route path="manage/parking/:id" element={<ParkingDetail />} />
-                {/* เพิ่ม route อื่น ๆ */}
+
+                {/* บริการเพิ่มเติม */}
+                <Route path="manage/additional" element={<ManageAdditional />} />
+                <Route path="manage/additional/:id" element={<AdditionalDetail />} />
+
+                {/* ต่อไปสามารถเพิ่ม manage/combined, report ฯลฯ ได้ */}
               </Routes>
             </AppLayoutWithSidebar>
           }
