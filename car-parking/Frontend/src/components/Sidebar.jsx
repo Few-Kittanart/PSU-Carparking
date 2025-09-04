@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom"; // ✅ เพิ่ม import
 import {
   FaCar,
   FaTools,
@@ -10,8 +10,6 @@ import {
 
 export default function Sidebar() {
   const [openMenu, setOpenMenu] = useState({});
-  const [activePath, setActivePath] = useState("/service");
-  const navigate = useNavigate(); // ✅ ใช้ react-router แทน
 
   const toggleMenu = (key) => {
     setOpenMenu((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -26,7 +24,7 @@ export default function Sidebar() {
         {
           label: "การจัดการรถ",
           subMenu: [
-            { label: "เช่าที่จอด", path: "/manage/parking" },
+            { label: "เช่าที่จอด", path: "/manage/parking" }, // ✅ เชื่อมไป ManageParking.jsx
             { label: "บริการเพิ่มเติม", path: "/manage/additional" },
             {
               label: "เช่าที่จอด + บริการเพิ่มเติม",
@@ -66,44 +64,47 @@ export default function Sidebar() {
     },
   ];
 
+  // ✅ ปรับ renderMenu ให้ใช้ <Link> ถ้ามี path
   const renderMenu = (items, level = 0) =>
     items.map((item, index) => (
       <div key={index} className="mt-1">
-        <div
-          onClick={() => {
-            if (item.subMenu) {
-              toggleMenu(item.label);
-            } else if (item.path) {
-              setActivePath(item.path);
-              navigate(item.path); // ✅ ใช้ navigate
-            }
-          }}
-          className={`flex items-center cursor-pointer px-3 py-2 rounded-lg transition-colors ${
-            activePath === item.path
-              ? "bg-orange-100 text-orange-600 font-semibold"
-              : "text-gray-700 hover:bg-gray-100"
-          }`}
-        >
-          {item.icon && <span className="mr-3 text-gray-600">{item.icon}</span>}
-          <span
-            className={`text-sm ${
-              level === 0 ? "font-medium" : "font-normal ml-1"
-            }`}
+        {item.path ? (
+          <Link
+            to={item.path}
+            className="flex items-center cursor-pointer px-3 py-2 rounded-lg transition-colors hover:bg-orange-100"
           >
-            {item.label}
-          </span>
-          {item.subMenu && (
-            <span className="ml-auto text-gray-500 text-xs">
-              {openMenu[item.label] ? "▾" : "▸"}
+            <span className="mr-3 text-gray-600">{item.icon}</span>
+            <span
+              className={`font-medium text-gray-700 text-sm ${
+                level > 0 ? "ml-2" : ""
+              }`}
+            >
+              {item.label}
             </span>
-          )}
-        </div>
-        {item.subMenu && openMenu[item.label] && (
+          </Link>
+        ) : (
           <div
-            className={`ml-4 border-l border-gray-200 pl-3 mt-1 space-y-1 ${
-              level === 0 ? "ml-2" : ""
-            }`}
+            onClick={() => item.subMenu && toggleMenu(item.label)}
+            className="flex items-center cursor-pointer px-3 py-2 rounded-lg transition-colors hover:bg-orange-50"
           >
+            <span className="mr-3 text-gray-600">{item.icon}</span>
+            <span
+              className={`font-medium text-gray-700 text-sm ${
+                level > 0 ? "ml-2" : ""
+              }`}
+            >
+              {item.label}
+            </span>
+            {item.subMenu && (
+              <span className="ml-auto text-gray-500 text-xs">
+                {openMenu[item.label] ? "▾" : "▸"}
+              </span>
+            )}
+          </div>
+        )}
+
+        {item.subMenu && openMenu[item.label] && (
+          <div className="ml-4 border-l border-gray-200 pl-3 mt-1 space-y-1">
             {renderMenu(item.subMenu, level + 1)}
           </div>
         )}
