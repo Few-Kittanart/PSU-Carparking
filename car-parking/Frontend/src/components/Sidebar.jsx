@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom"; // ✅ เพิ่ม import
 import {
   FaCar,
   FaTools,
@@ -23,9 +24,12 @@ export default function Sidebar() {
         {
           label: "การจัดการรถ",
           subMenu: [
-            { label: "เช่าที่จอด", path: "/manage/parking" },
+            { label: "เช่าที่จอด", path: "/manage/parking" }, // ✅ เชื่อมไป ManageParking.jsx
             { label: "บริการเพิ่มเติม", path: "/manage/additional" },
-            { label: "เช่าที่จอด + บริการเพิ่มเติม", path: "/manage/parking-additional" },
+            {
+              label: "เช่าที่จอด + บริการเพิ่มเติม",
+              path: "/manage/parking-additional",
+            },
           ],
         },
         {
@@ -60,31 +64,45 @@ export default function Sidebar() {
     },
   ];
 
+  // ✅ ปรับ renderMenu ให้ใช้ <Link> ถ้ามี path
   const renderMenu = (items, level = 0) =>
     items.map((item, index) => (
-      <div key={index} className={`mt-1`}>
-        <div
-          onClick={() => item.subMenu && toggleMenu(item.label)}
-          className={`flex items-center cursor-pointer px-3 py-2 rounded-lg transition-colors ${
-            item.subMenu
-              ? "hover:bg-orange-50"
-              : "hover:bg-orange-100"
-          }`}
-        >
-          <span className="mr-3 text-gray-600">{item.icon}</span>
-          <span
-            className={`font-medium text-gray-700 text-sm ${
-              level > 0 ? "ml-2" : ""
-            }`}
+      <div key={index} className="mt-1">
+        {item.path ? (
+          <Link
+            to={item.path}
+            className="flex items-center cursor-pointer px-3 py-2 rounded-lg transition-colors hover:bg-orange-100"
           >
-            {item.label}
-          </span>
-          {item.subMenu && (
-            <span className="ml-auto text-gray-500 text-xs">
-              {openMenu[item.label] ? "▾" : "▸"}
+            <span className="mr-3 text-gray-600">{item.icon}</span>
+            <span
+              className={`font-medium text-gray-700 text-sm ${
+                level > 0 ? "ml-2" : ""
+              }`}
+            >
+              {item.label}
             </span>
-          )}
-        </div>
+          </Link>
+        ) : (
+          <div
+            onClick={() => item.subMenu && toggleMenu(item.label)}
+            className="flex items-center cursor-pointer px-3 py-2 rounded-lg transition-colors hover:bg-orange-50"
+          >
+            <span className="mr-3 text-gray-600">{item.icon}</span>
+            <span
+              className={`font-medium text-gray-700 text-sm ${
+                level > 0 ? "ml-2" : ""
+              }`}
+            >
+              {item.label}
+            </span>
+            {item.subMenu && (
+              <span className="ml-auto text-gray-500 text-xs">
+                {openMenu[item.label] ? "▾" : "▸"}
+              </span>
+            )}
+          </div>
+        )}
+
         {item.subMenu && openMenu[item.label] && (
           <div className="ml-4 border-l border-gray-200 pl-3 mt-1 space-y-1">
             {renderMenu(item.subMenu, level + 1)}
