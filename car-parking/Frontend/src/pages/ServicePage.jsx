@@ -106,31 +106,49 @@ export default function ServicePage() {
                 ข้อมูลลูกค้า
               </h2>
 
-              {/* ชื่อนามสกุล */}
+              {/* ชื่อนามสกุล (ตัวอักษรเท่านั้น) */}
               <TextField
                 fullWidth
                 label="ชื่อนามสกุล"
                 variant="outlined"
                 value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className="mb-4"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (/^[ก-ฮะ-์a-zA-Z\s]*$/.test(value)) {
+                    // ✅ ไทย/อังกฤษ เท่านั้น
+                    setCustomerName(value);
+                  }
+                }}
+                sx={{ mb: 2 }}
               />
 
-              {/* เบอร์โทรศัพท์ / รหัสลูกค้า */}
+              {/* เบอร์โทรศัพท์ (ตัวเลขเท่านั้น) / รหัสลูกค้า (อังกฤษ+ตัวเลข) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <TextField
                   fullWidth
                   label="เบอร์โทรศัพท์"
                   variant="outlined"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (/^\d*$/.test(value)) {
+                      // ✅ ตัวเลขเท่านั้น
+                      setPhone(value);
+                    }
+                  }}
                 />
                 <TextField
                   fullWidth
                   label="รหัสลูกค้า"
                   variant="outlined"
                   value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (/^[A-Za-z0-9]*$/.test(value)) {
+                      // ✅ อังกฤษ + ตัวเลข เท่านั้น
+                      setCustomerId(value);
+                    }
+                  }}
                 />
               </div>
 

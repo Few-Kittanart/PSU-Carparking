@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FaCar,
   FaTools,
@@ -9,6 +10,8 @@ import {
 
 export default function Sidebar() {
   const [openMenu, setOpenMenu] = useState({});
+  const [activePath, setActivePath] = useState("/service");
+  const navigate = useNavigate(); // ✅ ใช้ react-router แทน
 
   const toggleMenu = (key) => {
     setOpenMenu((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -25,7 +28,10 @@ export default function Sidebar() {
           subMenu: [
             { label: "เช่าที่จอด", path: "/manage/parking" },
             { label: "บริการเพิ่มเติม", path: "/manage/additional" },
-            { label: "เช่าที่จอด + บริการเพิ่มเติม", path: "/manage/parking-additional" },
+            {
+              label: "เช่าที่จอด + บริการเพิ่มเติม",
+              path: "/manage/parking-additional",
+            },
           ],
         },
         {
@@ -62,19 +68,26 @@ export default function Sidebar() {
 
   const renderMenu = (items, level = 0) =>
     items.map((item, index) => (
-      <div key={index} className={`mt-1`}>
+      <div key={index} className="mt-1">
         <div
-          onClick={() => item.subMenu && toggleMenu(item.label)}
+          onClick={() => {
+            if (item.subMenu) {
+              toggleMenu(item.label);
+            } else if (item.path) {
+              setActivePath(item.path);
+              navigate(item.path); // ✅ ใช้ navigate
+            }
+          }}
           className={`flex items-center cursor-pointer px-3 py-2 rounded-lg transition-colors ${
-            item.subMenu
-              ? "hover:bg-orange-50"
-              : "hover:bg-orange-100"
+            activePath === item.path
+              ? "bg-orange-100 text-orange-600 font-semibold"
+              : "text-gray-700 hover:bg-gray-100"
           }`}
         >
-          <span className="mr-3 text-gray-600">{item.icon}</span>
+          {item.icon && <span className="mr-3 text-gray-600">{item.icon}</span>}
           <span
-            className={`font-medium text-gray-700 text-sm ${
-              level > 0 ? "ml-2" : ""
+            className={`text-sm ${
+              level === 0 ? "font-medium" : "font-normal ml-1"
             }`}
           >
             {item.label}
@@ -86,7 +99,11 @@ export default function Sidebar() {
           )}
         </div>
         {item.subMenu && openMenu[item.label] && (
-          <div className="ml-4 border-l border-gray-200 pl-3 mt-1 space-y-1">
+          <div
+            className={`ml-4 border-l border-gray-200 pl-3 mt-1 space-y-1 ${
+              level === 0 ? "ml-2" : ""
+            }`}
+          >
             {renderMenu(item.subMenu, level + 1)}
           </div>
         )}
