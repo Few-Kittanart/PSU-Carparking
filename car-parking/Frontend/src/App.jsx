@@ -3,15 +3,14 @@ import Login from "./pages/Login";
 import Main from "./pages/Main";
 import ServicePage from "./pages/ServicePage";
 import ManageParking from "./pages/ManageParking";
+import ParkingDetail from "./pages/ParkingDetail"; 
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* หน้า login แบบเต็มจอ ไม่ต้องมี Sidebar */}
         <Route path="/" element={<Login />} />
-
-        {/* หน้าที่มี Sidebar */}
+        {/* ใส่Sidebar */}
         <Route
           path="/*"
           element={
@@ -20,7 +19,11 @@ function App() {
                 <Routes>
                   <Route path="main" element={<Main />} />
                   <Route path="service" element={<ServicePage />} />
-                  <Route path="manage/parking" element={<ManageParking />} />
+                  <Route path="/manage/parking" element={<ManageParking />} />
+                  <Route
+                    path="/manage/parking/:id"
+                    element={<ParkingDetail />}
+                  />
                   {/* สามารถเพิ่ม route อื่น ๆ เช่น manage/additional */}
                 </Routes>
               </div>

@@ -1,47 +1,50 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Button } from "@mui/material";
+import {
+  TextField,
+  Button,
+  Paper,
+  Grid,
+} from "@mui/material";
 
 export default function ParkingDetail() {
   const { id } = useParams();
+  const [detail, setDetail] = useState(null);
   const navigate = useNavigate();
 
-  // mock data (จริง ๆ ต้อง fetch จาก backend โดยใช้ id)
-  const booking = {
-    id: id,
-    dateIn: "2025-09-01 10:30",
-    dateOut: "2025-09-02 12:00",
-    plate: "กข 1234",
-    province: "กรุงเทพฯ",
-    brand: "Toyota",
-    customer: "สมชาย ใจดี",
-    phone: "0812345678",
-  };
+  useEffect(() => {
+    fetch(`http://localhost:3000/api/parking/${id}`)
+      .then((res) => res.json())
+      .then((data) => setDetail(data));
+  }, [id]);
+
+  if (!detail) return <div>Loading...</div>;
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
-      <h2 className="text-2xl font-bold text-[#ea7f33]">
-        รายละเอียดการเช่าที่จอด (ID: {booking.id})
-      </h2>
+    <div className="p-6 space-y-6">
+      <h2 className="text-2xl font-bold text-[#ea7f33]">รายละเอียดการบริการ {detail.id}</h2>
+      <Paper className="p-4 space-y-4">
+        <Grid container spacing={2}>
+          <Grid item xs={6}><TextField fullWidth label="รหัสลูกค้า" value={detail.customerId} InputProps={{ readOnly: true }} /></Grid>
+          <Grid item xs={6}><TextField fullWidth label="ชื่อลูกค้า" value={detail.customerName} InputProps={{ readOnly: true }} /></Grid>
+          <Grid item xs={6}><TextField fullWidth label="เบอร์โทรศัพท์" value={detail.phone} InputProps={{ readOnly: true }} /></Grid>
+          <Grid item xs={6}><TextField fullWidth label="ทะเบียนรถ" value={detail.plate} InputProps={{ readOnly: true }} /></Grid>
+          <Grid item xs={6}><TextField fullWidth label="จังหวัด" value={detail.province} InputProps={{ readOnly: true }} /></Grid>
+          <Grid item xs={6}><TextField fullWidth label="ยี่ห้อ" value={detail.brand} InputProps={{ readOnly: true }} /></Grid>
+          <Grid item xs={6}><TextField fullWidth label="สี" value={detail.color} InputProps={{ readOnly: true }} /></Grid>
+          <Grid item xs={6}><TextField fullWidth label="รุ่น/ประเภท" value={detail.model} InputProps={{ readOnly: true }} /></Grid>
+          <Grid item xs={6}><TextField fullWidth label="ลานจอดที่" value={detail.parkingLot} InputProps={{ readOnly: true }} /></Grid>
+          <Grid item xs={6}><TextField fullWidth label="ช่องจอดที่" value={detail.parkingSlot} InputProps={{ readOnly: true }} /></Grid>
+          <Grid item xs={6}><TextField fullWidth label="วันที่เข้า" value={detail.dateIn} InputProps={{ readOnly: true }} /></Grid>
+          <Grid item xs={6}><TextField fullWidth label="วันที่ออก" value={detail.dateOut} InputProps={{ readOnly: true }} /></Grid>
+          <Grid item xs={12}><TextField fullWidth label="หมายเหตุ" value={detail.note} InputProps={{ readOnly: true }} /></Grid>
+        </Grid>
 
-      <div className="bg-white shadow rounded-lg p-6 space-y-4 border">
-        <p><strong>วันที่เข้ารับบริการ:</strong> {booking.dateIn}</p>
-        <p><strong>วันที่รับรถ:</strong> {booking.dateOut}</p>
-        <p><strong>ทะเบียนรถ:</strong> {booking.plate}</p>
-        <p><strong>จังหวัด:</strong> {booking.province}</p>
-        <p><strong>ยี่ห้อ:</strong> {booking.brand}</p>
-        <p><strong>ชื่อลูกค้า:</strong> {booking.customer}</p>
-        <p><strong>เบอร์โทรศัพท์:</strong> {booking.phone}</p>
-      </div>
-
-      <div className="flex justify-between">
-        <Button variant="outlined" color="secondary" onClick={() => navigate(-1)}>
-          ← กลับ
-        </Button>
-        <Button variant="contained" color="warning">
-          พิมพ์ใบจองที่จอด
-        </Button>
-      </div>
+        <div className="flex gap-4 mt-4">
+          <Button variant="contained" color="success" onClick={() => alert("ไปหน้าชำระเงิน")}>ชำระเงิน</Button>
+          <Button variant="outlined" onClick={() => navigate(-1)}>กลับ</Button>
+        </div>
+      </Paper>
     </div>
   );
 }
