@@ -1,19 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import dayjs from "dayjs";
 import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
-import { CreateInput } from "thai-address-autocomplete-react";
-
-const InputThaiAddress = CreateInput(); // สร้าง component ของ ThaiAddress
-
-const carBrands = {
-  Toyota: ["Corolla", "Camry", "Hilux"],
-  Honda: ["Civic", "Accord", "CR-V"],
-  Ford: ["Focus", "Ranger", "Mustang"],
-};
 
 const carColors = ["ดำ", "ขาว", "เงิน", "แดง", "น้ำเงิน"];
-
 const additionalServices = [
   { id: 1, name: "ล้างรถ", price: 100 },
   { id: 2, name: "เช็ดภายใน", price: 50 },
@@ -31,9 +21,10 @@ export default function ServicePage() {
     houseNo: "",
     village: "",
     street: "",
-    subdistrict: "",
-    amphoe: "",
-    province: "",
+    district: null,
+    amphoe: null,
+    province: null,
+    country: "",
     zipcode: "",
   });
 
@@ -43,6 +34,7 @@ export default function ServicePage() {
     province: "",
     brand: null,
     model: null,
+    type: null,
     color: null,
   });
   const [showParkingForm, setShowParkingForm] = useState(false);
@@ -50,7 +42,52 @@ export default function ServicePage() {
   const [selectedServices, setSelectedServices] = useState([]);
   const [totalPrice, setTotalPrice] = useState(0);
 
+  // Thai Address
+  const [provinceList, setProvinceList] = useState([]);
+  const [amphoeList, setAmphoeList] = useState([]);
+  const [districtList, setDistrictList] = useState([]);
+
   const currentTime = dayjs().format("MMMM D, YYYY h:mm A");
+
+  // ===== Load Thai address JSON =====
+  useEffect(() => {
+    fetch(
+      "https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_province_with_amphure_tambon.json"
+    )
+      .then((res) => res.json())
+      .then((data) => setProvinceList(data))
+      .catch((err) => console.error(err));
+  }, []);
+
+  useEffect(() => {
+    if (address.province) {
+      setAmphoeList(address.province.amphure);
+      setAddress((old) => ({
+        ...old,
+        amphoe: null,
+        district: null,
+        zipcode: "",
+      }));
+      setDistrictList([]);
+    }
+  }, [address.province]);
+
+  useEffect(() => {
+    if (address.amphoe) {
+      setDistrictList(address.amphoe.tambon);
+      setAddress((old) => ({ ...old, district: null, zipcode: "" }));
+    }
+  }, [address.amphoe]);
+
+  useEffect(() => {
+    if (address.district) {
+      setAddress((old) => ({
+        ...old,
+        zipcode: address.district.zip_code,
+        country: "ประเทศไทย",
+      }));
+    }
+  }, [address.district]);
 
   const handleProceed = () => setCurrentStep(2);
   const handleBack = () => setCurrentStep(1);
@@ -80,24 +117,16 @@ export default function ServicePage() {
     });
   };
 
-  const handleChange = (scope) => (value) => {
-    setAddress((old) => ({ ...old, [scope]: value }));
-  };
-  const handleSelect = (addr) => {
-    setAddress((old) => ({ ...old, ...addr }));
-  };
-
   return (
     <div className="flex min-h-screen bg-gray-50">
       <div className="flex-1 flex flex-col">
         <main className="flex-1 p-6 sm:p-10">
-          {/* Step 1: Customer Info */}
+          {/* Step 1 */}
           {currentStep === 1 && (
             <div className="max-w-6xl mx-auto bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm space-y-6">
               <h2 className="text-2xl font-bold text-[#ea7f33]">
                 ข้อมูลลูกค้า
               </h2>
-
               <TextField
                 fullWidth
                 label="ชื่อนามสกุล"
@@ -109,7 +138,6 @@ export default function ServicePage() {
                 }}
                 sx={{ mb: 2 }}
               />
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <TextField
                   fullWidth
@@ -132,8 +160,7 @@ export default function ServicePage() {
                   }}
                 />
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <TextField
                   fullWidth
                   label="บ้านเลขที่"
@@ -152,6 +179,8 @@ export default function ServicePage() {
                     setAddress((old) => ({ ...old, village: e.target.value }))
                   }
                 />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <TextField
                   fullWidth
                   label="ถนน"
@@ -161,75 +190,62 @@ export default function ServicePage() {
                     setAddress((old) => ({ ...old, street: e.target.value }))
                   }
                 />
+                <Autocomplete
+                  options={provinceList}
+                  getOptionLabel={(option) => option.name_th}
+                  value={address.province}
+                  onChange={(e, newValue) =>
+                    setAddress((old) => ({ ...old, province: newValue }))
+                  }
+                  renderInput={(params) => (
+                    <TextField {...params} label="จังหวัด" variant="outlined" />
+                  )}
+                />
               </div>
-
-              {/* Thai Address Inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    จังหวัด
-                  </label>
-                  <InputThaiAddress.Province
-                    value={address.province}
-                    onChange={(v) =>
-                      setAddress((old) => ({ ...old, province: v }))
-                    }
-                    onSelect={(addr) =>
-                      setAddress((old) => ({ ...old, ...addr }))
-                    } // จะ update amphoe, district, zipcode อัตโนมัติ
-                    placeholder="เลือกจังหวัด"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    อำเภอ/เขต
-                  </label>
-                  <InputThaiAddress.Amphoe
-                    province={address.province}
-                    value={address.amphoe}
-                    onChange={(v) =>
-                      setAddress((old) => ({ ...old, amphoe: v }))
-                    }
-                    onSelect={(addr) =>
-                      setAddress((old) => ({ ...old, ...addr }))
-                    }
-                    placeholder="เลือกอำเภอ/เขต"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    ตำบล/แขวง
-                  </label>
-                  <InputThaiAddress.District
-                    province={address.province}
-                    amphoe={address.amphoe}
-                    value={address.subdistrict}
-                    onChange={(v) =>
-                      setAddress((old) => ({ ...old, subdistrict: v }))
-                    }
-                    onSelect={(addr) =>
-                      setAddress((old) => ({ ...old, ...addr }))
-                    }
-                    placeholder="เลือกตำบล/แขวง"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    รหัสไปรษณีย์
-                  </label>
-                  <InputThaiAddress.Zipcode
-                    value={address.zipcode}
-                    onChange={handleChange("zipcode")}
-                    onSelect={handleSelect}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#ea7f33] focus:ring focus:ring-[#ea7f33]/50"
-                    placeholder="รหัสไปรษณีย์"
-                  />
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <Autocomplete
+                  options={amphoeList}
+                  getOptionLabel={(option) => option.name_th}
+                  value={address.amphoe}
+                  onChange={(e, newValue) =>
+                    setAddress((old) => ({ ...old, amphoe: newValue }))
+                  }
+                  renderInput={(params) => (
+                    <TextField {...params} label="อำเภอ" variant="outlined" />
+                  )}
+                  disabled={!address.province}
+                />
+                <Autocomplete
+                  options={districtList}
+                  getOptionLabel={(option) => option.name_th}
+                  value={address.district}
+                  onChange={(e, newValue) =>
+                    setAddress((old) => ({ ...old, district: newValue }))
+                  }
+                  renderInput={(params) => (
+                    <TextField {...params} label="ตำบล" variant="outlined" />
+                  )}
+                  disabled={!address.amphoe}
+                />
               </div>
-
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <TextField
+                  fullWidth
+                  label="ประเทศ"
+                  variant="outlined"
+                  value={address.country || ""}
+                  onChange={(e) =>
+                    setAddress((old) => ({ ...old, country: e.target.value }))
+                  }
+                />
+                <TextField
+                  fullWidth
+                  label="รหัสไปรษณีย์"
+                  variant="outlined"
+                  value={address.zipcode}
+                  InputProps={{ readOnly: true }}
+                />
+              </div>
               <div className="flex justify-end mt-4">
                 <button
                   onClick={handleProceed}
@@ -241,7 +257,7 @@ export default function ServicePage() {
             </div>
           )}
 
-          {/* Step 2: Services */}
+          {/* Step 2 */}
           {currentStep === 2 && (
             <div className="max-w-6xl mx-auto space-y-6">
               <div className="flex justify-between items-center">
@@ -261,16 +277,20 @@ export default function ServicePage() {
                 <h3 className="text-xl font-bold text-[#ea7f33]">
                   ข้อมูลรถคันนี้
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <TextField
+                    fullWidth
                     label="ทะเบียนรถ"
                     variant="outlined"
                     value={vehicle.plate}
-                    onChange={(e) =>
-                      setVehicle((old) => ({ ...old, plate: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      const v = e.target.value.toUpperCase(); // แปลงเป็นตัวใหญ่
+                      setVehicle((old) => ({ ...old, plate: v }));
+                    }}
+                    placeholder="เช่น 1กข 1234"
                   />
                   <TextField
+                    fullWidth
                     label="จังหวัด (ป้ายทะเบียน)"
                     variant="outlined"
                     value={vehicle.province}
@@ -280,42 +300,42 @@ export default function ServicePage() {
                         province: e.target.value,
                       }))
                     }
+                    placeholder="เช่น กรุงเทพมหานคร"
                   />
-                  <Autocomplete
-                    disablePortal
-                    options={Object.keys(carBrands)}
-                    value={vehicle.brand}
-                    onChange={(e, newV) =>
-                      setVehicle((old) => ({
-                        ...old,
-                        brand: newV,
-                        model: null,
-                      }))
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <TextField
+                    fullWidth
+                    label="ยี่ห้อ"
+                    variant="outlined"
+                    value={vehicle.brand || ""}
+                    onChange={(e) =>
+                      setVehicle((old) => ({ ...old, brand: e.target.value }))
                     }
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="ยี่ห้อ"
-                        variant="outlined"
-                      />
-                    )}
+                    placeholder="เช่น Toyota"
                   />
-                  <Autocomplete
-                    disablePortal
-                    options={vehicle.brand ? carBrands[vehicle.brand] : []}
-                    value={vehicle.model}
-                    onChange={(e, newV) =>
-                      setVehicle((old) => ({ ...old, model: newV }))
+                  <TextField
+                    fullWidth
+                    label="รุ่น"
+                    variant="outlined"
+                    value={vehicle.model || ""}
+                    onChange={(e) =>
+                      setVehicle((old) => ({ ...old, model: e.target.value }))
                     }
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="รุ่น/ประเภท"
-                        variant="outlined"
-                      />
-                    )}
-                    disabled={!vehicle.brand}
+                    placeholder="เช่น Vios"
                   />
+                  <TextField
+                    fullWidth
+                    label="ประเภท"
+                    variant="outlined"
+                    value={vehicle.type || ""}
+                    onChange={(e) =>
+                      setVehicle((old) => ({ ...old, type: e.target.value }))
+                    }
+                    placeholder="เช่น Sedan"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
                   <Autocomplete
                     disablePortal
                     options={carColors}
@@ -324,13 +344,18 @@ export default function ServicePage() {
                       setVehicle((old) => ({ ...old, color: newV }))
                     }
                     renderInput={(params) => (
-                      <TextField {...params} label="สี" variant="outlined" />
+                      <TextField
+                        {...params}
+                        label="สี"
+                        variant="outlined"
+                        placeholder="เลือกสีรถ"
+                      />
                     )}
                   />
                 </div>
               </div>
 
-              {/* Services Buttons */}
+              {/* Services */}
               <div className="flex gap-4 mt-4">
                 <button
                   onClick={() => setShowParkingForm((v) => !v)}
