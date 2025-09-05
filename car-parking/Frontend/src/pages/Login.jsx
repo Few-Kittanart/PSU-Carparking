@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom"; // import useNavigate
+import axios from "axios";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -7,23 +8,26 @@ export default function Login() {
   const navigate = useNavigate(); // สร้าง navigate
 
   // ข้อมูล test account
-  const testAccounts = [
-    { username: "admin", password: "1234" },
-    { username: "user1", password: "abcd" }
-  ];
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // ตรวจสอบ account test
-    const user = testAccounts.find(
-      (acc) => acc.username === username && acc.password === password
-    );
+    try {
+      const response = await axios.post("http://localhost:5000/api/auth/login", {
+        username,
+        password,
+      });
 
-    if (user) {
+      // สมมติ backend ส่ง token กับข้อมูล user กลับมา
+      const { token, user } = response.data;
+
+      // เก็บ token ไว้ใน localStorage
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
       alert("ล็อกอินสำเร็จ!");
-      navigate("/main"); // เปลี่ยนหน้าไป /main
-    } else {
+      navigate("/main"); // เปลี่ยนหน้า
+    } catch (error) {
+      console.error(error);
       alert("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
     }
   };
