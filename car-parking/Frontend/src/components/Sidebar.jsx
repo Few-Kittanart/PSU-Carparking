@@ -21,7 +21,7 @@ export default function Sidebar() {
       label: "การจัดการ", icon: <FaTools />,
       subMenu: [
         {
-          label: "การจัดการรถ", path: "/manage/parking"  
+          label: "การจัดการรถ", path: "/manage"  
         },
         {
           label: "ลูกค้าสัมพันธ์",

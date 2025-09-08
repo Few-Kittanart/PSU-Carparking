@@ -16,7 +16,7 @@ import InfoIcon from "@mui/icons-material/Info";
 import { useNavigate } from "react-router-dom";
 
 // Service definitions to map IDs to names
-const PARKING_SERVICE_ID = 4;
+const PARKING_SERVICE_ID = 1;
 const serviceDefinitions = [
   { id: 1, name: "ล้างรถ" },
   { id: 2, name: "เช็ดภายใน" },
@@ -28,6 +28,19 @@ export default function ManagePage() {
   const [customerList, setCustomerList] = useState([]);
   const [activeTab, setActiveTab] = useState("all");
   const navigate = useNavigate();
+
+  useEffect(() => {
+  const token = localStorage.getItem("token");
+  fetch("http://localhost:5000/api/customers", {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      console.log("Data fetched from API:", data); // เพิ่มบรรทัดนี้เพื่อตรวจสอบ
+      setCustomerList(data);
+    })
+    .catch((err) => console.error(err));
+}, []);
 
   // Fetch all customer data
   useEffect(() => {

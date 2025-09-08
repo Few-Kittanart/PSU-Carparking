@@ -9,7 +9,7 @@ const additionalServices = [
   { id: 2, name: "เช็ดภายใน", price: 50 },
   { id: 3, name: "ตรวจสภาพ", price: 200 },
 ];
-const PARKING_SERVICE_ID = 4;
+const PARKING_SERVICE_ID = 1;
 const parkingSections = ["A", "B", "C", "D"];
 const parkingNumbers = Array.from({ length: 100 }, (_, i) => i + 1);
 
