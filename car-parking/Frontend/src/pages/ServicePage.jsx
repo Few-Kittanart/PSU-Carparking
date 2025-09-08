@@ -17,6 +17,7 @@ export default function ServicePage() {
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [customerId, setCustomerId] = useState("");
+  const [customerList, setCustomerList] = useState([]);
   const [address, setAddress] = useState({
     houseNo: "",
     village: "",
@@ -49,7 +50,7 @@ export default function ServicePage() {
 
   const currentTime = dayjs().format("MMMM D, YYYY h:mm A");
 
-  // ===== Load Thai address JSON =====
+  // Load Thai address JSON
   useEffect(() => {
     fetch(
       "https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_province_with_amphure_tambon.json"
@@ -59,6 +60,18 @@ export default function ServicePage() {
       .catch((err) => console.error(err));
   }, []);
 
+  // Load customer list
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    fetch("http://localhost:5000/api/customers", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setCustomerList(data))
+      .catch((err) => console.error(err));
+  }, []);
+
+  // Update amphoe/district list based on selection
   useEffect(() => {
     if (address.province) {
       setAmphoeList(address.province.amphure);
@@ -105,16 +118,98 @@ export default function ServicePage() {
     setTotalPrice(sum);
   };
 
-  const handleSave = () => {
-    alert("บันทึกข้อมูลสำเร็จ!");
-    console.log({
-      customerName,
-      phone,
-      customerId,
-      address,
-      vehicle,
-      selectedServices,
+  // Auto-fill customer info by name or phone
+  const handleSelectCustomer = (cust) => {
+    if (!cust) return;
+    setCustomerId(cust.customer_id);
+    setCustomerName(cust.customer_name);
+    setPhone(cust.phone_number);
+    setAddress({
+      houseNo: cust.house_number || "",
+      village: cust.village || "",
+      street: cust.road || "",
+      district: cust.district || null,
+      amphoe: cust.canton || null,
+      province: cust.province || null,
+      country: cust.country || "",
+      zipcode: cust.zip_code || "",
     });
+  };
+
+  // Clear all fields after save
+  const clearAll = () => {
+    setCustomerName("");
+    setPhone("");
+    setCustomerId("");
+    setAddress({
+      houseNo: "",
+      village: "",
+      street: "",
+      district: null,
+      amphoe: null,
+      province: null,
+      country: "",
+      zipcode: "",
+    });
+    setVehicle({
+      plate: "",
+      province: "",
+      brand: null,
+      model: null,
+      type: null,
+      color: null,
+    });
+    setSelectedServices([]);
+    setTotalPrice(0);
+    setShowParkingForm(false);
+    setShowAdditionalForm(false);
+  };
+
+  // Save service
+  const handleSave = async () => {
+    const payload = {
+      customer_id: customerId,
+      customer_name: customerName,
+      phone_number: phone,
+      house_number: address.houseNo,
+      village: address.village,
+      road: address.street,
+      canton: address.district || "",
+      district: address.amphoe || "",
+      province: address.province || "",
+      zip_code: address.zipcode,
+      country: address.country,
+      car_registration: vehicle.plate,
+      car_registration_province: vehicle.province,
+      brand_car: vehicle.brand,
+      type_car: vehicle.type,
+      color: vehicle.color,
+      services: selectedServices,
+      entry_time: currentTime,
+    };
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:5000/api/customers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("บันทึกข้อมูลสำเร็จ!");
+        console.log("Saved:", data);
+        clearAll();
+      } else {
+        alert("ผิดพลาด: " + data.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("เกิดข้อผิดพลาดที่ frontend");
+    }
   };
 
   return (
@@ -127,39 +222,60 @@ export default function ServicePage() {
               <h2 className="text-2xl font-bold text-[#ea7f33]">
                 ข้อมูลลูกค้า
               </h2>
-              <TextField
-                fullWidth
-                label="ชื่อนามสกุล"
-                variant="outlined"
-                value={customerName}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (/^[ก-ฮะ-์a-zA-Z\s]*$/.test(v)) setCustomerName(v);
-                }}
-                sx={{ mb: 2 }}
-              />
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <TextField
-                  fullWidth
-                  label="เบอร์โทรศัพท์"
-                  variant="outlined"
-                  value={phone}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (/^\d*$/.test(v)) setPhone(v);
-                  }}
+                {/* Autocomplete by Name */}
+                <Autocomplete
+                  options={customerList}
+                  getOptionLabel={(option) => option.customer_name || ""}
+                  value={
+                    customerName
+                      ? customerList.find((c) => c.customer_name === customerName)
+                      : null
+                  }
+                  onChange={(e, newValue) => handleSelectCustomer(newValue)}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="ชื่อนามสกุล"
+                      variant="outlined"
+                      onChange={(e) => setCustomerName(e.target.value)}
+                    />
+                  )}
                 />
-                <TextField
-                  fullWidth
-                  label="รหัสลูกค้า"
-                  variant="outlined"
-                  value={customerId}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (/^[A-Za-z0-9]*$/.test(v)) setCustomerId(v);
-                  }}
+
+                {/* Autocomplete by Phone */}
+                <Autocomplete
+                  options={customerList}
+                  getOptionLabel={(option) => option.phone_number || ""}
+                  value={
+                    phone
+                      ? customerList.find((c) => c.phone_number === phone)
+                      : null
+                  }
+                  onChange={(e, newValue) => handleSelectCustomer(newValue)}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="เบอร์โทรศัพท์"
+                      variant="outlined"
+                      onChange={(e) => setPhone(e.target.value)}
+                    />
+                  )}
                 />
               </div>
+
+              {/* Customer ID */}
+              <TextField
+                fullWidth
+                label="รหัสลูกค้า"
+                variant="outlined"
+                value={customerId}
+                InputProps={{ readOnly: true }}
+                sx={{ mb: 2 }}
+              />
+
+              {/* Address Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <TextField
                   fullWidth
@@ -180,6 +296,7 @@ export default function ServicePage() {
                   }
                 />
               </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <TextField
                   fullWidth
@@ -202,6 +319,7 @@ export default function ServicePage() {
                   )}
                 />
               </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <Autocomplete
                   options={amphoeList}
@@ -228,6 +346,7 @@ export default function ServicePage() {
                   disabled={!address.amphoe}
                 />
               </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <TextField
                   fullWidth
@@ -246,6 +365,7 @@ export default function ServicePage() {
                   InputProps={{ readOnly: true }}
                 />
               </div>
+
               <div className="flex justify-end mt-4">
                 <button
                   onClick={handleProceed}
@@ -283,10 +403,9 @@ export default function ServicePage() {
                     label="ทะเบียนรถ"
                     variant="outlined"
                     value={vehicle.plate}
-                    onChange={(e) => {
-                      const v = e.target.value.toUpperCase(); // แปลงเป็นตัวใหญ่
-                      setVehicle((old) => ({ ...old, plate: v }));
-                    }}
+                    onChange={(e) =>
+                      setVehicle((old) => ({ ...old, plate: e.target.value.toUpperCase() }))
+                    }
                     placeholder="เช่น 1กข 1234"
                   />
                   <TextField
@@ -295,10 +414,7 @@ export default function ServicePage() {
                     variant="outlined"
                     value={vehicle.province}
                     onChange={(e) =>
-                      setVehicle((old) => ({
-                        ...old,
-                        province: e.target.value,
-                      }))
+                      setVehicle((old) => ({ ...old, province: e.target.value }))
                     }
                     placeholder="เช่น กรุงเทพมหานคร"
                   />
@@ -381,9 +497,7 @@ export default function ServicePage() {
 
               {showParkingForm && (
                 <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm mt-4 space-y-4">
-                  <h3 className="text-xl font-bold text-[#ea7f33]">
-                    เช่าที่จอด
-                  </h3>
+                  <h3 className="text-xl font-bold text-[#ea7f33]">เช่าที่จอด</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <TextField
                       label="วันที่/เวลาเข้า"
@@ -403,9 +517,7 @@ export default function ServicePage() {
 
               {showAdditionalForm && (
                 <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm mt-4 space-y-4">
-                  <h3 className="text-xl font-bold text-[#ea7f33]">
-                    บริการเพิ่มเติม
-                  </h3>
+                  <h3 className="text-xl font-bold text-[#ea7f33]">บริการเพิ่มเติม</h3>
                   {additionalServices.map((s) => (
                     <label
                       key={s.id}
