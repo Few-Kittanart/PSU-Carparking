@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
+const AutoIncrement = require('mongoose-sequence')(mongoose);
 
 const customerSchema = new mongoose.Schema({
-  customer_id: { type: Number, unique: true, required: true }, // รหัสลูกค้า
   customer_name: { type: String, required: true }, // ชื่อ-นามสกุล
   phone_number: { type: String, required: true }, // เบอร์โทรศัพท์
   house_number: { type: String }, // บ้านเลขที่
@@ -18,5 +18,8 @@ const customerSchema = new mongoose.Schema({
   type_car: { type: String }, // รุ่น/ประเภท
   color: { type: String } // สี
 });
+
+// ให้ customer_id รันอัตโนมัติ
+customerSchema.plugin(AutoIncrement, { inc_field: 'customer_id' });
 
 module.exports = mongoose.model('Customer', customerSchema);
