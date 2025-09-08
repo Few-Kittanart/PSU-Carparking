@@ -1,10 +1,10 @@
+// customer.controller.js
 const Customer = require("../models/customer.model");
 const Counter = require("../models/counter.model");
 
 // สร้างลูกค้าใหม่
 exports.createCustomer = async (req, res) => {
   try {
-    // เพิ่ม counter ของ customer_id
     const counter = await Counter.findByIdAndUpdate(
       { _id: "customer_id" },
       { $inc: { seq: 1 } },
@@ -12,7 +12,7 @@ exports.createCustomer = async (req, res) => {
     );
 
     const newCustomer = new Customer({
-      customer_id: counter.seq, // ใช้เลขจาก counter
+      customer_id: counter.seq,
       customer_name: req.body.customer_name,
       phone_number: req.body.phone_number,
       house_number: req.body.house_number,
@@ -28,6 +28,10 @@ exports.createCustomer = async (req, res) => {
       brand_car: req.body.brand_car,
       type_car: req.body.type_car,
       color: req.body.color,
+      services: req.body.services,
+      entry_time: req.body.entry_time,
+      exit_time: req.body.exit_time,
+      parking_slot: req.body.parking_slot, // <-- เพิ่มบรรทัดนี้
     });
 
     const saved = await newCustomer.save();
@@ -53,8 +57,7 @@ exports.getCustomers = async (req, res) => {
 exports.getCustomerById = async (req, res) => {
   try {
     const customer = await Customer.findOne({ customer_id: req.params.id });
-    if (!customer)
-      return res.status(404).json({ message: "Customer not found" });
+    if (!customer) return res.status(404).json({ message: "Customer not found" });
     res.json(customer);
   } catch (err) {
     console.error(err);
@@ -70,8 +73,7 @@ exports.updateCustomer = async (req, res) => {
       req.body,
       { new: true }
     );
-    if (!updated)
-      return res.status(404).json({ message: "Customer not found" });
+    if (!updated) return res.status(404).json({ message: "Customer not found" });
     res.json(updated);
   } catch (err) {
     console.error(err);
@@ -82,12 +84,9 @@ exports.updateCustomer = async (req, res) => {
 // ลบลูกค้า
 exports.deleteCustomer = async (req, res) => {
   try {
-    const deleted = await Customer.findOneAndDelete({
-      customer_id: req.params.id,
-    });
-    if (!deleted)
-      return res.status(404).json({ message: "Customer not found" });
-    res.json({ message: "Customer deleted" });
+    const deleted = await Customer.findOneAndDelete({ customer_id: req.params.id });
+    if (!deleted) return res.status(404).json({ message: "Customer not found" });
+    res.json({ message: "Customer deleted successfully" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Internal Server Error" });

@@ -9,6 +9,9 @@ const additionalServices = [
   { id: 2, name: "เช็ดภายใน", price: 50 },
   { id: 3, name: "ตรวจสภาพ", price: 200 },
 ];
+const PARKING_SERVICE_ID = 4;
+const parkingSections = ["A", "B", "C", "D"];
+const parkingNumbers = Array.from({ length: 100 }, (_, i) => i + 1);
 
 export default function ServicePage() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -42,6 +45,10 @@ export default function ServicePage() {
   const [showAdditionalForm, setShowAdditionalForm] = useState(false);
   const [selectedServices, setSelectedServices] = useState([]);
   const [totalPrice, setTotalPrice] = useState(0);
+  const [exitTime, setExitTime] = useState("");
+  const [selectedParkingSlot, setSelectedParkingSlot] = useState(null);
+  const [occupiedSlots, setOccupiedSlots] = useState(new Set());
+  const [selectedSection, setSelectedSection] = useState("A");
 
   // Thai Address
   const [provinceList, setProvinceList] = useState([]);
@@ -70,14 +77,22 @@ export default function ServicePage() {
     fetchAddressData();
   }, []);
 
-  // Load customer list
+  // Load customer list and occupied parking slots
   useEffect(() => {
     const token = localStorage.getItem("token");
     fetch("http://localhost:5000/api/customers", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
-      .then((data) => setCustomerList(data))
+      .then((data) => {
+        setCustomerList(data);
+        const occupied = new Set(
+          data
+            .filter((c) => c.services?.includes(PARKING_SERVICE_ID) && c.parking_slot)
+            .map((c) => c.parking_slot)
+        );
+        setOccupiedSlots(occupied);
+      })
       .catch((err) => console.error(err));
   }, []);
 
@@ -114,39 +129,29 @@ export default function ServicePage() {
       : [...selectedServices, id];
     setSelectedServices(updated);
     const sum = updated.reduce((acc, sid) => {
-      const s = additionalServices.find((srv) => srv.id === sid);
+      const s = additionalServices.find((srv) => srv.id === sid); // <-- แก้ไขตรงนี้
       return acc + (s ? s.price : 0);
     }, 0);
     setTotalPrice(sum);
   };
 
-  // Auto-fill customer info by name or phone
   const handleSelectCustomer = (cust) => {
     if (!cust) return;
     setCustomerId(cust.customer_id);
     setCustomerName(cust.customer_name);
     setPhone(cust.phone_number);
 
-    // Find corresponding address objects from the full lists
     const foundProvince = provinceList.find(p => p.name_th === cust.province) || null;
     let foundAmphoe = null;
     let foundDistrict = null;
 
     if (foundProvince) {
-      // ใช้ .toLowerCase().trim() เพื่อเปรียบเทียบแบบไม่สนใจตัวพิมพ์และช่องว่าง
       foundAmphoe = foundProvince.amphure.find(a => a.name_th.toLowerCase().trim() === cust.district.toLowerCase().trim()) || null;
       if (foundAmphoe) {
-        // ใช้ .toLowerCase().trim() เพื่อเปรียบเทียบแบบไม่สนใจตัวพิมพ์และช่องว่าง
         foundDistrict = foundAmphoe.tambon.find(t => t.name_th.toLowerCase().trim() === cust.canton.toLowerCase().trim()) || null;
       }
     }
 
-    // DEBUG: Log the results to see if they are found
-    console.log("Found Province:", foundProvince ? foundProvince.name_th : "Not Found");
-    console.log("Found Amphoe:", foundAmphoe ? foundAmphoe.name_th : "Not Found");
-    console.log("Found District:", foundDistrict ? foundDistrict.name_th : "Not Found");
-
-    // เพิ่มการอัปเดต AmphoeList และ DistrictList ที่นี่
     setAmphoeList(foundProvince ? foundProvince.amphure : []);
     setDistrictList(foundAmphoe ? foundAmphoe.tambon : []);
 
@@ -171,7 +176,6 @@ export default function ServicePage() {
     });
   };
 
-  // Clear all fields after save
   const clearAll = () => {
     setCustomerName("");
     setPhone("");
@@ -198,14 +202,19 @@ export default function ServicePage() {
     setTotalPrice(0);
     setShowParkingForm(false);
     setShowAdditionalForm(false);
+    setExitTime("");
+    setSelectedParkingSlot(null);
   };
 
-  // Save service
   const handleSave = async () => {
-    // เพิ่มการตรวจสอบข้อมูลที่สำคัญก่อนส่ง
     if (!customerName || !phone) {
         alert("โปรดกรอกชื่อ-นามสกุลและเบอร์โทรศัพท์ให้ครบถ้วน");
-        return; // หยุดการทำงานของฟังก์ชันทันที
+        return;
+    }
+
+    if (showParkingForm && !selectedParkingSlot) {
+        alert("โปรดเลือกช่องจอดรถ");
+        return;
     }
 
     const payload = {
@@ -226,6 +235,8 @@ export default function ServicePage() {
         color: vehicle.color,
         services: selectedServices,
         entry_time: currentTime,
+        exit_time: exitTime,
+        parking_slot: selectedParkingSlot,
     };
 
     let res;
@@ -233,11 +244,9 @@ export default function ServicePage() {
     let method;
 
     if (customerId) {
-        // อัปเดตข้อมูลลูกค้าเดิม
         url = `http://localhost:5000/api/customers/${customerId}`;
         method = "PUT";
     } else {
-        // สร้างลูกค้าใหม่
         url = "http://localhost:5000/api/customers";
         method = "POST";
     }
@@ -292,10 +301,7 @@ export default function ServicePage() {
                       {...params}
                       label="ชื่อนามสกุล"
                       variant="outlined"
-                      onChange={(e) => {
-                          setCustomerName(e.target.value);
-                          if (!e.target.value) clearAll();
-                      }}
+                      onChange={(e) => setCustomerName(e.target.value)} // <-- แก้ไขตรงนี้
                     />
                   )}
                 />
@@ -313,10 +319,7 @@ export default function ServicePage() {
                       {...params}
                       label="เบอร์โทรศัพท์"
                       variant="outlined"
-                      onChange={(e) => {
-                          setPhone(e.target.value);
-                          if (!e.target.value) clearAll();
-                      }}
+                      onChange={(e) => setPhone(e.target.value)} // <-- แก้ไขตรงนี้
                     />
                   )}
                 />
@@ -585,8 +588,61 @@ export default function ServicePage() {
                       type="datetime-local"
                       fullWidth
                       InputLabelProps={{ shrink: true }}
+                      value={exitTime}
+                      onChange={(e) => setExitTime(e.target.value)}
                     />
                   </div>
+                  
+                  {/* Parking Slot Selection with Tabs */}
+                  <div className="mt-6">
+                    <h4 className="text-lg font-semibold mb-2">เลือกช่องจอดรถ:</h4>
+                    <div className="flex gap-2 mb-4">
+                        {parkingSections.map(section => (
+                            <button
+                                key={section}
+                                className={`px-6 py-2 rounded-lg font-bold transition-colors ${
+                                    selectedSection === section
+                                        ? "bg-[#ea7f33] text-white shadow-md"
+                                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                }`}
+                                onClick={() => setSelectedSection(section)}
+                            >
+                                โซน {section}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Parking Slots Grid for the selected section */}
+                    <div className="border border-gray-300 rounded-lg p-4">
+                        <div className="grid grid-cols-10 sm:grid-cols-10 md:grid-cols-12 lg:grid-cols-15 xl:grid-cols-20 gap-2">
+                            {parkingNumbers.map(number => {
+                                const slotId = `${selectedSection}-${number}`;
+                                const isOccupied = occupiedSlots.has(slotId);
+                                const isSelected = selectedParkingSlot === slotId;
+                                const slotColor = isOccupied ? 'bg-red-500' : 'bg-green-500';
+                                const hoverColor = isOccupied ? 'bg-red-500' : 'hover:bg-green-600';
+                                const selectedStyle = isSelected ? 'ring-2 ring-offset-2 ring-[#ea7f33]' : '';
+                                
+                                return (
+                                    <button
+                                        key={slotId}
+                                        className={`p-2 rounded-md text-white font-bold transition-colors ${slotColor} ${hoverColor} ${selectedStyle}`}
+                                        disabled={isOccupied}
+                                        onClick={() => setSelectedParkingSlot(slotId)}
+                                    >
+                                        {slotId}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                  </div>
+
+                  {selectedParkingSlot && (
+                    <div className="mt-4 text-center text-lg font-semibold text-gray-800">
+                        คุณได้เลือกช่องจอด: <span className="text-[#ea7f33]">{selectedParkingSlot}</span>
+                    </div>
+                  )}
                 </div>
               )}
 

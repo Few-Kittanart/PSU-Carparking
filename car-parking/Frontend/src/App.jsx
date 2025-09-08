@@ -2,10 +2,8 @@ import { HashRouter as Router, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Main from "./pages/Main";
 import ServicePage from "./pages/ServicePage";
-import ManageParking from "./pages/ManageParking";
-import ParkingDetail from "./pages/ParkingDetail";
-import ManageAdditional from "./pages/ManageAdditional";
-import AdditionalDetail from "./pages/AdditionalDetail";
+import ManagePage from "./pages/ManagePage"; // แก้ไขจาก ManageParking
+import DetailPage from "./pages/DetailPage"; // แก้ไขจาก ParkingDetail
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -60,15 +58,10 @@ function App() {
               <Routes>
                 <Route path="service" element={<ServicePage />} />
 
-                {/* เช่าที่จอด */}
-                <Route path="manage/parking" element={<ManageParking />} />
-                <Route path="manage/parking/:id" element={<ParkingDetail />} />
-
-                {/* บริการเพิ่มเติม */}
-                <Route path="manage/additional" element={<ManageAdditional />} />
-                <Route path="manage/additional/:id" element={<AdditionalDetail />} />
-
-                {/* ต่อไปสามารถเพิ่ม manage/combined, report ฯลฯ ได้ */}
+                {/* หน้าจัดการรวมทุกบริการ */}
+                <Route path="manage" element={<ManagePage />} />
+                {/* หน้าแสดงรายละเอียดลูกค้า (ใช้ ID ใน URL) */}
+                <Route path="manage/details/:id" element={<DetailPage />} />
               </Routes>
             </AppLayoutWithSidebar>
           }
