@@ -50,14 +50,24 @@ export default function ServicePage() {
 
   const currentTime = dayjs().format("MMMM D, YYYY h:mm A");
 
-  // Load Thai address JSON
+  // Load Thai address JSON from public API and handle errors gracefully
   useEffect(() => {
-    fetch(
-      "https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_province_with_amphure_tambon.json"
-    )
-      .then((res) => res.json())
-      .then((data) => setProvinceList(data))
-      .catch((err) => console.error(err));
+    const fetchAddressData = async () => {
+      try {
+        const res = await fetch(
+          "https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_province_with_amphure_tambon.json"
+        );
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const data = await res.json();
+        setProvinceList(data);
+      } catch (err) {
+        console.error("Error fetching address data:", err);
+        alert("ไม่สามารถดึงข้อมูลจังหวัด อำเภอ ตำบลได้ โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ต");
+      }
+    };
+    fetchAddressData();
   }, []);
 
   // Load customer list
@@ -124,15 +134,37 @@ export default function ServicePage() {
     setCustomerId(cust.customer_id);
     setCustomerName(cust.customer_name);
     setPhone(cust.phone_number);
+
+    // Find corresponding address objects from the full lists
+    const foundProvince = provinceList.find(p => p.name_th === cust.province) || null;
+    let foundAmphoe = null;
+    let foundDistrict = null;
+
+    if (foundProvince) {
+      foundAmphoe = foundProvince.amphure.find(a => a.name_th === cust.district) || null;
+      if (foundAmphoe) {
+        foundDistrict = foundAmphoe.tambon.find(t => t.name_th === cust.canton) || null;
+      }
+    }
+
     setAddress({
       houseNo: cust.house_number || "",
       village: cust.village || "",
       street: cust.road || "",
-      district: cust.district || null,
-      amphoe: cust.canton || null,
-      province: cust.province || null,
+      district: foundDistrict,
+      amphoe: foundAmphoe,
+      province: foundProvince,
       country: cust.country || "",
       zipcode: cust.zip_code || "",
+    });
+
+    setVehicle({
+        plate: cust.car_registration || "",
+        province: cust.car_registration_province || "",
+        brand: cust.brand_car || null,
+        model: cust.type_car || null,
+        type: null,
+        color: cust.color || null,
     });
   };
 
@@ -167,48 +199,68 @@ export default function ServicePage() {
 
   // Save service
   const handleSave = async () => {
+    // เพิ่มการตรวจสอบข้อมูลที่สำคัญก่อนส่ง
+    if (!customerName || !phone) {
+        alert("โปรดกรอกชื่อ-นามสกุลและเบอร์โทรศัพท์ให้ครบถ้วน");
+        return; // หยุดการทำงานของฟังก์ชันทันที
+    }
+
     const payload = {
-      customer_id: customerId,
-      customer_name: customerName,
-      phone_number: phone,
-      house_number: address.houseNo,
-      village: address.village,
-      road: address.street,
-      canton: address.district || "",
-      district: address.amphoe || "",
-      province: address.province || "",
-      zip_code: address.zipcode,
-      country: address.country,
-      car_registration: vehicle.plate,
-      car_registration_province: vehicle.province,
-      brand_car: vehicle.brand,
-      type_car: vehicle.type,
-      color: vehicle.color,
-      services: selectedServices,
-      entry_time: currentTime,
+        customer_name: customerName,
+        phone_number: phone,
+        house_number: address.houseNo,
+        village: address.village,
+        road: address.street,
+        canton: address.district ? address.district.name_th : "",
+        district: address.amphoe ? address.amphoe.name_th : "",
+        province: address.province ? address.province.name_th : "",
+        zip_code: address.zipcode,
+        country: address.country,
+        car_registration: vehicle.plate,
+        car_registration_province: vehicle.province,
+        brand_car: vehicle.brand,
+        type_car: vehicle.model,
+        color: vehicle.color,
+        services: selectedServices,
+        entry_time: currentTime,
     };
 
+    let res;
+    let url;
+    let method;
+
+    if (customerId) {
+        // อัปเดตข้อมูลลูกค้าเดิม
+        url = `http://localhost:5000/api/customers/${customerId}`;
+        method = "PUT";
+    } else {
+        // สร้างลูกค้าใหม่
+        url = "http://localhost:5000/api/customers";
+        method = "POST";
+    }
+
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:5000/api/customers", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert("บันทึกข้อมูลสำเร็จ!");
-        console.log("Saved:", data);
-        clearAll();
-      } else {
-        alert("ผิดพลาด: " + data.message);
-      }
+        const token = localStorage.getItem("token");
+        res = await fetch(url, {
+            method: method,
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            alert("บันทึกข้อมูลสำเร็จ!");
+            console.log("Saved:", data);
+            clearAll();
+        } else {
+            alert("ผิดพลาด: " + data.message);
+        }
     } catch (err) {
-      console.error(err);
-      alert("เกิดข้อผิดพลาดที่ frontend");
+        console.error(err);
+        alert("เกิดข้อผิดพลาดที่ frontend");
     }
   };
 
@@ -226,40 +278,42 @@ export default function ServicePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 {/* Autocomplete by Name */}
                 <Autocomplete
-                  options={customerList}
-                  getOptionLabel={(option) => option.customer_name || ""}
-                  value={
-                    customerName
-                      ? customerList.find((c) => c.customer_name === customerName)
-                      : null
-                  }
-                  onChange={(e, newValue) => handleSelectCustomer(newValue)}
+                  options={customerList.map((c) => c.customer_name)}
+                  value={customerName || null}
+                  onChange={(e, newValue) => {
+                    const foundCustomer = customerList.find(c => c.customer_name === newValue);
+                    handleSelectCustomer(foundCustomer);
+                  }}
                   renderInput={(params) => (
                     <TextField
                       {...params}
                       label="ชื่อนามสกุล"
                       variant="outlined"
-                      onChange={(e) => setCustomerName(e.target.value)}
+                      onChange={(e) => {
+                          setCustomerName(e.target.value);
+                          if (!e.target.value) clearAll();
+                      }}
                     />
                   )}
                 />
 
                 {/* Autocomplete by Phone */}
                 <Autocomplete
-                  options={customerList}
-                  getOptionLabel={(option) => option.phone_number || ""}
-                  value={
-                    phone
-                      ? customerList.find((c) => c.phone_number === phone)
-                      : null
-                  }
-                  onChange={(e, newValue) => handleSelectCustomer(newValue)}
+                  options={customerList.map((c) => c.phone_number)}
+                  value={phone || null}
+                  onChange={(e, newValue) => {
+                    const foundCustomer = customerList.find(c => c.phone_number === newValue);
+                    handleSelectCustomer(foundCustomer);
+                  }}
                   renderInput={(params) => (
                     <TextField
                       {...params}
                       label="เบอร์โทรศัพท์"
                       variant="outlined"
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => {
+                          setPhone(e.target.value);
+                          if (!e.target.value) clearAll();
+                      }}
                     />
                   )}
                 />

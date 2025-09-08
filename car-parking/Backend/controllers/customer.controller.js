@@ -53,7 +53,8 @@ exports.getCustomers = async (req, res) => {
 exports.getCustomerById = async (req, res) => {
   try {
     const customer = await Customer.findOne({ customer_id: req.params.id });
-    if (!customer) return res.status(404).json({ message: "Customer not found" });
+    if (!customer)
+      return res.status(404).json({ message: "Customer not found" });
     res.json(customer);
   } catch (err) {
     console.error(err);
@@ -69,7 +70,8 @@ exports.updateCustomer = async (req, res) => {
       req.body,
       { new: true }
     );
-    if (!updated) return res.status(404).json({ message: "Customer not found" });
+    if (!updated)
+      return res.status(404).json({ message: "Customer not found" });
     res.json(updated);
   } catch (err) {
     console.error(err);
@@ -80,8 +82,11 @@ exports.updateCustomer = async (req, res) => {
 // ลบลูกค้า
 exports.deleteCustomer = async (req, res) => {
   try {
-    const deleted = await Customer.findOneAndDelete({ customer_id: req.params.id });
-    if (!deleted) return res.status(404).json({ message: "Customer not found" });
+    const deleted = await Customer.findOneAndDelete({
+      customer_id: req.params.id,
+    });
+    if (!deleted)
+      return res.status(404).json({ message: "Customer not found" });
     res.json({ message: "Customer deleted" });
   } catch (err) {
     console.error(err);
