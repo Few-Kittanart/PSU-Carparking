@@ -18,19 +18,10 @@ export default function Sidebar() {
   const menuItems = [
     { label: "การใช้บริการ", icon: <FaCar />, path: "/service" },
     {
-      label: "การจัดการ",
-      icon: <FaTools />,
+      label: "การจัดการ", icon: <FaTools />,
       subMenu: [
         {
-          label: "การจัดการรถ",
-          subMenu: [
-            { label: "เช่าที่จอด", path: "/manage/parking" }, // ✅ เชื่อมไป ManageParking.jsx
-            { label: "บริการเพิ่มเติม", path: "/manage/additional" },
-            {
-              label: "เช่าที่จอด + บริการเพิ่มเติม",
-              path: "/manage/parking-additional",
-            },
-          ],
+          label: "การจัดการรถ", path: "/manage/parking"  
         },
         {
           label: "ลูกค้าสัมพันธ์",

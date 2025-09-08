@@ -85,20 +85,12 @@ export default function ServicePage() {
   useEffect(() => {
     if (address.province) {
       setAmphoeList(address.province.amphure);
-      setAddress((old) => ({
-        ...old,
-        amphoe: null,
-        district: null,
-        zipcode: "",
-      }));
-      setDistrictList([]);
     }
   }, [address.province]);
 
   useEffect(() => {
     if (address.amphoe) {
       setDistrictList(address.amphoe.tambon);
-      setAddress((old) => ({ ...old, district: null, zipcode: "" }));
     }
   }, [address.amphoe]);
 
@@ -141,11 +133,22 @@ export default function ServicePage() {
     let foundDistrict = null;
 
     if (foundProvince) {
-      foundAmphoe = foundProvince.amphure.find(a => a.name_th === cust.district) || null;
+      // ใช้ .toLowerCase().trim() เพื่อเปรียบเทียบแบบไม่สนใจตัวพิมพ์และช่องว่าง
+      foundAmphoe = foundProvince.amphure.find(a => a.name_th.toLowerCase().trim() === cust.district.toLowerCase().trim()) || null;
       if (foundAmphoe) {
-        foundDistrict = foundAmphoe.tambon.find(t => t.name_th === cust.canton) || null;
+        // ใช้ .toLowerCase().trim() เพื่อเปรียบเทียบแบบไม่สนใจตัวพิมพ์และช่องว่าง
+        foundDistrict = foundAmphoe.tambon.find(t => t.name_th.toLowerCase().trim() === cust.canton.toLowerCase().trim()) || null;
       }
     }
+
+    // DEBUG: Log the results to see if they are found
+    console.log("Found Province:", foundProvince ? foundProvince.name_th : "Not Found");
+    console.log("Found Amphoe:", foundAmphoe ? foundAmphoe.name_th : "Not Found");
+    console.log("Found District:", foundDistrict ? foundDistrict.name_th : "Not Found");
+
+    // เพิ่มการอัปเดต AmphoeList และ DistrictList ที่นี่
+    setAmphoeList(foundProvince ? foundProvince.amphure : []);
+    setDistrictList(foundAmphoe ? foundAmphoe.tambon : []);
 
     setAddress({
       houseNo: cust.house_number || "",
@@ -365,9 +368,17 @@ export default function ServicePage() {
                   options={provinceList}
                   getOptionLabel={(option) => option.name_th}
                   value={address.province}
-                  onChange={(e, newValue) =>
-                    setAddress((old) => ({ ...old, province: newValue }))
-                  }
+                  onChange={(e, newValue) => {
+                    setAddress((old) => ({
+                      ...old,
+                      province: newValue,
+                      amphoe: null, // Reset amphoe
+                      district: null, // Reset district
+                      zipcode: "", // Reset zipcode
+                    }));
+                    setAmphoeList(newValue ? newValue.amphure : []);
+                    setDistrictList([]);
+                  }}
                   renderInput={(params) => (
                     <TextField {...params} label="จังหวัด" variant="outlined" />
                   )}
@@ -379,9 +390,15 @@ export default function ServicePage() {
                   options={amphoeList}
                   getOptionLabel={(option) => option.name_th}
                   value={address.amphoe}
-                  onChange={(e, newValue) =>
-                    setAddress((old) => ({ ...old, amphoe: newValue }))
-                  }
+                  onChange={(e, newValue) => {
+                    setAddress((old) => ({
+                      ...old,
+                      amphoe: newValue,
+                      district: null, // Reset district
+                      zipcode: "", // Reset zipcode
+                    }));
+                    setDistrictList(newValue ? newValue.tambon : []);
+                  }}
                   renderInput={(params) => (
                     <TextField {...params} label="อำเภอ" variant="outlined" />
                   )}
@@ -392,7 +409,11 @@ export default function ServicePage() {
                   getOptionLabel={(option) => option.name_th}
                   value={address.district}
                   onChange={(e, newValue) =>
-                    setAddress((old) => ({ ...old, district: newValue }))
+                    setAddress((old) => ({
+                      ...old,
+                      district: newValue,
+                      zipcode: newValue ? newValue.zip_code : "",
+                    }))
                   }
                   renderInput={(params) => (
                     <TextField {...params} label="ตำบล" variant="outlined" />
