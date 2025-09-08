@@ -3,28 +3,74 @@ import Login from "./pages/Login";
 import Main from "./pages/Main";
 import ServicePage from "./pages/ServicePage";
 import ManageParking from "./pages/ManageParking";
+import ParkingDetail from "./pages/ParkingDetail";
+import ManageAdditional from "./pages/ManageAdditional";
+import AdditionalDetail from "./pages/AdditionalDetail";
+import Sidebar from "./components/Sidebar";
+import Header from "./components/Header";
+import Footer from "./components/Footer";
+
+// Layout สำหรับหน้าที่มี Sidebar + Header + Footer
+function AppLayoutWithSidebar({ children }) {
+  return (
+    <div className="flex min-h-screen">
+      <Sidebar />
+      <div className="flex-1 flex flex-col">
+        <Header />
+        <main className="flex-1 p-6">{children}</main>
+        <Footer />
+      </div>
+    </div>
+  );
+}
+
+// Layout สำหรับหน้าที่ไม่มี Sidebar แต่มี Header + Footer
+function AppLayoutNoSidebar({ children }) {
+  return (
+    <div className="flex flex-col min-h-screen">
+      <Header />
+      <main className="flex-1 p-6">{children}</main>
+      <Footer />
+    </div>
+  );
+}
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* หน้า login แบบเต็มจอ ไม่ต้องมี Sidebar */}
+        {/* หน้า Login */}
         <Route path="/" element={<Login />} />
 
-        {/* หน้าที่มี Sidebar */}
+        {/* หน้า Main ไม่มี Sidebar */}
+        <Route
+          path="/main"
+          element={
+            <AppLayoutNoSidebar>
+              <Main />
+            </AppLayoutNoSidebar>
+          }
+        />
+
+        {/* หน้าที่มี Sidebar + Header + Footer */}
         <Route
           path="/*"
           element={
-            <div className="flex min-h-screen">
-              <div className="flex-1 p-6">
-                <Routes>
-                  <Route path="main" element={<Main />} />
-                  <Route path="service" element={<ServicePage />} />
-                  <Route path="manage/parking" element={<ManageParking />} />
-                  {/* สามารถเพิ่ม route อื่น ๆ เช่น manage/additional */}
-                </Routes>
-              </div>
-            </div>
+            <AppLayoutWithSidebar>
+              <Routes>
+                <Route path="service" element={<ServicePage />} />
+
+                {/* เช่าที่จอด */}
+                <Route path="manage/parking" element={<ManageParking />} />
+                <Route path="manage/parking/:id" element={<ParkingDetail />} />
+
+                {/* บริการเพิ่มเติม */}
+                <Route path="manage/additional" element={<ManageAdditional />} />
+                <Route path="manage/additional/:id" element={<AdditionalDetail />} />
+
+                {/* ต่อไปสามารถเพิ่ม manage/combined, report ฯลฯ ได้ */}
+              </Routes>
+            </AppLayoutWithSidebar>
           }
         />
       </Routes>

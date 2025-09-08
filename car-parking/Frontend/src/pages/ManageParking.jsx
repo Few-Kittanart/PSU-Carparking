@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   TextField,
   Button,
@@ -18,46 +18,28 @@ import { useNavigate } from "react-router-dom";
 
 export default function ManageParking() {
   const [search, setSearch] = useState("");
+  const [parkingList, setParkingList] = useState([]);
   const navigate = useNavigate();
 
-  // ตัวอย่างข้อมูล mock
-  const data = [
-    {
-      id: "BK001",
-      dateIn: "2025-09-01 10:30",
-      dateOut: "2025-09-02 12:00",
-      plate: "กข 1234",
-      province: "กรุงเทพฯ",
-      brand: "Toyota",
-      customer: "สมชาย ใจดี",
-      phone: "0812345678",
-    },
-    {
-      id: "BK002",
-      dateIn: "2025-09-03 09:00",
-      dateOut: "2025-09-03 17:00",
-      plate: "ขข 5678",
-      province: "เชียงใหม่",
-      brand: "Honda",
-      customer: "วิภา แสงทอง",
-      phone: "0898765432",
-    },
-  ];
+  useEffect(() => {
+    fetch("http://localhost:3000/api/parking")
+      .then((res) => res.json())
+      .then((data) => setParkingList(data));
+  }, []);
 
-  // กรองข้อมูลตาม search
-  const filteredData = data.filter(
+  const filteredData = parkingList.filter(
     (row) =>
       row.plate.includes(search) ||
-      row.customer.includes(search) ||
+      row.customerName.includes(search) ||
       row.phone.includes(search)
   );
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
-      <h2 className="text-2xl font-bold text-[#ea7f33]">การจัดการรถ - เช่าที่จอด</h2>
+      <h2 className="text-2xl font-bold text-[#ea7f33]">
+        การจัดการรถ - เช่าที่จอด
+      </h2>
 
-      {/* Search + Filter */}
       <div className="flex items-center gap-4">
         <TextField
           variant="outlined"
@@ -75,8 +57,7 @@ export default function ManageParking() {
         </Button>
       </div>
 
-      {/* Table */}
-      <TableContainer component={Paper} className="shadow-md">
+      <TableContainer component={Paper} className="shadow-md mt-4">
         <Table>
           <TableHead>
             <TableRow className="bg-gray-100">
@@ -102,7 +83,7 @@ export default function ManageParking() {
                 <TableCell>{row.plate}</TableCell>
                 <TableCell>{row.province}</TableCell>
                 <TableCell>{row.brand}</TableCell>
-                <TableCell>{row.customer}</TableCell>
+                <TableCell>{row.customerName}</TableCell>
                 <TableCell>{row.phone}</TableCell>
                 <TableCell align="center">
                   <IconButton

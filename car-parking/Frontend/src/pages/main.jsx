@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCar, FaTools, FaChartLine, FaFileAlt, FaCog } from "react-icons/fa";
-import Header from "../components/Header";
-import Footer from "../components/Footer";
 
 const modules = [
   { label: "เข้าใช้บริการ", color: "#FF4C1C", icon: <FaCar /> },
@@ -36,8 +34,6 @@ export default function Main() {
 
   return (
     <div className="flex flex-col min-h-screen bg-white text-gray-800">
-      <Header onLogout={handleLogout} />
-
       {/* Content */}
       <main className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-10 w-full max-w-6xl flex flex-col md:flex-row">
@@ -123,8 +119,6 @@ export default function Main() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 }
