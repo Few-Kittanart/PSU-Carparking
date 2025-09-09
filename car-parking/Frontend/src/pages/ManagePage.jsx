@@ -77,6 +77,14 @@ export default function ManagePage() {
     );
   });
 
+  const getActiveTabClass = (tabName) => {
+    return `px-4 py-2 border-b-2 font-semibold ${
+      activeTab === tabName
+        ? "border-[#ea7f33] text-[#ea7f33]"
+        : "border-transparent text-gray-500 hover:text-[#ea7f33]"
+    }`;
+  };
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -150,6 +158,10 @@ export default function ManagePage() {
               <TableCell className="text-white">รหัสลูกค้า</TableCell>
               <TableCell className="text-white">ชื่อ-นามสกุล</TableCell>
               <TableCell className="text-white">เบอร์โทรศัพท์</TableCell>
+              <TableCell className="text-white">ทะเบียนรถ</TableCell>
+              <TableCell className="text-white">จังหวัด (ป้าย)</TableCell>
+              <TableCell className="text-white">ยี่ห้อรถ</TableCell>
+              <TableCell className="text-white">สีรถ</TableCell>
               <TableCell className="text-white">บริการ</TableCell>
               <TableCell className="text-white" align="center">
                 จัดการ
@@ -163,26 +175,26 @@ export default function ManagePage() {
                 <TableCell>{row.customer_id}</TableCell>
                 <TableCell>{row.customer_name}</TableCell>
                 <TableCell>{row.phone_number}</TableCell>
+                <TableCell>{row.car_registration}</TableCell>
+                <TableCell>{row.car_registration_province}</TableCell>
+                <TableCell>{row.brand_car}</TableCell>
+                <TableCell>{row.color}</TableCell>
                 <TableCell>
-                  {/* แสดงหัวข้อและข้อมูล "เช่าที่จอด" ถ้ามี */}
-                  {row.services?.includes(PARKING_SERVICE_ID) && (
-                    <div>
-                      <h4 className="font-bold text-sm">เช่าที่จอด:</h4>
-                      <p className="text-gray-600">
-                        {row.parking_slot}
-                      </p>
-                    </div>
-                  )}
+                  <div className="flex flex-col space-y-2">
+                    {/* แสดงป้ายสำหรับ "เช่าที่จอด" ถ้ามี */}
+                    {row.services?.includes(PARKING_SERVICE_ID) && (
+                      <span className="bg-[#ea7f33] text-white px-2 py-1 rounded-full text-xs self-start">
+                       {row.parking_slot}
+                      </span>
+                    )}
 
-                  {/* แสดงหัวข้อและข้อมูล "บริการเพิ่มเติม" ถ้ามี */}
-                  {row.services?.filter(id => id !== PARKING_SERVICE_ID).length > 0 && (
-                    <div className="mt-2">
-                      <h4 className="font-bold text-sm">บริการเพิ่มเติม:</h4>
-                      <p className="text-gray-600">
+                    {/* แสดงป้ายสำหรับ "บริการเพิ่มเติม" ถ้ามี */}
+                    {row.services?.filter(id => id !== PARKING_SERVICE_ID).length > 0 && (
+                      <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs self-start">
                         {getServiceNames(row.services?.filter(id => id !== PARKING_SERVICE_ID))}
-                      </p>
-                    </div>
-                  )}
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell align="center">
                   <IconButton
