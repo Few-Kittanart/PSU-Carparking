@@ -7,4 +7,4 @@ const additionalSchema = new mongoose.Schema({
   customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' } // FK ไป customer
 });
 
-module.exports = mongoose.model('Additional', additionaleSchema);
+module.exports = mongoose.model('Additional', additionalSchema);
