@@ -109,11 +109,15 @@ export default function Main() {
                 onClick={() => {
                   if (mod.label === "เข้าใช้บริการ") {
                     navigate("/service"); // Navigate to ServicePage
+                  } else if (mod.label === "จัดการรถ") {
+                    navigate("/manage"); // ไป ManagePage.jsx
                   }
                 }}
               >
                 {React.cloneElement(mod.icon, { size: 40 })}
-                <span className="mt-4 text-center text-lg sm:text-xl">{mod.label}</span>
+                <span className="mt-4 text-center text-lg sm:text-xl">
+                  {mod.label}
+                </span>
               </div>
             ))}
           </div>
