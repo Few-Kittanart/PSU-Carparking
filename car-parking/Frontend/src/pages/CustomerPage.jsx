@@ -79,13 +79,17 @@ export default function CustomerPage() {
                 <TableCell>{row.customer_name}</TableCell>
                 <TableCell>{row.phone_number}</TableCell>
                 <TableCell>
-                  {row.house_number}, {row.road}, {row.canton}, {row.district}, {row.province}
+                  {row.house_number}, {row.road}, {row.canton}, {row.district},{" "}
+                  {row.province}
                 </TableCell>
                 <TableCell align="center">
                   <IconButton
                     color="primary"
                     title="รายละเอียด"
-                    onClick={() => navigate(`/manage/details/${row.customer_id}`)}
+                    // ✅ เปลี่ยนเส้นทางไปที่หน้ารายละเอียดลูกค้าใหม่
+                    onClick={() =>
+                      navigate(`/crm/customer/details/${row.customer_id}`)
+                    }
                   >
                     <InfoIcon />
                   </IconButton>
