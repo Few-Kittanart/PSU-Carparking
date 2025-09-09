@@ -16,12 +16,23 @@ import InfoIcon from "@mui/icons-material/Info";
 import { useNavigate } from "react-router-dom";
 
 // Service definitions to map IDs to names
-const PARKING_SERVICE_ID = 1;
+const PARKING_SERVICE_ID = 4;
 const serviceDefinitions = [
   { id: 1, name: "ล้างรถ" },
   { id: 2, name: "เช็ดภายใน" },
   { id: 3, name: "ตรวจสภาพ" },
+  { id: 4, name: "เช่าที่จอด" }
 ];
+
+// ฟังก์ชันสำหรับแปลง ID บริการเป็นชื่อ
+const getServiceNames = (serviceIds) => {
+  if (!serviceIds) return null;
+  const names = serviceIds.map(id => {
+    const service = serviceDefinitions.find(s => s.id === id);
+    return service ? service.name : null;
+  }).filter(Boolean);
+  return names.join(", ");
+};
 
 export default function ManagePage() {
   const [search, setSearch] = useState("");
@@ -30,171 +41,148 @@ export default function ManagePage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-  const token = localStorage.getItem("token");
-  fetch("http://localhost:5000/api/customers", {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      console.log("Data fetched from API:", data); // เพิ่มบรรทัดนี้เพื่อตรวจสอบ
-      setCustomerList(data);
-    })
-    .catch((err) => console.error(err));
-}, []);
-
-  // Fetch all customer data
-  useEffect(() => {
     const token = localStorage.getItem("token");
     fetch("http://localhost:5000/api/customers", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
-      .then((data) => setCustomerList(data))
+      .then((data) => {
+        console.log("Data fetched from API:", data);
+        setCustomerList(data);
+      })
       .catch((err) => console.error(err));
   }, []);
 
-  const getServiceNames = (serviceIds) => {
-    return serviceIds
-      ?.map((id) => {
-        const service = serviceDefinitions.find((s) => s.id === id);
-        return service ? service.name : "";
-      })
-      .filter(Boolean)
-      .join(", ");
-  };
-
-  // Filtering logic
-  const isParkingOnly = (customer) => {
-    return (
-      customer.services?.includes(PARKING_SERVICE_ID) &&
-      customer.services?.length === 1
-    );
-  };
-
-  const isAdditionalOnly = (customer) => {
-    return (
-      customer.services?.some((id) => id !== PARKING_SERVICE_ID) &&
-      !customer.services?.includes(PARKING_SERVICE_ID)
-    );
-  };
-
-  const isBothServices = (customer) => {
-    return (
-      customer.services?.includes(PARKING_SERVICE_ID) &&
-      customer.services?.some((id) => id !== PARKING_SERVICE_ID)
-    );
-  };
-
   const filteredData = customerList.filter((row) => {
-    const searchLower = search.toLowerCase();
-    const matchesSearch =
-      row.car_registration?.toLowerCase().includes(searchLower) ||
-      row.customer_name?.toLowerCase().includes(searchLower) ||
-      row.phone_number?.toLowerCase().includes(searchLower);
-
+    const hasParking = row.services?.includes(PARKING_SERVICE_ID);
+    const hasAdditionalServices = row.services?.some(id => id !== PARKING_SERVICE_ID);
+    
     switch (activeTab) {
       case "parking":
-        return isParkingOnly(row) && matchesSearch;
-      case "additional":
-        return isAdditionalOnly(row) && matchesSearch;
-      case "both":
-        return isBothServices(row) && matchesSearch;
+        return hasParking && !hasAdditionalServices;
+      case "services":
+        return !hasParking && hasAdditionalServices;
+      case "parkingAndServices":
+        return hasParking && hasAdditionalServices;
+      case "all":
       default:
-        // 'all' tab
-        const hasService = row.services?.length > 0;
-        return hasService && matchesSearch;
+        return true;
     }
+  }).filter(row => {
+    const lowerSearch = search.toLowerCase();
+    return (
+      (row.customer_name?.toLowerCase().includes(lowerSearch) ||
+        row.phone_number?.includes(lowerSearch) ||
+        row.car_registration?.toLowerCase().includes(lowerSearch))
+    );
   });
 
-  const getActiveTabClass = (tabName) => {
-    return `px-6 py-2 rounded-lg font-bold transition-colors ${
-      activeTab === tabName
-        ? "bg-[#ea7f33] text-white shadow-md"
-        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-    }`;
-  };
-
   return (
-    <div className="p-6 space-y-6">
-      <h2 className="text-2xl font-bold text-[#ea7f33]">การจัดการรถ</h2>
-
-      <div className="flex items-center gap-4">
-        <TextField
-          variant="outlined"
-          size="small"
-          label="ค้นหา (ทะเบียน, ลูกค้า, เบอร์)"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          InputProps={{
-            endAdornment: <SearchIcon color="action" />,
-          }}
-          className="w-80"
-        />
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-3xl font-bold text-[#ea7f33]">จัดการข้อมูลลูกค้า</h2>
+        <div className="flex space-x-2">
+          <TextField
+            label="ค้นหา"
+            variant="outlined"
+            size="small"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              endAdornment: (
+                <IconButton>
+                  <SearchIcon />
+                </IconButton>
+              ),
+            }}
+          />
+        </div>
       </div>
 
-      <div className="flex gap-2 mt-4">
+      <div className="flex mb-4">
         <button
-          className={getActiveTabClass("all")}
           onClick={() => setActiveTab("all")}
+          className={`px-4 py-2 border-b-2 font-semibold ${
+            activeTab === "all"
+              ? "border-[#ea7f33] text-[#ea7f33]"
+              : "border-transparent text-gray-500 hover:text-[#ea7f33]"
+          }`}
         >
           ทั้งหมด
         </button>
         <button
-          className={getActiveTabClass("parking")}
           onClick={() => setActiveTab("parking")}
+          className={`px-4 py-2 border-b-2 font-semibold ${
+            activeTab === "parking"
+              ? "border-[#ea7f33] text-[#ea7f33]"
+              : "border-transparent text-gray-500 hover:text-[#ea7f33]"
+          }`}
         >
-          เช่าที่จอดอย่างเดียว
+          จอดรถ
         </button>
         <button
-          className={getActiveTabClass("additional")}
-          onClick={() => setActiveTab("additional")}
+          onClick={() => setActiveTab("services")}
+          className={`px-4 py-2 border-b-2 font-semibold ${
+            activeTab === "services"
+              ? "border-[#ea7f33] text-[#ea7f33]"
+              : "border-transparent text-gray-500 hover:text-[#ea7f33]"
+          }`}
         >
-          บริการเพิ่มเติมอย่างเดียว
+          บริการอื่นๆ
         </button>
         <button
-          className={getActiveTabClass("both")}
-          onClick={() => setActiveTab("both")}
+          onClick={() => setActiveTab("parkingAndServices")}
+          className={`px-4 py-2 border-b-2 font-semibold ${
+            activeTab === "parkingAndServices"
+              ? "border-[#ea7f33] text-[#ea7f33]"
+              : "border-transparent text-gray-500 hover:text-[#ea7f33]"
+          }`}
         >
-          ทั้งเช่าที่จอด + บริการเพิ่มเติม
+          จอดรถ+บริการ
         </button>
       </div>
 
-      <TableContainer component={Paper} className="shadow-md mt-4">
-        <Table>
-          <TableHead>
-            <TableRow className="bg-gray-100">
-              <TableCell align="center">ลำดับ</TableCell>
-              <TableCell>รหัสลูกค้า</TableCell>
-              <TableCell>วันที่เข้ารับบริการ</TableCell>
-              <TableCell>ทะเบียนรถ</TableCell>
-              <TableCell>ยี่ห้อ</TableCell>
-              <TableCell>สี</TableCell>
-              <TableCell>ชื่อลูกค้า</TableCell>
-              <TableCell>เบอร์โทรศัพท์</TableCell>
-              <TableCell>บริการ</TableCell>
-              <TableCell align="center">ดำเนินการ</TableCell>
+      <TableContainer component={Paper} className="shadow-md rounded-lg">
+        <Table aria-label="simple table">
+          <TableHead className="bg-[#ea7f33]">
+            <TableRow>
+              <TableCell className="text-white">ลำดับ</TableCell>
+              <TableCell className="text-white">รหัสลูกค้า</TableCell>
+              <TableCell className="text-white">ชื่อ-นามสกุล</TableCell>
+              <TableCell className="text-white">เบอร์โทรศัพท์</TableCell>
+              <TableCell className="text-white">บริการ</TableCell>
+              <TableCell className="text-white" align="center">
+                จัดการ
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredData.map((row, index) => (
-              <TableRow key={row.customer_id} hover>
-                <TableCell align="center">{index + 1}</TableCell>
+              <TableRow key={row.customer_id}>
+                <TableCell>{index + 1}</TableCell>
                 <TableCell>{row.customer_id}</TableCell>
-                <TableCell>{row.entry_time}</TableCell>
-                <TableCell>{row.car_registration}</TableCell>
-                <TableCell>{row.brand_car}</TableCell>
-                <TableCell>{row.color}</TableCell>
                 <TableCell>{row.customer_name}</TableCell>
                 <TableCell>{row.phone_number}</TableCell>
                 <TableCell>
-                  {/* แสดงป้ายกำกับ "จอดรถ" ถ้ามีบริการนี้ */}
+                  {/* แสดงหัวข้อและข้อมูล "เช่าที่จอด" ถ้ามี */}
                   {row.services?.includes(PARKING_SERVICE_ID) && (
-                    <span className="bg-[#ea7f33] text-white px-2 py-1 rounded-full text-xs mr-2">
-                      จอดรถ ({row.parking_slot})
-                    </span>
+                    <div>
+                      <h4 className="font-bold text-sm">เช่าที่จอด:</h4>
+                      <p className="text-gray-600">
+                        {row.parking_slot}
+                      </p>
+                    </div>
                   )}
-                  {/* แสดงชื่อบริการเพิ่มเติมอื่น ๆ */}
-                  {getServiceNames(row.services?.filter(id => id !== PARKING_SERVICE_ID) || [])}
+
+                  {/* แสดงหัวข้อและข้อมูล "บริการเพิ่มเติม" ถ้ามี */}
+                  {row.services?.filter(id => id !== PARKING_SERVICE_ID).length > 0 && (
+                    <div className="mt-2">
+                      <h4 className="font-bold text-sm">บริการเพิ่มเติม:</h4>
+                      <p className="text-gray-600">
+                        {getServiceNames(row.services?.filter(id => id !== PARKING_SERVICE_ID))}
+                      </p>
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell align="center">
                   <IconButton

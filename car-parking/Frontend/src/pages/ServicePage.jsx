@@ -9,7 +9,7 @@ const additionalServices = [
   { id: 2, name: "เช็ดภายใน", price: 50 },
   { id: 3, name: "ตรวจสภาพ", price: 200 },
 ];
-const PARKING_SERVICE_ID = 1;
+const PARKING_SERVICE_ID = 4; // เปลี่ยนค่าจาก 1 เป็น 4
 const parkingSections = ["A", "B", "C", "D"];
 const parkingNumbers = Array.from({ length: 100 }, (_, i) => i + 1);
 
@@ -49,6 +49,7 @@ export default function ServicePage() {
   const [selectedParkingSlot, setSelectedParkingSlot] = useState(null);
   const [occupiedSlots, setOccupiedSlots] = useState(new Set());
   const [selectedSection, setSelectedSection] = useState("A");
+  const [notes, setNotes] = useState("");
 
   // Thai Address
   const [provinceList, setProvinceList] = useState([]);
@@ -57,7 +58,6 @@ export default function ServicePage() {
 
   const currentTime = dayjs().format("MMMM D, YYYY h:mm A");
 
-  // Load Thai address JSON from public API and handle errors gracefully
   useEffect(() => {
     const fetchAddressData = async () => {
       try {
@@ -77,7 +77,6 @@ export default function ServicePage() {
     fetchAddressData();
   }, []);
 
-  // Load customer list and occupied parking slots
   useEffect(() => {
     const token = localStorage.getItem("token");
     fetch("http://localhost:5000/api/customers", {
@@ -96,7 +95,6 @@ export default function ServicePage() {
       .catch((err) => console.error(err));
   }, []);
 
-  // Update amphoe/district list based on selection
   useEffect(() => {
     if (address.province) {
       setAmphoeList(address.province.amphure);
@@ -129,10 +127,27 @@ export default function ServicePage() {
       : [...selectedServices, id];
     setSelectedServices(updated);
     const sum = updated.reduce((acc, sid) => {
-      const s = additionalServices.find((srv) => srv.id === sid); // <-- แก้ไขตรงนี้
+      const s = additionalServices.find((srv) => srv.id === sid);
       return acc + (s ? s.price : 0);
     }, 0);
     setTotalPrice(sum);
+  };
+  
+  const handleToggleParking = () => {
+      setShowParkingForm((v) => {
+          const newShowState = !v;
+          if (newShowState) {
+              // เพิ่ม service ID ของการจอดรถเมื่อเปิดฟอร์ม
+              setSelectedServices((prev) =>
+                  !prev.includes(PARKING_SERVICE_ID) ? [...prev, PARKING_SERVICE_ID] : prev
+              );
+          } else {
+              // ลบ service ID ของการจอดรถเมื่อปิดฟอร์ม
+              setSelectedServices((prev) => prev.filter((id) => id !== PARKING_SERVICE_ID));
+              setSelectedParkingSlot(null);
+          }
+          return newShowState;
+      });
   };
 
   const handleSelectCustomer = (cust) => {
@@ -174,6 +189,9 @@ export default function ServicePage() {
         type: null,
         color: cust.color || null,
     });
+    
+    setSelectedServices(cust.services || []);
+    setNotes(cust.notes || "");
   };
 
   const clearAll = () => {
@@ -204,6 +222,7 @@ export default function ServicePage() {
     setShowAdditionalForm(false);
     setExitTime("");
     setSelectedParkingSlot(null);
+    setNotes("");
   };
 
   const handleSave = async () => {
@@ -212,6 +231,11 @@ export default function ServicePage() {
         return;
     }
 
+    const servicesToSave = [...selectedServices];
+    if (selectedParkingSlot && !servicesToSave.includes(PARKING_SERVICE_ID)) {
+      servicesToSave.push(PARKING_SERVICE_ID);
+    }
+    
     if (showParkingForm && !selectedParkingSlot) {
         alert("โปรดเลือกช่องจอดรถ");
         return;
@@ -233,7 +257,8 @@ export default function ServicePage() {
         brand_car: vehicle.brand,
         type_car: vehicle.model,
         color: vehicle.color,
-        services: selectedServices,
+        services: servicesToSave,
+        notes: notes,
         entry_time: currentTime,
         exit_time: exitTime,
         parking_slot: selectedParkingSlot,
@@ -301,7 +326,7 @@ export default function ServicePage() {
                       {...params}
                       label="ชื่อนามสกุล"
                       variant="outlined"
-                      onChange={(e) => setCustomerName(e.target.value)} // <-- แก้ไขตรงนี้
+                      onChange={(e) => setCustomerName(e.target.value)}
                     />
                   )}
                 />
@@ -319,7 +344,7 @@ export default function ServicePage() {
                       {...params}
                       label="เบอร์โทรศัพท์"
                       variant="outlined"
-                      onChange={(e) => setPhone(e.target.value)} // <-- แก้ไขตรงนี้
+                      onChange={(e) => setPhone(e.target.value)}
                     />
                   )}
                 />
@@ -375,9 +400,9 @@ export default function ServicePage() {
                     setAddress((old) => ({
                       ...old,
                       province: newValue,
-                      amphoe: null, // Reset amphoe
-                      district: null, // Reset district
-                      zipcode: "", // Reset zipcode
+                      amphoe: null,
+                      district: null,
+                      zipcode: "",
                     }));
                     setAmphoeList(newValue ? newValue.amphure : []);
                     setDistrictList([]);
@@ -397,8 +422,8 @@ export default function ServicePage() {
                     setAddress((old) => ({
                       ...old,
                       amphoe: newValue,
-                      district: null, // Reset district
-                      zipcode: "", // Reset zipcode
+                      district: null,
+                      zipcode: "",
                     }));
                     setDistrictList(newValue ? newValue.tambon : []);
                   }}
@@ -549,10 +574,10 @@ export default function ServicePage() {
                 </div>
               </div>
 
-              {/* Services */}
+              {/* Services Buttons */}
               <div className="flex gap-4 mt-4">
                 <button
-                  onClick={() => setShowParkingForm((v) => !v)}
+                  onClick={handleToggleParking}
                   className={`flex-1 py-3 rounded-lg border-2 text-gray-800 font-semibold transition ${
                     showParkingForm
                       ? "border-[#ea7f33] bg-gray-50 shadow"
@@ -573,6 +598,7 @@ export default function ServicePage() {
                 </button>
               </div>
 
+              {/* Parking Form */}
               {showParkingForm && (
                 <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm mt-4 space-y-4">
                   <h3 className="text-xl font-bold text-[#ea7f33]">เช่าที่จอด</h3>
@@ -646,6 +672,7 @@ export default function ServicePage() {
                 </div>
               )}
 
+              {/* Additional Services Form */}
               {showAdditionalForm && (
                 <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm mt-4 space-y-4">
                   <h3 className="text-xl font-bold text-[#ea7f33]">บริการเพิ่มเติม</h3>
@@ -668,6 +695,23 @@ export default function ServicePage() {
                   <p className="text-right font-semibold">
                     รวมราคา: {totalPrice} บาท
                   </p>
+                </div>
+              )}
+
+              {/* Notes Field */}
+              {(showParkingForm || showAdditionalForm) && (
+                <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm mt-4 space-y-4">
+                  <h3 className="text-xl font-bold text-[#ea7f33]">หมายเหตุ</h3>
+                  <TextField
+                    fullWidth
+                    label="รายละเอียดเพิ่มเติมเกี่ยวกับบริการ"
+                    variant="outlined"
+                    multiline
+                    rows={4}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="กรอกรายละเอียดเพิ่มเติม"
+                  />
                 </div>
               )}
 
