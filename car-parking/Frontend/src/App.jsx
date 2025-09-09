@@ -2,11 +2,13 @@ import { HashRouter as Router, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Main from "./pages/Main";
 import ServicePage from "./pages/ServicePage";
-import ManagePage from "./pages/ManagePage"; // แก้ไขจาก ManageParking
-import DetailPage from "./pages/DetailPage"; // แก้ไขจาก ParkingDetail
+import ManagePage from "./pages/ManagePage";
+import DetailPage from "./pages/DetailPage";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import CustomerPage from "./pages/CustomerPage";
+import CarPage from "./pages/CarPage";
 
 // Layout สำหรับหน้าที่มี Sidebar + Header + Footer
 function AppLayoutWithSidebar({ children }) {
@@ -58,10 +60,11 @@ function App() {
               <Routes>
                 <Route path="service" element={<ServicePage />} />
 
-                {/* หน้าจัดการรวมทุกบริการ */}
                 <Route path="manage" element={<ManagePage />} />
                 {/* หน้าแสดงรายละเอียดลูกค้า (ใช้ ID ใน URL) */}
                 <Route path="manage/details/:id" element={<DetailPage />} />
+                <Route path="crm/customer" element={<CustomerPage />} />
+                <Route path="crm/car" element={<CarPage />} />
               </Routes>
             </AppLayoutWithSidebar>
           }

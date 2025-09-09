@@ -9,14 +9,12 @@ const additionalServices = [
   { id: 2, name: "เช็ดภายใน", price: 50 },
   { id: 3, name: "ตรวจสภาพ", price: 200 },
 ];
-const PARKING_SERVICE_ID = 4; // เปลี่ยนค่าจาก 1 เป็น 4
+const PARKING_SERVICE_ID = 4;
 const parkingSections = ["A", "B", "C", "D"];
 const parkingNumbers = Array.from({ length: 100 }, (_, i) => i + 1);
 
 export default function ServicePage() {
   const [currentStep, setCurrentStep] = useState(1);
-
-  // Step 1: Customer Info
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [customerId, setCustomerId] = useState("");
@@ -31,8 +29,6 @@ export default function ServicePage() {
     country: "",
     zipcode: "",
   });
-
-  // Step 2: Vehicle & Services
   const [vehicle, setVehicle] = useState({
     plate: "",
     province: "",
@@ -49,13 +45,9 @@ export default function ServicePage() {
   const [selectedParkingSlot, setSelectedParkingSlot] = useState(null);
   const [occupiedSlots, setOccupiedSlots] = useState(new Set());
   const [selectedSection, setSelectedSection] = useState("A");
-  const [notes, setNotes] = useState("");
-
-  // Thai Address
   const [provinceList, setProvinceList] = useState([]);
   const [amphoeList, setAmphoeList] = useState([]);
   const [districtList, setDistrictList] = useState([]);
-
   const currentTime = dayjs().format("MMMM D, YYYY h:mm A");
 
   useEffect(() => {
@@ -132,23 +124,6 @@ export default function ServicePage() {
     }, 0);
     setTotalPrice(sum);
   };
-  
-  const handleToggleParking = () => {
-      setShowParkingForm((v) => {
-          const newShowState = !v;
-          if (newShowState) {
-              // เพิ่ม service ID ของการจอดรถเมื่อเปิดฟอร์ม
-              setSelectedServices((prev) =>
-                  !prev.includes(PARKING_SERVICE_ID) ? [...prev, PARKING_SERVICE_ID] : prev
-              );
-          } else {
-              // ลบ service ID ของการจอดรถเมื่อปิดฟอร์ม
-              setSelectedServices((prev) => prev.filter((id) => id !== PARKING_SERVICE_ID));
-              setSelectedParkingSlot(null);
-          }
-          return newShowState;
-      });
-  };
 
   const handleSelectCustomer = (cust) => {
     if (!cust) return;
@@ -189,9 +164,6 @@ export default function ServicePage() {
         type: null,
         color: cust.color || null,
     });
-    
-    setSelectedServices(cust.services || []);
-    setNotes(cust.notes || "");
   };
 
   const clearAll = () => {
@@ -222,7 +194,6 @@ export default function ServicePage() {
     setShowAdditionalForm(false);
     setExitTime("");
     setSelectedParkingSlot(null);
-    setNotes("");
   };
 
   const handleSave = async () => {
@@ -231,14 +202,17 @@ export default function ServicePage() {
         return;
     }
 
-    const servicesToSave = [...selectedServices];
-    if (selectedParkingSlot && !servicesToSave.includes(PARKING_SERVICE_ID)) {
-      servicesToSave.push(PARKING_SERVICE_ID);
-    }
-    
     if (showParkingForm && !selectedParkingSlot) {
         alert("โปรดเลือกช่องจอดรถ");
         return;
+    }
+
+    let servicesPayload = [];
+    if (showParkingForm) {
+      servicesPayload.push(PARKING_SERVICE_ID);
+    }
+    if (showAdditionalForm) {
+      servicesPayload = servicesPayload.concat(selectedServices);
     }
 
     const payload = {
@@ -255,10 +229,9 @@ export default function ServicePage() {
         car_registration: vehicle.plate,
         car_registration_province: vehicle.province,
         brand_car: vehicle.brand,
-        type_car: vehicle.model,
+        type_car: vehicle.type,
         color: vehicle.color,
-        services: servicesToSave,
-        notes: notes,
+        services: servicesPayload, // แก้ไขตรงนี้
         entry_time: currentTime,
         exit_time: exitTime,
         parking_slot: selectedParkingSlot,
@@ -305,15 +278,12 @@ export default function ServicePage() {
     <div className="flex min-h-screen bg-gray-50">
       <div className="flex-1 flex flex-col">
         <main className="flex-1 p-6 sm:p-10">
-          {/* Step 1 */}
           {currentStep === 1 && (
             <div className="max-w-6xl mx-auto bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm space-y-6">
               <h2 className="text-2xl font-bold text-[#ea7f33]">
                 ข้อมูลลูกค้า
               </h2>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                {/* Autocomplete by Name */}
                 <Autocomplete
                   options={customerList.map((c) => c.customer_name)}
                   value={customerName || null}
@@ -330,8 +300,6 @@ export default function ServicePage() {
                     />
                   )}
                 />
-
-                {/* Autocomplete by Phone */}
                 <Autocomplete
                   options={customerList.map((c) => c.phone_number)}
                   value={phone || null}
@@ -349,8 +317,6 @@ export default function ServicePage() {
                   )}
                 />
               </div>
-
-              {/* Customer ID */}
               <TextField
                 fullWidth
                 label="รหัสลูกค้า"
@@ -359,8 +325,6 @@ export default function ServicePage() {
                 InputProps={{ readOnly: true }}
                 sx={{ mb: 2 }}
               />
-
-              {/* Address Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <TextField
                   fullWidth
@@ -381,7 +345,6 @@ export default function ServicePage() {
                   }
                 />
               </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <TextField
                   fullWidth
@@ -412,7 +375,6 @@ export default function ServicePage() {
                   )}
                 />
               </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <Autocomplete
                   options={amphoeList}
@@ -449,7 +411,6 @@ export default function ServicePage() {
                   disabled={!address.amphoe}
                 />
               </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <TextField
                   fullWidth
@@ -468,7 +429,6 @@ export default function ServicePage() {
                   InputProps={{ readOnly: true }}
                 />
               </div>
-
               <div className="flex justify-end mt-4">
                 <button
                   onClick={handleProceed}
@@ -479,8 +439,6 @@ export default function ServicePage() {
               </div>
             </div>
           )}
-
-          {/* Step 2 */}
           {currentStep === 2 && (
             <div className="max-w-6xl mx-auto space-y-6">
               <div className="flex justify-between items-center">
@@ -494,8 +452,6 @@ export default function ServicePage() {
                   ← ย้อนกลับ
                 </button>
               </div>
-
-              {/* Vehicle Info */}
               <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm space-y-4">
                 <h3 className="text-xl font-bold text-[#ea7f33]">
                   ข้อมูลรถคันนี้
@@ -573,11 +529,9 @@ export default function ServicePage() {
                   />
                 </div>
               </div>
-
-              {/* Services Buttons */}
               <div className="flex gap-4 mt-4">
                 <button
-                  onClick={handleToggleParking}
+                  onClick={() => setShowParkingForm((v) => !v)}
                   className={`flex-1 py-3 rounded-lg border-2 text-gray-800 font-semibold transition ${
                     showParkingForm
                       ? "border-[#ea7f33] bg-gray-50 shadow"
@@ -597,8 +551,6 @@ export default function ServicePage() {
                   ✨ บริการเพิ่มเติม
                 </button>
               </div>
-
-              {/* Parking Form */}
               {showParkingForm && (
                 <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm mt-4 space-y-4">
                   <h3 className="text-xl font-bold text-[#ea7f33]">เช่าที่จอด</h3>
@@ -618,8 +570,6 @@ export default function ServicePage() {
                       onChange={(e) => setExitTime(e.target.value)}
                     />
                   </div>
-                  
-                  {/* Parking Slot Selection with Tabs */}
                   <div className="mt-6">
                     <h4 className="text-lg font-semibold mb-2">เลือกช่องจอดรถ:</h4>
                     <div className="flex gap-2 mb-4">
@@ -637,8 +587,6 @@ export default function ServicePage() {
                             </button>
                         ))}
                     </div>
-
-                    {/* Parking Slots Grid for the selected section */}
                     <div className="border border-gray-300 rounded-lg p-4">
                         <div className="grid grid-cols-10 sm:grid-cols-10 md:grid-cols-12 lg:grid-cols-15 xl:grid-cols-20 gap-2">
                             {parkingNumbers.map(number => {
@@ -663,7 +611,6 @@ export default function ServicePage() {
                         </div>
                     </div>
                   </div>
-
                   {selectedParkingSlot && (
                     <div className="mt-4 text-center text-lg font-semibold text-gray-800">
                         คุณได้เลือกช่องจอด: <span className="text-[#ea7f33]">{selectedParkingSlot}</span>
@@ -671,8 +618,6 @@ export default function ServicePage() {
                   )}
                 </div>
               )}
-
-              {/* Additional Services Form */}
               {showAdditionalForm && (
                 <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm mt-4 space-y-4">
                   <h3 className="text-xl font-bold text-[#ea7f33]">บริการเพิ่มเติม</h3>
@@ -697,24 +642,6 @@ export default function ServicePage() {
                   </p>
                 </div>
               )}
-
-              {/* Notes Field */}
-              {(showParkingForm || showAdditionalForm) && (
-                <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm mt-4 space-y-4">
-                  <h3 className="text-xl font-bold text-[#ea7f33]">หมายเหตุ</h3>
-                  <TextField
-                    fullWidth
-                    label="รายละเอียดเพิ่มเติมเกี่ยวกับบริการ"
-                    variant="outlined"
-                    multiline
-                    rows={4}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="กรอกรายละเอียดเพิ่มเติม"
-                  />
-                </div>
-              )}
-
               <div className="flex justify-end mt-4">
                 <button
                   onClick={handleSave}
