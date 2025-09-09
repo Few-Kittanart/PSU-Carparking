@@ -84,12 +84,12 @@ export default function DetailPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 space-y-6">
       <div className="flex items-center space-x-4 mb-6">
         <IconButton onClick={() => navigate(-1)} aria-label="back">
           <ArrowBackIcon />
         </IconButton>
-        <h2 className="text-3xl font-bold text-[#ea7f33]">
+        <h2 className="text-2xl font-bold text-[#ea7f33]">
           รายละเอียดลูกค้า: {customer.customer_name}
         </h2>
       </div>
