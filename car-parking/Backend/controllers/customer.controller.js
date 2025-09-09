@@ -31,7 +31,7 @@ exports.createCustomer = async (req, res) => {
       services: req.body.services,
       entry_time: req.body.entry_time,
       exit_time: req.body.exit_time,
-      parking_slot: req.body.parking_slot, // <-- เพิ่มบรรทัดนี้
+      parking_slot: req.body.parking_slot, 
     });
 
     const saved = await newCustomer.save();
