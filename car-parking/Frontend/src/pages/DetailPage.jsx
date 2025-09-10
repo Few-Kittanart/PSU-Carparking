@@ -10,6 +10,8 @@ import {
   TextField,
   Checkbox,
   FormControlLabel,
+  CircularProgress,
+  Typography,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import "dayjs/locale/th";
@@ -39,6 +41,9 @@ export default function DetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [customer, setCustomer] = useState(null);
+  const [carInfo, setCarInfo] = useState(null);
+  const [latestServiceInfo, setLatestServiceInfo] = useState(null);
+  const [parkingServiceInfo, setParkingServiceInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [openModal, setOpenModal] = useState(false);
@@ -60,6 +65,23 @@ export default function DetailPage() {
 
         const data = await res.json();
         setCustomer(data);
+
+        if (data.cars && data.cars.length > 0) {
+          const firstCar = data.cars[0];
+          setCarInfo(firstCar);
+          if (firstCar.service_history && firstCar.service_history.length > 0) {
+            const latest = [...firstCar.service_history].sort(
+              (a, b) => dayjs(b.entry_time) - dayjs(a.entry_time)
+            )[0];
+            setLatestServiceInfo(latest);
+
+            // ✅ แก้ไข: ค้นหาข้อมูลบริการที่เกี่ยวข้องกับการเช่าที่จอดรถโดยเฉพาะ
+            const parking = firstCar.service_history.find(
+              (s) => (s.services || []).includes(PARKING_SERVICE_ID)
+            );
+            setParkingServiceInfo(parking);
+          }
+        }
         setLoading(false);
       } catch (err) {
         setError(err.message);
@@ -71,11 +93,14 @@ export default function DetailPage() {
   }, [id]);
 
   const handleEditOpen = () => {
-    setExitTime(dayjs());
-    setSelectedServices(
-      customer.services?.filter((id) => id !== PARKING_SERVICE_ID) || []
-    );
-    setOpenModal(true);
+    if (latestServiceInfo) {
+      const hasParking = (parkingServiceInfo?.services || []).includes(PARKING_SERVICE_ID);
+      setExitTime(parkingServiceInfo?.exit_time ? dayjs(parkingServiceInfo.exit_time) : dayjs());
+      setSelectedServices(
+        (latestServiceInfo.services || []).filter((id) => id !== PARKING_SERVICE_ID)
+      );
+      setOpenModal(true);
+    }
   };
 
   const handleEditClose = () => setOpenModal(false);
@@ -83,38 +108,77 @@ export default function DetailPage() {
   const handleSave = async () => {
     try {
       const token = localStorage.getItem("token");
-      let updateData = {};
-
-      const hasParking = customer.services?.includes(PARKING_SERVICE_ID);
-
-      if (hasParking) {
-        updateData.exit_time = exitTime.toISOString();
-      }
-
-      updateData.services = [
+      const hasParking = (parkingServiceInfo?.services || []).includes(PARKING_SERVICE_ID);
+      const updatedServices = [
         ...(hasParking ? [PARKING_SERVICE_ID] : []),
         ...selectedServices,
       ];
+      const newTotalServices = updatedServices.map(id => serviceDefinitions.find(s => s.id === id)).filter(Boolean);
+      const newTotalPrice = newTotalServices.reduce((sum, service) => sum + service.price, 0);
+
+      const updatedServiceHistory = {
+        ...latestServiceInfo,
+        services: updatedServices,
+        exit_time: hasParking ? exitTime.toISOString() : undefined,
+        total_price: newTotalPrice
+      };
+      
+      const updatedCars = customer.cars.map(car => {
+          if (car.car_registration === carInfo.car_registration) {
+              return {
+                  ...car,
+                  service_history: car.service_history.map(service => {
+                      if (dayjs(service.entry_time).isSame(dayjs(latestServiceInfo.entry_time))) {
+                          return updatedServiceHistory;
+                      }
+                      return service;
+                  })
+              }
+          }
+          return car;
+      });
+
+      const updatedCustomerData = {
+          ...customer,
+          cars: updatedCars,
+      };
 
       await fetch(`http://localhost:5000/api/customers/${id}`, {
-        method: "PUT", // แก้ไขตรงนี้จาก 'PATCH' เป็น 'PUT'
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(updateData),
+        body: JSON.stringify(updatedCustomerData),
       });
 
       alert("บันทึกข้อมูลเรียบร้อยแล้ว");
       handleEditClose();
+      
       const updatedCustomerRes = await fetch(
         `http://localhost:5000/api/customers/${id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      const updatedCustomerData = await updatedCustomerRes.json();
-      setCustomer(updatedCustomerData);
+      const updatedCustomerDataRes = await updatedCustomerRes.json();
+      setCustomer(updatedCustomerDataRes);
+      
+      if (updatedCustomerDataRes.cars && updatedCustomerDataRes.cars.length > 0) {
+        const firstCar = updatedCustomerDataRes.cars[0];
+        setCarInfo(firstCar);
+        if (firstCar.service_history && firstCar.service_history.length > 0) {
+          const latest = [...firstCar.service_history].sort(
+            (a, b) => dayjs(b.entry_time) - dayjs(a.entry_time)
+          )[0];
+          setLatestServiceInfo(latest);
+
+          const parking = firstCar.service_history.find(
+            (s) => (s.services || []).includes(PARKING_SERVICE_ID)
+          );
+          setParkingServiceInfo(parking);
+        }
+      }
     } catch (err) {
       alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
       console.error(err);
@@ -135,8 +199,9 @@ export default function DetailPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen text-xl">
-        กำลังโหลด...
+      <div className="flex justify-center items-center h-screen">
+        <CircularProgress />
+        <span className="ml-4 text-xl">กำลังโหลด...</span>
       </div>
     );
   }
@@ -149,36 +214,20 @@ export default function DetailPage() {
     );
   }
 
-  if (!customer) {
+  if (!customer || !carInfo) {
     return (
       <div className="flex justify-center items-center h-screen text-xl">
-        ไม่พบข้อมูลลูกค้า
+        ไม่พบข้อมูลลูกค้าหรือรถ
       </div>
     );
   }
 
-  const getServiceDetails = (serviceIds) => {
-    if (!serviceIds) return [];
-    return serviceIds
-      .map((id) => serviceDefinitions.find((s) => s.id === id))
-      .filter(Boolean);
-  };
-
-  const parkingService = getServiceDetails(customer.services).find(
-    (s) => s.id === PARKING_SERVICE_ID
-  );
-  const additionalServices = getServiceDetails(customer.services).filter(
-    (s) => s.id !== PARKING_SERVICE_ID
-  );
-  const totalServicePrice = additionalServices.reduce(
-    (sum, service) => sum + service.price,
-    0
-  );
-
-  const hasParking = customer.services?.includes(PARKING_SERVICE_ID);
-  const hasAdditional = customer.services?.some(
-    (id) => id !== PARKING_SERVICE_ID
-  );
+  const additionalServices = (latestServiceInfo?.services || [])
+    .filter((id) => id !== PARKING_SERVICE_ID)
+    .map((id) => serviceDefinitions.find((s) => s.id === id))
+    .filter(Boolean);
+    
+  const totalServicePrice = latestServiceInfo ? latestServiceInfo.total_price : 0;
   const allAdditionalServices = serviceDefinitions.filter(
     (s) => s.id !== PARKING_SERVICE_ID
   );
@@ -200,42 +249,42 @@ export default function DetailPage() {
             ข้อมูลลูกค้า
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
-            <p>
+            <Typography>
               <strong>ชื่อ-นามสกุล:</strong> {customer.customer_name}
-            </p>
-            <p>
+            </Typography>
+            <Typography>
               <strong>เบอร์โทรศัพท์:</strong> {customer.phone_number}
-            </p>
-            <p>
+            </Typography>
+            <Typography>
               <strong>รหัสลูกค้า:</strong> {customer.customer_id}
-            </p>
-            <p className="md:col-span-2">
+            </Typography>
+            <Typography className="md:col-span-2">
               <strong>ที่อยู่:</strong> {customer.house_number} หมู่บ้าน{" "}
               {customer.village}, ถนน {customer.road}, ตำบล {customer.canton},
               อำเภอ {customer.district}, จังหวัด {customer.province},{" "}
               {customer.zip_code}
-            </p>
+            </Typography>
           </div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-lg">
           <h3 className="text-xl font-bold mb-4 text-[#ea7f33]">ข้อมูลรถ</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
-            <p>
-              <strong>ทะเบียนรถ:</strong> {customer.car_registration}
-            </p>
-            <p>
+            <Typography>
+              <strong>ทะเบียนรถ:</strong> {carInfo.car_registration}
+            </Typography>
+            <Typography>
               <strong>จังหวัด (ป้าย):</strong>{" "}
-              {customer.car_registration_province}
-            </p>
-            <p>
-              <strong>ยี่ห้อ:</strong> {customer.brand_car}
-            </p>
-            <p>
-              <strong>รุ่น:</strong> {customer.type_car}
-            </p>
-            <p>
-              <strong>สี:</strong> {customer.color}
-            </p>
+              {carInfo.car_registration_province}
+            </Typography>
+            <Typography>
+              <strong>ยี่ห้อ:</strong> {carInfo.brand_car}
+            </Typography>
+            <Typography>
+              <strong>รุ่น:</strong> {carInfo.type_car}
+            </Typography>
+            <Typography>
+              <strong>สี:</strong> {carInfo.color}
+            </Typography>
           </div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-lg lg:col-span-2">
@@ -243,28 +292,28 @@ export default function DetailPage() {
             ข้อมูลบริการ
           </h3>
           <div className="space-y-4">
-            {parkingService && (
+            {parkingServiceInfo && (
               <div>
                 <h4 className="font-bold text-lg text-[#ea7f33]">
                   - เช่าที่จอด:
                 </h4>
                 <div className="pl-4 mt-2">
-                  <p>
+                  <Typography>
                     <strong>ช่องจอด:</strong>{" "}
                     <span className="bg-[#ea7f33] text-white px-3 py-1 rounded-full text-sm font-semibold">
-                      {customer.parking_slot}
+                      {parkingServiceInfo.parking_slot}
                     </span>
-                  </p>
-                  <p className="mt-2">
+                  </Typography>
+                  <Typography className="mt-2">
                     <strong>วันเวลาเข้า:</strong>{" "}
-                    {dayjs(customer.entry_time).format("DD/MM/YYYY HH:mm")}
-                  </p>
-                  <p>
+                    {dayjs(parkingServiceInfo.entry_time).format("DD/MM/YYYY HH:mm")}
+                  </Typography>
+                  <Typography>
                     <strong>วันเวลาออก:</strong>{" "}
-                    {customer.exit_time
-                      ? dayjs(customer.exit_time).format("DD/MM/YYYY HH:mm")
+                    {parkingServiceInfo.exit_time
+                      ? dayjs(parkingServiceInfo.exit_time).format("DD/MM/YYYY HH:mm")
                       : "-"}
-                  </p>
+                  </Typography>
                 </div>
               </div>
             )}
@@ -289,26 +338,28 @@ export default function DetailPage() {
               </div>
             )}
             <div className="mt-6 pt-4 border-t-2 border-dashed border-gray-300 flex justify-end items-center space-x-4">
-              <p className="text-lg font-bold">
+              <Typography className="text-lg font-bold">
                 ยอดรวมทั้งหมด:{" "}
                 <span className="text-2xl text-gray-800">
                   {totalServicePrice}
                 </span>{" "}
                 บาท
-              </p>
+              </Typography>
               <button
-                onClick={handleToPaymentPage} // ✅ เรียกใช้ฟังก์ชันใหม่
+                onClick={handleToPaymentPage}
                 className="bg-[#ea7f33] hover:bg-[#e06d1f] text-white font-semibold px-6 py-3 rounded-lg flex items-center gap-2 transition"
               >
                 <PaymentIcon />
                 ไปหน้าชำระเงิน
               </button>
             </div>
-            <div className="mt-4 flex justify-end">
-              <Button variant="outlined" onClick={handleEditOpen}>
-                แก้ไขข้อมูล
-              </Button>
-            </div>
+            {latestServiceInfo && (
+                <div className="mt-4 flex justify-end">
+                    <Button variant="outlined" onClick={handleEditOpen}>
+                        แก้ไขข้อมูล
+                    </Button>
+                </div>
+            )}
           </div>
         </div>
       </div>
@@ -320,12 +371,12 @@ export default function DetailPage() {
         aria-describedby="modal-description"
       >
         <Box sx={style}>
-          <h2 id="modal-title" className="text-xl font-bold mb-4 text-center">
+          <Typography id="modal-title" variant="h6" component="h2" className="text-xl font-bold mb-4 text-center">
             แก้ไขข้อมูลลูกค้า
-          </h2>
-          {hasParking && (
+          </Typography>
+          {parkingServiceInfo && (
             <div className="mb-4">
-              <h4 className="font-bold text-lg mb-2">แก้ไขวันเวลาที่ออก</h4>
+              <Typography variant="h6" className="font-bold text-lg mb-2">แก้ไขวันเวลาที่ออก</Typography>
               <TextField
                 fullWidth
                 type="datetime-local"
@@ -336,13 +387,13 @@ export default function DetailPage() {
               />
             </div>
           )}
-          {hasAdditional || !hasParking ? (
+          {latestServiceInfo && ((latestServiceInfo.services || []).length > 1 || !(latestServiceInfo.services || []).includes(PARKING_SERVICE_ID)) ? (
             <div>
-              <h4 className="font-bold text-lg mb-2">แก้ไขบริการเพิ่มเติม</h4>
+              <Typography variant="h6" className="font-bold text-lg mb-2">แก้ไขบริการเพิ่มเติม</Typography>
               <div className="flex flex-col space-y-2">
-                <p className="text-gray-600 text-sm mb-2">
+                <Typography className="text-gray-600 text-sm mb-2">
                   เลือกบริการที่ลูกค้าต้องการ
-                </p>
+                </Typography>
                 {allAdditionalServices.map((service) => (
                   <FormControlLabel
                     key={service.id}
