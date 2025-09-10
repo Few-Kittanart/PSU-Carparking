@@ -16,30 +16,18 @@ const parkingNumbers = Array.from({ length: 100 }, (_, i) => i + 1);
 export default function ServicePage() {
   const [currentStep, setCurrentStep] = useState(1);
 
-  // Step 1: Customer Info
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [customerList, setCustomerList] = useState([]);
   const [address, setAddress] = useState({
-    houseNo: "",
-    village: "",
-    street: "",
-    district: null,
-    amphoe: null,
-    province: null,
-    country: "",
-    zipcode: "",
+    houseNo: "", village: "", street: "", district: null,
+    amphoe: null, province: null, country: "", zipcode: "",
   });
 
-  // Step 2: Vehicle & Services
   const [vehicle, setVehicle] = useState({
-    plate: "",
-    province: "",
-    brand: null,
-    model: null,
-    type: null,
-    color: null,
+    plate: "", province: "", brand: null, model: null,
+    type: null, color: null,
   });
   const [showParkingForm, setShowParkingForm] = useState(false);
   const [showAdditionalForm, setShowAdditionalForm] = useState(false);
@@ -50,14 +38,12 @@ export default function ServicePage() {
   const [occupiedSlots, setOccupiedSlots] = useState(new Set());
   const [selectedSection, setSelectedSection] = useState("A");
 
-  // Thai Address
   const [provinceList, setProvinceList] = useState([]);
   const [amphoeList, setAmphoeList] = useState([]);
   const [districtList, setDistrictList] = useState([]);
 
   const currentTime = dayjs().format("MMMM D, YYYY h:mm A");
 
-  // Load Thai address JSON from public API and handle errors gracefully
   useEffect(() => {
     const fetchAddressData = async () => {
       try {
@@ -77,7 +63,6 @@ export default function ServicePage() {
     fetchAddressData();
   }, []);
 
-  // Load customer list and occupied parking slots
   useEffect(() => {
     const token = localStorage.getItem("token");
     fetch("http://localhost:5000/api/customers", {
@@ -96,7 +81,6 @@ export default function ServicePage() {
       .catch((err) => console.error(err));
   }, []);
 
-  // Update amphoe/district list based on selection
   useEffect(() => {
     if (address.province) {
       setAmphoeList(address.province.amphure);
@@ -166,14 +150,26 @@ export default function ServicePage() {
       zipcode: cust.zip_code || "",
     });
 
-    setVehicle({
-        plate: cust.car_registration || "",
-        province: cust.car_registration_province || "",
-        brand: cust.brand_car || null,
-        model: cust.type_car || null,
-        type: null,
-        color: cust.color || null,
-    });
+    if (cust.cars && cust.cars.length > 0) {
+      const lastCar = cust.cars[cust.cars.length - 1];
+      setVehicle({
+          plate: lastCar.car_registration || "",
+          province: lastCar.car_registration_province || "",
+          brand: lastCar.brand_car || null,
+          model: lastCar.type_car || null,
+          type: null,
+          color: lastCar.color || null,
+      });
+    } else {
+        setVehicle({
+            plate: "",
+            province: "",
+            brand: null,
+            model: null,
+            type: null,
+            color: null,
+        });
+    }
   };
 
   const clearAll = () => {
@@ -207,13 +203,11 @@ export default function ServicePage() {
   };
 
   const handleSave = async () => {
-    // Check if at least one service is selected
     if (!showParkingForm && selectedServices.length === 0) {
         alert("โปรดเลือกบริการอย่างน้อยหนึ่งบริการ");
         return;
     }
     
-    // Original validation
     if (!customerName || !phone) {
         alert("โปรดกรอกชื่อ-นามสกุลและเบอร์โทรศัพท์ให้ครบถ้วน");
         return;
@@ -235,33 +229,24 @@ export default function ServicePage() {
         province: address.province ? address.province.name_th : "",
         zip_code: address.zipcode,
         country: address.country,
-        car_registration: vehicle.plate,
-        car_registration_province: vehicle.province,
-        brand_car: vehicle.brand,
-        type_car: vehicle.model,
-        color: vehicle.color,
-        services: selectedServices,
-        entry_time: currentTime,
-        exit_time: exitTime,
-        parking_slot: selectedParkingSlot,
+        car: {
+            car_registration: vehicle.plate,
+            car_registration_province: vehicle.province,
+            brand_car: vehicle.brand,
+            type_car: vehicle.model,
+            color: vehicle.color,
+            services: selectedServices,
+            entry_time: currentTime,
+            exit_time: exitTime,
+            parking_slot: selectedParkingSlot,
+            total_price: totalPrice
+        }
     };
-
-    let res;
-    let url;
-    let method;
-
-    if (customerId) {
-        url = `http://localhost:5000/api/customers/${customerId}`;
-        method = "PUT";
-    } else {
-        url = "http://localhost:5000/api/customers";
-        method = "POST";
-    }
 
     try {
         const token = localStorage.getItem("token");
-        res = await fetch(url, {
-            method: method,
+        const res = await fetch("http://localhost:5000/api/customers", {
+            method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
@@ -295,7 +280,6 @@ export default function ServicePage() {
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                {/* Autocomplete by Name */}
                 <Autocomplete
                   options={customerList.map((c) => c.customer_name)}
                   value={customerName || null}
@@ -313,7 +297,6 @@ export default function ServicePage() {
                   )}
                 />
 
-                {/* Autocomplete by Phone */}
                 <Autocomplete
                   options={customerList.map((c) => c.phone_number)}
                   value={phone || null}
@@ -332,7 +315,6 @@ export default function ServicePage() {
                 />
               </div>
 
-              {/* Customer ID */}
               <TextField
                 fullWidth
                 label="รหัสลูกค้า"
@@ -342,7 +324,6 @@ export default function ServicePage() {
                 sx={{ mb: 2 }}
               />
 
-              {/* Address Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <TextField
                   fullWidth
@@ -600,7 +581,6 @@ export default function ServicePage() {
                     />
                   </div>
                   
-                  {/* Parking Slot Selection with Tabs */}
                   <div className="mt-6">
                     <h4 className="text-lg font-semibold mb-2">เลือกช่องจอดรถ:</h4>
                     <div className="flex gap-2 mb-4">
@@ -619,7 +599,6 @@ export default function ServicePage() {
                         ))}
                     </div>
 
-                    {/* Parking Slots Grid for the selected section */}
                     <div className="border border-gray-300 rounded-lg p-4">
                         <div className="grid grid-cols-10 sm:grid-cols-10 md:grid-cols-12 lg:grid-cols-15 xl:grid-cols-20 gap-2">
                             {parkingNumbers.map(number => {

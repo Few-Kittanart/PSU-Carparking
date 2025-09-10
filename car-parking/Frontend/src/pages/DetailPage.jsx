@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import PaymentIcon from "@mui/icons-material/Payment";
 import dayjs from "dayjs";
-import { IconButton, Button, Modal, Box, TextField, Checkbox, FormControlLabel } from "@mui/material";
+import {
+  IconButton,
+  Button,
+  Modal,
+  Box,
+  TextField,
+  Checkbox,
+  FormControlLabel,
+} from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import "dayjs/locale/th";
 
@@ -9,21 +18,21 @@ const serviceDefinitions = [
   { id: 1, name: "ล้างรถ", price: 100 },
   { id: 2, name: "เช็ดภายใน", price: 50 },
   { id: 3, name: "ตรวจสภาพ", price: 200 },
-  { id: 4, name: "เช่าที่จอด", price: 0 }
+  { id: 4, name: "เช่าที่จอด", price: 0 },
 ];
 
 const PARKING_SERVICE_ID = 4;
 
 const style = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
+  position: "absolute",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%)",
   width: 400,
-  bgcolor: 'background.paper',
+  bgcolor: "background.paper",
   boxShadow: 24,
   p: 4,
-  borderRadius: '8px',
+  borderRadius: "8px",
 };
 
 export default function DetailPage() {
@@ -63,10 +72,12 @@ export default function DetailPage() {
 
   const handleEditOpen = () => {
     setExitTime(dayjs());
-    setSelectedServices(customer.services?.filter(id => id !== PARKING_SERVICE_ID) || []);
+    setSelectedServices(
+      customer.services?.filter((id) => id !== PARKING_SERVICE_ID) || []
+    );
     setOpenModal(true);
   };
-  
+
   const handleEditClose = () => setOpenModal(false);
 
   const handleSave = async () => {
@@ -75,51 +86,53 @@ export default function DetailPage() {
       let updateData = {};
 
       const hasParking = customer.services?.includes(PARKING_SERVICE_ID);
-      
+
       if (hasParking) {
         updateData.exit_time = exitTime.toISOString();
       }
-      
+
       updateData.services = [
         ...(hasParking ? [PARKING_SERVICE_ID] : []),
-        ...selectedServices
+        ...selectedServices,
       ];
 
       await fetch(`http://localhost:5000/api/customers/${id}`, {
-        method: 'PUT', // แก้ไขตรงนี้จาก 'PATCH' เป็น 'PUT'
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+        method: "PUT", // แก้ไขตรงนี้จาก 'PATCH' เป็น 'PUT'
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(updateData),
       });
 
-      alert('บันทึกข้อมูลเรียบร้อยแล้ว');
+      alert("บันทึกข้อมูลเรียบร้อยแล้ว");
       handleEditClose();
-      const updatedCustomerRes = await fetch(`http://localhost:5000/api/customers/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const updatedCustomerRes = await fetch(
+        `http://localhost:5000/api/customers/${id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       const updatedCustomerData = await updatedCustomerRes.json();
       setCustomer(updatedCustomerData);
-
     } catch (err) {
-      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+      alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
       console.error(err);
     }
   };
 
-  const handlePayment = () => {
-    alert("ยืนยันการชำระเงินเรียบร้อยแล้ว!");
+  const handleToPaymentPage = () => {
+    navigate(`/manage/payment/${id}`);
   };
 
   const handleServiceCheckboxChange = (serviceId) => {
-    setSelectedServices(prevSelected =>
+    setSelectedServices((prevSelected) =>
       prevSelected.includes(serviceId)
-        ? prevSelected.filter(id => id !== serviceId)
+        ? prevSelected.filter((id) => id !== serviceId)
         : [...prevSelected, serviceId]
     );
   };
-  
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen text-xl">
@@ -146,16 +159,29 @@ export default function DetailPage() {
 
   const getServiceDetails = (serviceIds) => {
     if (!serviceIds) return [];
-    return serviceIds.map(id => serviceDefinitions.find(s => s.id === id)).filter(Boolean);
+    return serviceIds
+      .map((id) => serviceDefinitions.find((s) => s.id === id))
+      .filter(Boolean);
   };
 
-  const parkingService = getServiceDetails(customer.services).find(s => s.id === PARKING_SERVICE_ID);
-  const additionalServices = getServiceDetails(customer.services).filter(s => s.id !== PARKING_SERVICE_ID);
-  const totalServicePrice = additionalServices.reduce((sum, service) => sum + service.price, 0);
+  const parkingService = getServiceDetails(customer.services).find(
+    (s) => s.id === PARKING_SERVICE_ID
+  );
+  const additionalServices = getServiceDetails(customer.services).filter(
+    (s) => s.id !== PARKING_SERVICE_ID
+  );
+  const totalServicePrice = additionalServices.reduce(
+    (sum, service) => sum + service.price,
+    0
+  );
 
   const hasParking = customer.services?.includes(PARKING_SERVICE_ID);
-  const hasAdditional = customer.services?.some(id => id !== PARKING_SERVICE_ID);
-  const allAdditionalServices = serviceDefinitions.filter(s => s.id !== PARKING_SERVICE_ID);
+  const hasAdditional = customer.services?.some(
+    (id) => id !== PARKING_SERVICE_ID
+  );
+  const allAdditionalServices = serviceDefinitions.filter(
+    (s) => s.id !== PARKING_SERVICE_ID
+  );
 
   return (
     <div className="p-8 bg-gray-100 min-h-screen">
@@ -174,22 +200,42 @@ export default function DetailPage() {
             ข้อมูลลูกค้า
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
-            <p><strong>ชื่อ-นามสกุล:</strong> {customer.customer_name}</p>
-            <p><strong>เบอร์โทรศัพท์:</strong> {customer.phone_number}</p>
-            <p><strong>รหัสลูกค้า:</strong> {customer.customer_id}</p>
-            <p className="md:col-span-2"><strong>ที่อยู่:</strong> {customer.house_number} หมู่บ้าน {customer.village}, ถนน {customer.road}, ตำบล {customer.canton}, อำเภอ {customer.district}, จังหวัด {customer.province}, {customer.zip_code}</p>
+            <p>
+              <strong>ชื่อ-นามสกุล:</strong> {customer.customer_name}
+            </p>
+            <p>
+              <strong>เบอร์โทรศัพท์:</strong> {customer.phone_number}
+            </p>
+            <p>
+              <strong>รหัสลูกค้า:</strong> {customer.customer_id}
+            </p>
+            <p className="md:col-span-2">
+              <strong>ที่อยู่:</strong> {customer.house_number} หมู่บ้าน{" "}
+              {customer.village}, ถนน {customer.road}, ตำบล {customer.canton},
+              อำเภอ {customer.district}, จังหวัด {customer.province},{" "}
+              {customer.zip_code}
+            </p>
           </div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-lg">
-          <h3 className="text-xl font-bold mb-4 text-[#ea7f33]">
-            ข้อมูลรถ
-          </h3>
+          <h3 className="text-xl font-bold mb-4 text-[#ea7f33]">ข้อมูลรถ</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
-            <p><strong>ทะเบียนรถ:</strong> {customer.car_registration}</p>
-            <p><strong>จังหวัด (ป้าย):</strong> {customer.car_registration_province}</p>
-            <p><strong>ยี่ห้อ:</strong> {customer.brand_car}</p>
-            <p><strong>รุ่น:</strong> {customer.type_car}</p>
-            <p><strong>สี:</strong> {customer.color}</p>
+            <p>
+              <strong>ทะเบียนรถ:</strong> {customer.car_registration}
+            </p>
+            <p>
+              <strong>จังหวัด (ป้าย):</strong>{" "}
+              {customer.car_registration_province}
+            </p>
+            <p>
+              <strong>ยี่ห้อ:</strong> {customer.brand_car}
+            </p>
+            <p>
+              <strong>รุ่น:</strong> {customer.type_car}
+            </p>
+            <p>
+              <strong>สี:</strong> {customer.color}
+            </p>
           </div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-lg lg:col-span-2">
@@ -203,9 +249,22 @@ export default function DetailPage() {
                   - เช่าที่จอด:
                 </h4>
                 <div className="pl-4 mt-2">
-                  <p><strong>ช่องจอด:</strong> <span className="bg-[#ea7f33] text-white px-3 py-1 rounded-full text-sm font-semibold">{customer.parking_slot}</span></p>
-                  <p className="mt-2"><strong>วันเวลาเข้า:</strong> {dayjs(customer.entry_time).format("DD/MM/YYYY HH:mm")}</p>
-                  <p><strong>วันเวลาออก:</strong> {customer.exit_time ? dayjs(customer.exit_time).format("DD/MM/YYYY HH:mm") : '-'}</p>
+                  <p>
+                    <strong>ช่องจอด:</strong>{" "}
+                    <span className="bg-[#ea7f33] text-white px-3 py-1 rounded-full text-sm font-semibold">
+                      {customer.parking_slot}
+                    </span>
+                  </p>
+                  <p className="mt-2">
+                    <strong>วันเวลาเข้า:</strong>{" "}
+                    {dayjs(customer.entry_time).format("DD/MM/YYYY HH:mm")}
+                  </p>
+                  <p>
+                    <strong>วันเวลาออก:</strong>{" "}
+                    {customer.exit_time
+                      ? dayjs(customer.exit_time).format("DD/MM/YYYY HH:mm")
+                      : "-"}
+                  </p>
                 </div>
               </div>
             )}
@@ -215,10 +274,15 @@ export default function DetailPage() {
                   - บริการเพิ่มเติม:
                 </h4>
                 <ul className="list-none space-y-2 pl-4 mt-2">
-                  {additionalServices.map(s => (
-                    <li key={s.id} className="bg-green-100 p-2 rounded-lg flex justify-between items-center">
+                  {additionalServices.map((s) => (
+                    <li
+                      key={s.id}
+                      className="bg-green-100 p-2 rounded-lg flex justify-between items-center"
+                    >
                       <span className="text-gray-800">{s.name}</span>
-                      <span className="font-semibold text-green-700">{s.price} บาท</span>
+                      <span className="font-semibold text-green-700">
+                        {s.price} บาท
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -226,18 +290,19 @@ export default function DetailPage() {
             )}
             <div className="mt-6 pt-4 border-t-2 border-dashed border-gray-300 flex justify-end items-center space-x-4">
               <p className="text-lg font-bold">
-                ยอดรวมทั้งหมด: <span className="text-2xl text-gray-800">{totalServicePrice}</span> บาท
+                ยอดรวมทั้งหมด:{" "}
+                <span className="text-2xl text-gray-800">
+                  {totalServicePrice}
+                </span>{" "}
+                บาท
               </p>
-              <Button 
-                variant="contained" 
-                onClick={handlePayment} 
-                sx={{ 
-                  bgcolor: '#ea7f33', 
-                  '&:hover': { bgcolor: '#e06d1f' } 
-                }}
+              <button
+                onClick={handleToPaymentPage} // ✅ เรียกใช้ฟังก์ชันใหม่
+                className="bg-[#ea7f33] hover:bg-[#e06d1f] text-white font-semibold px-6 py-3 rounded-lg flex items-center gap-2 transition"
               >
-                ชำระเงิน
-              </Button>
+                <PaymentIcon />
+                ไปหน้าชำระเงิน
+              </button>
             </div>
             <div className="mt-4 flex justify-end">
               <Button variant="outlined" onClick={handleEditOpen}>
@@ -247,7 +312,7 @@ export default function DetailPage() {
           </div>
         </div>
       </div>
-      
+
       <Modal
         open={openModal}
         onClose={handleEditClose}
@@ -275,7 +340,9 @@ export default function DetailPage() {
             <div>
               <h4 className="font-bold text-lg mb-2">แก้ไขบริการเพิ่มเติม</h4>
               <div className="flex flex-col space-y-2">
-                <p className="text-gray-600 text-sm mb-2">เลือกบริการที่ลูกค้าต้องการ</p>
+                <p className="text-gray-600 text-sm mb-2">
+                  เลือกบริการที่ลูกค้าต้องการ
+                </p>
                 {allAdditionalServices.map((service) => (
                   <FormControlLabel
                     key={service.id}
@@ -295,7 +362,11 @@ export default function DetailPage() {
             <Button variant="outlined" onClick={handleEditClose}>
               ยกเลิก
             </Button>
-            <Button variant="contained" onClick={handleSave} sx={{ bgcolor: '#ea7f33', '&:hover': { bgcolor: '#e06d1f' } }}>
+            <Button
+              variant="contained"
+              onClick={handleSave}
+              sx={{ bgcolor: "#ea7f33", "&:hover": { bgcolor: "#e06d1f" } }}
+            >
               บันทึก
             </Button>
           </div>

@@ -11,7 +11,6 @@ import {
   Paper,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import PrintIcon from "@mui/icons-material/Print";
 import InfoIcon from "@mui/icons-material/Info";
 import { useNavigate } from "react-router-dom";
 
@@ -27,7 +26,15 @@ export default function CarPage() {
     })
       .then((res) => res.json())
       .then((data) => {
-        const cars = data.filter(customer => customer.car_registration);
+        // ✅ แปลงข้อมูลลูกค้าให้อยู่ในรูปแบบรายการรถ
+        const cars = data.flatMap(customer =>
+          customer.cars.map(car => ({
+            ...car, // ข้อมูลรถ
+            customer_id: customer.customer_id, // เพิ่มข้อมูลลูกค้า
+            customer_name: customer.customer_name,
+            phone_number: customer.phone_number,
+          }))
+        );
         setCarList(cars);
       })
       .catch((err) => console.error(err));
@@ -75,7 +82,7 @@ export default function CarPage() {
           </TableHead>
           <TableBody>
             {filteredData.map((row, index) => (
-              <TableRow key={row.customer_id} hover>
+              <TableRow key={row.customer_id + row.car_registration} hover>
                 <TableCell align="center">{index + 1}</TableCell>
                 <TableCell>
                   {row.car_registration} ({row.car_registration_province})
