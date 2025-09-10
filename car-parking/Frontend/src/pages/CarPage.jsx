@@ -92,9 +92,6 @@ export default function CarPage() {
                   >
                     <InfoIcon />
                   </IconButton>
-                  <IconButton color="secondary" title="พิมพ์ใบรับบริการ">
-                    <PrintIcon />
-                  </IconButton>
                 </TableCell>
               </TableRow>
             ))}
