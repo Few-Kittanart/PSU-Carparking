@@ -1,12 +1,6 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom"; // ✅ เพิ่ม import
-import {
-  FaCar,
-  FaTools,
-  FaChartLine,
-  FaFileAlt,
-  FaCog,
-} from "react-icons/fa";
+import { Link } from "react-router-dom";
+import { FaCar, FaTools, FaChartLine, FaFileAlt, FaCog } from "react-icons/fa";
 
 export default function Sidebar() {
   const [openMenu, setOpenMenu] = useState({});
@@ -15,13 +9,16 @@ export default function Sidebar() {
     setOpenMenu((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // ✅ แก้ไขเมนูให้ตรงกับหน้าเว็บที่สร้างไว้
   const menuItems = [
     { label: "การใช้บริการ", icon: <FaCar />, path: "/service" },
     {
-      label: "การจัดการ", icon: <FaTools />,
+      label: "การจัดการ",
+      icon: <FaTools />,
       subMenu: [
         {
-          label: "การจัดการรถ", path: "/manage"  
+          label: "จัดการบริการ", // ✅ แก้ไขชื่อเมนู
+          path: "/manage",
         },
         {
           label: "ลูกค้าสัมพันธ์",
@@ -37,8 +34,14 @@ export default function Sidebar() {
       label: "รายงาน",
       icon: <FaFileAlt />,
       subMenu: [
-        { label: "รายการรถใช้บริการ", path: "/report/service-list" },
-        { label: "รายได้", path: "/report/income" },
+        {
+          label: "รายงานการบริการ",
+          path: "/report",
+        },
+        {
+          label: "รายงานรายได้", // ✅ เพิ่มเมนูนี้
+          path: "/report/income", // ✅ เพิ่ม path ให้ตรงกับ IncomeReportPage
+        },
       ],
     },
     {
@@ -55,7 +58,6 @@ export default function Sidebar() {
     },
   ];
 
-  // ✅ ปรับ renderMenu ให้ใช้ <Link> ถ้ามี path
   const renderMenu = (items, level = 0) =>
     items.map((item, index) => (
       <div key={index} className="mt-1">

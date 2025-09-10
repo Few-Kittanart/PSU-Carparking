@@ -10,6 +10,10 @@ import Footer from "./components/Footer";
 import CustomerPage from "./pages/CustomerPage";
 import CarPage from "./pages/CarPage";
 import DetailCustomer from "./pages/DetailCustomer";
+import PaymentPage from "./pages/PaymentPage";
+import ReportPage from './pages/ReportPage';
+import ReportDetailPage from './pages/ReportDetailPage';
+import IncomeReportPage from "./pages/IncomeReportPage";
 
 // Layout สำหรับหน้าที่มี Sidebar + Header + Footer
 function AppLayoutWithSidebar({ children }) {
@@ -67,6 +71,11 @@ function App() {
                 <Route path="crm/customer" element={<CustomerPage />} />
                 <Route path="crm/car" element={<CarPage />} />
                 <Route path="crm/customer/details/:id" element={<DetailCustomer />} />
+                <Route path="manage/payment/:id" element={<PaymentPage />} /> 
+                <Route path="/report" element={<ReportPage />} />
+                <Route path="/report/details/:customerId/:serviceId" element={<ReportDetailPage />} />
+                <Route path="/report/income" element={<IncomeReportPage />} />
+
               </Routes>
             </AppLayoutWithSidebar>
           }

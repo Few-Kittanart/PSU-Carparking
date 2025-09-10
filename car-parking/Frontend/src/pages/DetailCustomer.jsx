@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import { IconButton } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import InfoIcon from "@mui/icons-material/Info";
+import PrintIcon from "@mui/icons-material/Print";
 
 export default function DetailCustomer() {
   const { id } = useParams();
@@ -100,21 +102,62 @@ export default function DetailCustomer() {
         <h3 className="text-xl font-semibold mb-4 text-[#ea7f33]">
           ประวัติรถของลูกค้า
         </h3>
-        {customer.car_registration ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <p>
-              <strong>ทะเบียนรถ:</strong> {customer.car_registration} (
-              {customer.car_registration_province})
-            </p>
-            <p>
-              <strong>ยี่ห้อ:</strong> {customer.brand_car}
-            </p>
-            <p>
-              <strong>รุ่น:</strong> {customer.type_car}
-            </p>
-            <p>
-              <strong>สี:</strong> {customer.color}
-            </p>
+        {customer.cars && customer.cars.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    ลำดับ
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    ทะเบียน
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    จังหวัด
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    ยี่ห้อ
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    รุ่น
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    ประเภท
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    สี
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    ดำเนินการ
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {customer.cars.map((car, index) => (
+                  <tr key={car._id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-900">{index + 1}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{car.car_registration}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{car.car_registration_province}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{car.brand_car}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{car.type_car}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{car.type_car}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{car.color}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                      <IconButton
+                        color="primary"
+                        title="รายละเอียด"
+                      >
+                        <InfoIcon />
+                      </IconButton>
+                      <IconButton color="secondary" title="พิมพ์ใบรับบริการ">
+                        <PrintIcon />
+                      </IconButton>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
           <p className="text-gray-500">ไม่พบข้อมูลรถของลูกค้า</p>
