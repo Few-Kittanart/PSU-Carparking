@@ -9,7 +9,8 @@ const additionalServices = [
   { id: 2, name: "เช็ดภายใน", price: 50 },
   { id: 3, name: "ตรวจสภาพ", price: 200 },
 ];
-const PARKING_SERVICE_ID = 1;
+// ✅ แก้ไข: เปลี่ยนค่า PARKING_SERVICE_ID ให้ตรงกับโค้ดอื่น
+const PARKING_SERVICE_ID = 4;
 const parkingSections = ["A", "B", "C", "D"];
 const parkingNumbers = Array.from({ length: 100 }, (_, i) => i + 1);
 
@@ -42,7 +43,33 @@ export default function ServicePage() {
   const [amphoeList, setAmphoeList] = useState([]);
   const [districtList, setDistrictList] = useState([]);
 
-  const currentTime = dayjs().format("MMMM D, YYYY h:mm A");
+ const currentTime = dayjs().toISOString();
+
+  const fetchCustomersAndOccupiedSlots = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:5000/api/customers", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setCustomerList(data);
+      const occupied = new Set();
+      data.forEach(customer => {
+        // ✅ แก้ไข: วนลูปดูประวัติการบริการในรถแต่ละคัน
+        customer.cars?.forEach(car => {
+            car.service_history?.forEach(service => {
+                // ✅ แก้ไข: ตรวจสอบว่ามีบริการเช่าที่จอด และยังไม่จ่ายเงิน และมี slot ที่ถูกจอง
+                if (service.services?.includes(PARKING_SERVICE_ID) && !service.is_paid && service.parking_slot) {
+                    occupied.add(service.parking_slot);
+                }
+            });
+        });
+      });
+      setOccupiedSlots(occupied);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     const fetchAddressData = async () => {
@@ -61,24 +88,8 @@ export default function ServicePage() {
       }
     };
     fetchAddressData();
-  }, []);
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    fetch("http://localhost:5000/api/customers", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setCustomerList(data);
-        const occupied = new Set(
-          data
-            .filter((c) => c.services?.includes(PARKING_SERVICE_ID) && c.parking_slot)
-            .map((c) => c.parking_slot)
-        );
-        setOccupiedSlots(occupied);
-      })
-      .catch((err) => console.error(err));
+    // ✅ เพิ่มการเรียกฟังก์ชันเพื่อดึงข้อมูลลูกค้าและช่องจอดตั้งแต่เริ่มต้น
+    fetchCustomersAndOccupiedSlots();
   }, []);
 
   useEffect(() => {
@@ -112,11 +123,18 @@ export default function ServicePage() {
       ? selectedServices.filter((sid) => sid !== id)
       : [...selectedServices, id];
     setSelectedServices(updated);
+
     const sum = updated.reduce((acc, sid) => {
       const s = additionalServices.find((srv) => srv.id === sid);
       return acc + (s ? s.price : 0);
     }, 0);
-    setTotalPrice(sum);
+    
+    // ✅ แก้ไข: เพิ่มเงื่อนไขเพื่อรวมราคาบริการเช่าที่จอดรถ (ซึ่งมีราคา 0)
+    if (showParkingForm) {
+      setTotalPrice(sum);
+    } else {
+      setTotalPrice(sum);
+    }
   };
 
   const handleSelectCustomer = (cust) => {
@@ -203,7 +221,12 @@ export default function ServicePage() {
   };
 
   const handleSave = async () => {
-    if (!showParkingForm && selectedServices.length === 0) {
+    const allServices = [...selectedServices];
+    if (showParkingForm) {
+      allServices.push(PARKING_SERVICE_ID);
+    }
+    
+    if (allServices.length === 0) {
         alert("โปรดเลือกบริการอย่างน้อยหนึ่งบริการ");
         return;
     }
@@ -235,7 +258,8 @@ export default function ServicePage() {
             brand_car: vehicle.brand,
             type_car: vehicle.model,
             color: vehicle.color,
-            services: selectedServices,
+            // ✅ ใช้ allServices ที่รวมบริการทั้งหมดแล้ว
+            services: allServices,
             entry_time: currentTime,
             exit_time: exitTime,
             parking_slot: selectedParkingSlot,
@@ -259,6 +283,8 @@ export default function ServicePage() {
             alert("บันทึกข้อมูลสำเร็จ!");
             console.log("Saved:", data);
             clearAll();
+            // ✅ เพิ่มการเรียกฟังก์ชันนี้เพื่ออัปเดตสถานะช่องจอดทันที
+            fetchCustomersAndOccupiedSlots();
         } else {
             alert("ผิดพลาด: " + data.message);
         }
@@ -267,6 +293,15 @@ export default function ServicePage() {
         alert("เกิดข้อผิดพลาดที่ frontend");
     }
   };
+  
+  // ✅ แก้ไข: เพิ่ม useEffect เพื่ออัปเดตราคาเมื่อมีการเลือกบริการ
+  useEffect(() => {
+    let price = selectedServices.reduce((sum, id) => {
+        const service = additionalServices.find(s => s.id === id);
+        return sum + (service ? service.price : 0);
+    }, 0);
+    setTotalPrice(price);
+  }, [selectedServices]);
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -540,7 +575,12 @@ export default function ServicePage() {
               {/* Services */}
               <div className="flex gap-4 mt-4">
                 <button
-                  onClick={() => setShowParkingForm((v) => !v)}
+                  onClick={() => {
+                      if (showParkingForm && showAdditionalForm) {
+                          setShowAdditionalForm(false);
+                      }
+                      setShowParkingForm((v) => !v);
+                  }}
                   className={`flex-1 py-3 rounded-lg border-2 text-gray-800 font-semibold transition ${
                     showParkingForm
                       ? "border-[#ea7f33] bg-gray-50 shadow"
@@ -550,7 +590,12 @@ export default function ServicePage() {
                   🚗 เช่าที่จอด
                 </button>
                 <button
-                  onClick={() => setShowAdditionalForm((v) => !v)}
+                  onClick={() => {
+                      if (showAdditionalForm && showParkingForm) {
+                          setShowParkingForm(false);
+                      }
+                      setShowAdditionalForm((v) => !v);
+                  }}
                   className={`flex-1 py-3 rounded-lg border-2 text-gray-800 font-semibold transition ${
                     showAdditionalForm
                       ? "border-[#ea7f33] bg-gray-50 shadow"
@@ -606,7 +651,7 @@ export default function ServicePage() {
                                 const isOccupied = occupiedSlots.has(slotId);
                                 const isSelected = selectedParkingSlot === slotId;
                                 const slotColor = isOccupied ? 'bg-red-500' : 'bg-green-500';
-                                const hoverColor = isOccupied ? 'bg-red-500' : 'hover:bg-green-600';
+                                const hoverColor = isOccupied ? '' : 'hover:bg-green-600';
                                 const selectedStyle = isSelected ? 'ring-2 ring-offset-2 ring-[#ea7f33]' : '';
                                 
                                 return (
