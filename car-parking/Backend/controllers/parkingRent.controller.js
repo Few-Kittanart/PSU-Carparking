@@ -1,12 +1,12 @@
 // controllers/parkingRentController.js
-const ParkingRent = require('../models/ParkingRent');
+const ParkingRent = require('../models/parkingrent.model');
 
 // ดึงเช่าที่จอดทั้งหมด พร้อม populate customer และ service
 exports.getParkingRents = async (req, res) => {
   try {
     const rents = await ParkingRent.find()
       .populate({ path: 'customer', select: 'customer_name phone_number car_registration province brand_car' })
-      .populate({ path: 'service', select: 'service_name service_price' });
+      .populate({ path: 'additional', select: 'additional_name additional_price' });
     res.json(rents);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -18,7 +18,7 @@ exports.getParkingRentById = async (req, res) => {
   try {
     const rent = await ParkingRent.findOne({ parking_rent_id: req.params.id })
       .populate({ path: 'customer', select: 'customer_name phone_number car_registration province brand_car' })
-      .populate({ path: 'service', select: 'service_name service_price' });
+      .populate({ path: 'additional', select: 'additional_name additional_price' });
     if (!rent) return res.status(404).json({ message: 'ไม่พบข้อมูลเช่าที่จอด' });
     res.json(rent);
   } catch (error) {
