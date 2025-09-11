@@ -1,7 +1,7 @@
 import { HashRouter as Router, Routes, Route } from "react-router-dom";
 import { SettingProvider } from "./context/SettingContext";
 import Login from "./pages/Login";
-import Main from "./pages/Main";
+import Main from "./pages/main";
 import ServicePage from "./pages/ServicePage";
 import ManagePage from "./pages/ManagePage";
 import DetailPage from "./pages/DetailPage";
