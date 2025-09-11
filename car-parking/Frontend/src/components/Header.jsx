@@ -1,10 +1,13 @@
 import React from "react";
+import { useSettings } from "../context/SettingContext";
 
 export default function Header({ onLogout }) {
+  const { settings, loading } = useSettings();
+
   return (
     <header className="flex items-center justify-between bg-white shadow-md px-6 py-4">
       <div className="text-xl sm:text-2xl font-bold text-[#ea7f33]">
-        🚗 CarParking
+        {settings?.systemName || "EParking"}
       </div>
       <button
         onClick={onLogout}

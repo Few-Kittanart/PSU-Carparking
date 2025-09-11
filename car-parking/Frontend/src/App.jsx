@@ -1,4 +1,5 @@
 import { HashRouter as Router, Routes, Route } from "react-router-dom";
+import { SettingProvider } from "./context/SettingContext";
 import Login from "./pages/Login";
 import Main from "./pages/Main";
 import ServicePage from "./pages/ServicePage";
@@ -14,6 +15,7 @@ import PaymentPage from "./pages/PaymentPage";
 import ReportPage from './pages/ReportPage';
 import ReportDetailPage from './pages/ReportDetailPage';
 import IncomeReportPage from "./pages/IncomeReportPage";
+import SettingPage from './pages/SettingPage';
 
 // Layout สำหรับหน้าที่มี Sidebar + Header + Footer
 function AppLayoutWithSidebar({ children }) {
@@ -42,46 +44,46 @@ function AppLayoutNoSidebar({ children }) {
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        {/* หน้า Login */}
-        <Route path="/" element={<Login />} />
+    <SettingProvider>
+      <Router>
+        <Routes>
+          {/* หน้า Login */}
+          <Route path="/" element={<Login />} />
 
-        {/* หน้า Main ไม่มี Sidebar */}
-        <Route
-          path="/main"
-          element={
-            <AppLayoutNoSidebar>
-              <Main />
-            </AppLayoutNoSidebar>
-          }
-        />
+          {/* หน้า Main ไม่มี Sidebar */}
+          <Route
+            path="/main"
+            element={
+              <AppLayoutNoSidebar>
+                <Main />
+              </AppLayoutNoSidebar>
+            }
+          />
 
-        {/* หน้าที่มี Sidebar + Header + Footer */}
-        <Route
-          path="/*"
-          element={
-            <AppLayoutWithSidebar>
-              <Routes>
-                <Route path="service" element={<ServicePage />} />
-
-                <Route path="manage" element={<ManagePage />} />
-                {/* หน้าแสดงรายละเอียดลูกค้า (ใช้ ID ใน URL) */}
-                <Route path="manage/details/:id" element={<DetailPage />} />
-                <Route path="crm/customer" element={<CustomerPage />} />
-                <Route path="crm/car" element={<CarPage />} />
-                <Route path="crm/customer/details/:id" element={<DetailCustomer />} />
-                <Route path="manage/payment/:id" element={<PaymentPage />} /> 
-                <Route path="/report" element={<ReportPage />} />
-                <Route path="/report/details/:customerId/:serviceId" element={<ReportDetailPage />} />
-                <Route path="/report/income" element={<IncomeReportPage />} />
-
-              </Routes>
-            </AppLayoutWithSidebar>
-          }
-        />
-      </Routes>
-    </Router>
+          {/* หน้าที่มี Sidebar + Header + Footer */}
+          <Route
+            path="/*"
+            element={
+              <AppLayoutWithSidebar>
+                <Routes>
+                  <Route path="service" element={<ServicePage />} />
+                  <Route path="manage" element={<ManagePage />} />
+                  <Route path="manage/details/:id" element={<DetailPage />} />
+                  <Route path="crm/customer" element={<CustomerPage />} />
+                  <Route path="crm/car" element={<CarPage />} />
+                  <Route path="crm/customer/details/:id" element={<DetailCustomer />} />
+                  <Route path="manage/payment/:id" element={<PaymentPage />} /> 
+                  <Route path="/report" element={<ReportPage />} />
+                  <Route path="/report/details/:customerId/:serviceId" element={<ReportDetailPage />} />
+                  <Route path="/report/income" element={<IncomeReportPage />} />
+                  <Route path="/settings" element={<SettingPage />} />
+                </Routes>
+              </AppLayoutWithSidebar>
+            }
+          />
+        </Routes>
+      </Router>
+    </SettingProvider>
   );
 }
 

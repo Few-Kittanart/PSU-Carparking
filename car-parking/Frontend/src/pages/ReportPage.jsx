@@ -241,7 +241,6 @@ export default function ReportPage() {
           <TableHead>
             <TableRow>
               <TableCell className="font-bold">ลำดับ</TableCell>
-              <TableCell className="font-bold">ID (การบริการ)</TableCell>
               <TableCell className="font-bold">วันเข้ารับบริการ</TableCell>
               <TableCell className="font-bold">วันรับรถ</TableCell>
               <TableCell className="font-bold">วัน/ชั่วโมง</TableCell>
@@ -257,12 +256,11 @@ export default function ReportPage() {
               filteredData.map((row, index) => (
                 <TableRow key={index}>
                   <TableCell>{index + 1}</TableCell>
-                  <TableCell>{row.service_id}</TableCell>
                   <TableCell>
-                    {dayjs(row.entry_time).format("DD/MM/YYYY HH:mm")}
+                    {dayjs(row.entry_time).format("DD/MM/YYYY")}
                   </TableCell>
                   <TableCell>
-                    {row.exit_time ? dayjs(row.exit_time).format("DD/MM/YYYY HH:mm") : "-"}
+                    {row.exit_time ? dayjs(row.exit_time).format("DD/MM/YYYY") : "-"}
                   </TableCell>
                   <TableCell>{calculateDuration(row.entry_time, row.exit_time)}</TableCell>
                   <TableCell>{row.car_registration}</TableCell>

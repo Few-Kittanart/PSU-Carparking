@@ -25,33 +25,38 @@ export default function ReportDetailPage() {
     const fetchReport = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(`http://localhost:5000/api/customers/${customerId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetch(
+          `http://localhost:5000/api/customers/${customerId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
         if (!res.ok) {
           throw new Error("Failed to fetch customer data");
         }
         const customerData = await res.json();
-        
+
         let foundService = null;
         let foundCar = null;
-        
+
         // ค้นหาข้อมูลบริการที่ตรงกับ serviceId
         for (const car of customerData.cars) {
-          const service = car.service_history.find(s => {
+          const service = car.service_history.find((s) => {
             const serviceIndex = car.service_history.indexOf(s);
-            const generatedServiceId = `${customerData.customer_id}-${dayjs(s.entry_time).format("YYYYMMDDHHmmss")}-${serviceIndex}`;
+            const generatedServiceId = `${customerData.customer_id}-${dayjs(
+              s.entry_time
+            ).format("YYYYMMDDHHmmss")}-${serviceIndex}`;
             return generatedServiceId === serviceId;
           });
-          
+
           if (service) {
             foundService = service;
             foundCar = car;
             break;
           }
         }
-        
+
         if (!foundCar || !foundService) {
           throw new Error("Service not found");
         }
@@ -66,7 +71,7 @@ export default function ReportDetailPage() {
           color: foundCar.color,
           ...foundService,
         };
-        
+
         setReportData(calculatedData);
       } catch (err) {
         console.error(err);
@@ -88,7 +93,7 @@ export default function ReportDetailPage() {
       .filter(Boolean)
       .join(", ");
   };
-  
+
   const calculateDuration = (entry, exit) => {
     if (!exit || !entry) return "-";
     const entryTime = dayjs(entry);
@@ -104,9 +109,16 @@ export default function ReportDetailPage() {
     }
   };
 
-  if (loading) return <div className="p-6 text-center text-lg">กำลังโหลดข้อมูล...</div>;
-  if (error) return <div className="p-6 text-center text-lg text-red-500">เกิดข้อผิดพลาด: {error}</div>;
-  if (!reportData) return <div className="p-6 text-center text-lg">ไม่พบข้อมูลบริการ</div>;
+  if (loading)
+    return <div className="p-6 text-center text-lg">กำลังโหลดข้อมูล...</div>;
+  if (error)
+    return (
+      <div className="p-6 text-center text-lg text-red-500">
+        เกิดข้อผิดพลาด: {error}
+      </div>
+    );
+  if (!reportData)
+    return <div className="p-6 text-center text-lg">ไม่พบข้อมูลบริการ</div>;
 
   const {
     customer_name,
@@ -125,13 +137,21 @@ export default function ReportDetailPage() {
     note,
   } = reportData;
 
-  const getServicePrice = (id) => additionalServices.find(s => s.id === id)?.price || 0;
-  const totalServicesPrice = services.reduce((sum, id) => sum + getServicePrice(id), 0);
+  const getServicePrice = (id) =>
+    additionalServices.find((s) => s.id === id)?.price || 0;
+  const totalServicesPrice = services.reduce(
+    (sum, id) => sum + getServicePrice(id),
+    0
+  );
 
   return (
     <div className="p-6 sm:p-10 space-y-6">
       <div className="flex justify-between items-center mb-6">
-        <Typography variant="h4" component="h2" className="text-3xl font-bold text-[#ea7f33]">
+        <Typography
+          variant="h4"
+          component="h2"
+          className="text-3xl font-bold text-[#ea7f33]"
+        >
           รายละเอียดการบริการ
         </Typography>
         <Button
@@ -158,7 +178,8 @@ export default function ReportDetailPage() {
               <strong>เบอร์โทรศัพท์:</strong> {phone_number}
             </Typography>
             <Typography>
-              <strong>ทะเบียนรถ:</strong> {car_registration} ({car_registration_province})
+              <strong>ทะเบียนรถ:</strong> {car_registration} (
+              {car_registration_province})
             </Typography>
             <Typography>
               <strong>ยี่ห้อ:</strong> {brand_car}
@@ -179,48 +200,62 @@ export default function ReportDetailPage() {
           <div className="space-y-4">
             {parking_slot && (
               <div className="p-4 rounded-lg bg-gray-100 border border-gray-200">
-                <Typography variant="h6" className="font-semibold mb-2 text-orange-600">
+                <Typography
+                  variant="h6"
+                  className="font-semibold mb-2 text-orange-600"
+                >
                   บริการเช่าที่จอด
                 </Typography>
                 <Typography>
                   <strong>ช่องจอดที่:</strong> {parking_slot}
                 </Typography>
                 <Typography>
-                  <strong>เข้าวันที่:</strong> {dayjs(entry_time).format("DD/MM/YYYY")}
+                  <strong>เข้าวันที่:</strong>{" "}
+                  {dayjs(entry_time).format("DD/MM/YYYY")}
                 </Typography>
                 <Typography>
                   <strong>เวลาเข้า:</strong> {dayjs(entry_time).format("HH:mm")}
                 </Typography>
                 <Typography>
-                  <strong>ออกวันที่:</strong> {exit_time ? dayjs(exit_time).format("DD/MM/YYYY") : "-"}
+                  <strong>ออกวันที่:</strong>{" "}
+                  {exit_time ? dayjs(exit_time).format("DD/MM/YYYY") : "-"}
                 </Typography>
                 <Typography>
-                  <strong>เวลาออก:</strong> {exit_time ? dayjs(exit_time).format("HH:mm") : "-"}
+                  <strong>เวลาออก:</strong>{" "}
+                  {exit_time ? dayjs(exit_time).format("HH:mm") : "-"}
                 </Typography>
                 <Typography>
-                  <strong>รวมระยะเวลา:</strong> {calculateDuration(entry_time, exit_time)}
+                  <strong>รวมระยะเวลา:</strong>{" "}
+                  {calculateDuration(entry_time, exit_time)}
                 </Typography>
               </div>
             )}
             {services.length > 0 && (
               <div className="p-4 rounded-lg bg-gray-100 border border-gray-200">
-                <Typography variant="h6" className="font-semibold mb-2 text-green-600">
+                <Typography
+                  variant="h6"
+                  className="font-semibold mb-2 text-green-600"
+                >
                   บริการเพิ่มเติม
                 </Typography>
                 <ul className="list-disc pl-5 space-y-1">
                   {services.map((serviceId) => {
-                    const service = additionalServices.find(s => s.id === serviceId);
+                    const service = additionalServices.find(
+                      (s) => s.id === serviceId
+                    );
                     return (
                       <li key={serviceId}>
                         <Typography>
-                          **{service?.name || "ไม่ระบุ"}:** {service?.price || 0} บาท
+                          **{service?.name || "ไม่ระบุ"}:**{" "}
+                          {service?.price || 0} บาท
                         </Typography>
                       </li>
                     );
                   })}
                 </ul>
                 <Typography className="mt-2">
-                  <strong>รวมราคาบริการเพิ่มเติม:</strong> {totalServicesPrice} บาท
+                  <strong>รวมราคาบริการเพิ่มเติม:</strong> {totalServicesPrice}{" "}
+                  บาท
                 </Typography>
               </div>
             )}
