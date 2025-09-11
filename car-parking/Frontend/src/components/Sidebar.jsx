@@ -1,9 +1,25 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FaCar, FaTools, FaChartLine, FaFileAlt, FaCog } from "react-icons/fa";
 
 export default function Sidebar() {
   const [openMenu, setOpenMenu] = useState({});
+  const [userName, setUserName] = useState("");
+  const [userRole, setUserRole] = useState("");
+
+  useEffect(() => {
+    const userString = localStorage.getItem("user");
+    if (userString) {
+      try {
+        const user = JSON.parse(userString);
+        setUserName(`${user.first_name} ${user.last_name}`);
+        // แปลงตัวอักษรตัวแรกให้เป็นพิมพ์ใหญ่
+        setUserRole(user.role.charAt(0).toUpperCase() + user.role.slice(1));
+      } catch (error) {
+        console.error("Failed to parse user data from localStorage", error);
+      }
+    }
+  }, []);
 
   const toggleMenu = (key) => {
     setOpenMenu((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -37,26 +53,15 @@ export default function Sidebar() {
     {
       label: "ข้อมูลระบบ",
       icon: <FaCog />,
-      subMenu: [
-        // ✅ แก้ไข path ให้ชี้ไปที่ /settings
-        { label: "ตั้งค่าระบบ", path: "/settings" },
-        { label: "ตั้งค่าราคา", path: "/system/prices" },
-        { label: "ตั้งค่าเกี่ยวกับรถ", path: "/system/cars" },
-        { label: "ตั้งค่าลานจอดรถ", path: "/system/parking-lots" },
-        { label: "ตั้งค่าผู้ใช้", path: "/system/users" },
-        { label: "ตั้งค่าแผนก", path: "/system/departments" },
-      ],
+      path: "/settings",
     },
   ];
 
-  const renderMenu = (items, level = 0) =>
+  const renderMenu = (items, level) =>
     items.map((item, index) => (
-      <div key={index} className="mt-1">
+      <div key={index}>
         {item.path ? (
-          <Link
-            to={item.path}
-            className="flex items-center cursor-pointer px-3 py-2 rounded-lg transition-colors hover:bg-orange-100"
-          >
+          <Link to={item.path} className="flex items-center px-3 py-2 rounded-lg transition-colors hover:bg-orange-50">
             <span className="mr-3 text-gray-600">{item.icon}</span>
             <span
               className={`font-medium text-gray-700 text-sm ${
@@ -99,15 +104,25 @@ export default function Sidebar() {
     <aside className="w-64 bg-white border-r border-gray-200 min-h-screen flex flex-col">
       {/* Header */}
       <div className="px-4 py-6 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-orange-500 tracking-tight">
-          Car Parking
-        </h1>
-        <p className="text-xs text-gray-500">ระบบจัดการ</p>
+        {userName ? (
+          <>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#ea7f33] mb-1">
+              {userName}
+            </h1>
+            <p className="text-sm font-medium text-gray-600">
+              ตำแหน่ง: {userRole}
+            </p>
+          </>
+        ) : (
+          <h1 className="text-xl sm:text-2xl font-bold text-[#ea7f33]">
+            Car Parking ระบบจัดการ
+          </h1>
+        )}
       </div>
 
-      {/* Menu */}
-      <nav className="flex-1 overflow-y-auto px-2 py-4">
-        {renderMenu(menuItems)}
+      {/* Navigation */}
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {renderMenu(menuItems, 0)}
       </nav>
     </aside>
   );

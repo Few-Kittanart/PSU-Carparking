@@ -12,15 +12,16 @@ export default function Login() {
     e.preventDefault();
 
     try {
-      const response = await axios.post("http://localhost:5000/api/auth/login", {
-        username,
-        password,
-      });
+      const response = await axios.post(
+        "http://localhost:5000/api/auth/login",
+        {
+          username,
+          password,
+        }
+      );
 
-      // สมมติ backend ส่ง token กับข้อมูล user กลับมา
+      // ตัวอย่างการเรียกใช้งานใน Login.jsx
       const { token, user } = response.data;
-
-      // เก็บ token ไว้ใน localStorage
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
 
@@ -41,7 +42,9 @@ export default function Login() {
           <h1 className="text-[1.8rem] sm:text-[2rem] md:text-[2.2rem] font-bold text-[#ea7f33] mb-2 tracking-tight leading-tight">
             Car Parking
           </h1>
-          <p className="text-gray-600 text-[0.95rem] sm:text-base">เข้าสู่ระบบ</p>
+          <p className="text-gray-600 text-[0.95rem] sm:text-base">
+            เข้าสู่ระบบ
+          </p>
         </div>
 
         {/* ฟอร์ม */}
