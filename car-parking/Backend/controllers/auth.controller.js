@@ -14,12 +14,14 @@ exports.login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: 'Invalid password' });
 
-    // สร้าง token
+    // สร้าง token โดยใช้ user._id
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
       expiresIn: '1d'
     });
-
-    res.json({ token });
+    
+    // ✅ ส่งข้อมูล user กลับไปพร้อมกับ token
+    // ทำให้ในส่วน frontend สามารถเข้าถึงข้อมูลชื่อได้
+    res.json({ token, user }); 
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
