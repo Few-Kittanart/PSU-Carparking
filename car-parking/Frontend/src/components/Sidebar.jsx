@@ -9,17 +9,13 @@ export default function Sidebar() {
     setOpenMenu((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // ✅ แก้ไขเมนูให้ตรงกับหน้าเว็บที่สร้างไว้
   const menuItems = [
     { label: "การใช้บริการ", icon: <FaCar />, path: "/service" },
     {
       label: "การจัดการ",
       icon: <FaTools />,
       subMenu: [
-        {
-          label: "จัดการบริการ", // ✅ แก้ไขชื่อเมนู
-          path: "/manage",
-        },
+        { label: "จัดการบริการ", path: "/manage" },
         {
           label: "ลูกค้าสัมพันธ์",
           subMenu: [
@@ -34,21 +30,16 @@ export default function Sidebar() {
       label: "รายงาน",
       icon: <FaFileAlt />,
       subMenu: [
-        {
-          label: "รายงานการบริการ",
-          path: "/report",
-        },
-        {
-          label: "รายงานรายได้", // ✅ เพิ่มเมนูนี้
-          path: "/report/income", // ✅ เพิ่ม path ให้ตรงกับ IncomeReportPage
-        },
+        { label: "รายงานการบริการ", path: "/report" },
+        { label: "รายงานรายได้", path: "/report/income" },
       ],
     },
     {
       label: "ข้อมูลระบบ",
       icon: <FaCog />,
       subMenu: [
-        { label: "ตั้งค่าระบบ", path: "/system/settings" },
+        // ✅ แก้ไข path ให้ชี้ไปที่ /settings
+        { label: "ตั้งค่าระบบ", path: "/settings" },
         { label: "ตั้งค่าราคา", path: "/system/prices" },
         { label: "ตั้งค่าเกี่ยวกับรถ", path: "/system/cars" },
         { label: "ตั้งค่าลานจอดรถ", path: "/system/parking-lots" },
