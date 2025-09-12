@@ -18,14 +18,18 @@ exports.createOrUpdateCustomer = async (req, res) => {
       car
     } = req.body;
 
-    let customer = await Customer.findOne({ customer_name, phone_number });
+    let customer = await Customer.findOne({ phone_number });
     
+    // ดึงข้อมูลจาก car.service_history พร้อมกับฟิลด์ใหม่
     const serviceData = {
-        services: car.services,
-        entry_time: car.entry_time,
-        exit_time: car.exit_time,
-        parking_slot: car.parking_slot,
-        total_price: car.total_price,
+        services: car.service_history.services,
+        entry_time: car.service_history.entry_time,
+        exit_time: car.service_history.exit_time,
+        parking_slot: car.service_history.parking_slot,
+        parking_price: car.service_history.parking_price,
+        day_park: car.service_history.day_park,
+        additional_price: car.service_history.additional_price,
+        total_price: car.service_history.total_price,
     };
 
     const carData = {
@@ -68,7 +72,6 @@ exports.createOrUpdateCustomer = async (req, res) => {
         country,
         cars: [carData],
       });
-
       const savedCustomer = await newCustomer.save();
       res.status(201).json(savedCustomer);
     }
@@ -125,13 +128,10 @@ exports.payService = async (req, res) => {
 
       if (latestUnpaidService) {
         latestUnpaidService.is_paid = true;
-        break;
       }
     }
-
     await customer.save();
-    res.status(200).json({ message: "Payment successful", customer });
-
+    res.json({ message: "Service paid successfully" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Internal Server Error" });

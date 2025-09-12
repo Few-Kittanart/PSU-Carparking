@@ -53,7 +53,14 @@ export default function Sidebar() {
     {
       label: "ข้อมูลระบบ",
       icon: <FaCog />,
-      path: "/settings",
+      subMenu: [
+        { label: "ตั้งค่าระบบ", path: "/settings" },
+        { label: "ตั้งค่าราคา", path: "/system/prices" },
+        { label: "ตั้งค่าเกี่ยวกับรถ", path: "/system/cars" },
+        { label: "ตั้งค่าลานจอดรถ", path: "/system/parking-lots" },
+        { label: "ตั้งค่าผู้ใช้", path: "/system/users" },
+        { label: "ตั้งค่าแผนก", path: "/system/departments" },
+      ],
     },
   ];
 
@@ -61,7 +68,10 @@ export default function Sidebar() {
     items.map((item, index) => (
       <div key={index}>
         {item.path ? (
-          <Link to={item.path} className="flex items-center px-3 py-2 rounded-lg transition-colors hover:bg-orange-50">
+          <Link
+            to={item.path}
+            className="flex items-center px-3 py-2 rounded-lg transition-colors hover:bg-orange-50"
+          >
             <span className="mr-3 text-gray-600">{item.icon}</span>
             <span
               className={`font-medium text-gray-700 text-sm ${
