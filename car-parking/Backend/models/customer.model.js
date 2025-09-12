@@ -6,6 +6,9 @@ const serviceHistorySchema = new mongoose.Schema({
   entry_time: { type: String },
   exit_time: { type: String },
   parking_slot: { type: String },
+  parking_price: { type: Number, default: 0 },
+  day_park: { type: String },
+  additional_price: { type: Number, default: 0 },
   total_price: { type: Number, default: 0 },
   is_paid: { type: Boolean, default: false },
 });
@@ -33,7 +36,8 @@ const customerSchema = new mongoose.Schema({
   province: { type: String },
   zip_code: { type: String },
   country: { type: String },
-  cars: [carSchema]
+  cars: [carSchema],
 });
 
-module.exports = mongoose.model('Customer', customerSchema);
+const Customer = mongoose.model("Customer", customerSchema);
+module.exports = Customer;

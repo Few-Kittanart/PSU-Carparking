@@ -16,13 +16,6 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import "dayjs/locale/th";
 
-const serviceDefinitions = [
-  { id: 1, name: "ล้างรถ", price: 100 },
-  { id: 2, name: "เช็ดภายใน", price: 50 },
-  { id: 3, name: "ตรวจสภาพ", price: 200 },
-  { id: 4, name: "เช่าที่จอด", price: 0 },
-];
-
 const PARKING_SERVICE_ID = 4;
 
 const style = {
@@ -47,14 +40,71 @@ export default function DetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [openModal, setOpenModal] = useState(false);
-  const [exitTime, setExitTime] = useState(dayjs());
+  const [exitTime, setExitTime] = useState("");
   const [selectedServices, setSelectedServices] = useState([]);
+  const [parkingRates, setParkingRates] = useState({ hourly: 0, daily: 0 });
+  const [additionalServices, setAdditionalServices] = useState([]);
+  const [totalCalculatedPrice, setTotalCalculatedPrice] = useState(0);
+
+  const calculateDurationAndPrice = (entryTime, exitTime, rates) => {
+    const entry = dayjs(entryTime);
+    const exit = exitTime ? dayjs(exitTime) : dayjs();
+    
+    // Total duration in minutes (including fractions)
+    const durationInMinutes = exit.diff(entry, 'minute', true);
+    
+    const dailyRate = parseFloat(rates.daily) || 0;
+    const hourlyRate = parseFloat(rates.hourly) || 0;
+
+    let parkingCost = 0;
+    
+    const totalMinutes = Math.round(durationInMinutes);
+    const totalDays = Math.floor(totalMinutes / (24 * 60));
+    const remainingMinutesAfterDays = totalMinutes % (24 * 60);
+    const remainingHoursAfterDays = remainingMinutesAfterDays / 60;
+    
+    if (remainingHoursAfterDays >= 10) {
+        const totalChargedDays = totalDays + 1;
+        parkingCost = totalChargedDays * dailyRate;
+    } else {
+        let chargedHours = Math.floor(remainingHoursAfterDays);
+        const remainingMinsForRounding = remainingMinutesAfterDays % 60;
+        
+        if (remainingMinsForRounding > 10) {
+            chargedHours++;
+        }
+        parkingCost = (totalDays * dailyRate) + (chargedHours * hourlyRate);
+    }
+    
+    if (parkingCost === 0 && durationInMinutes > 0) {
+        parkingCost = hourlyRate;
+    }
+
+    return parkingCost;
+  };
+  
+  const calculateTotal = (parkingPrice, additionalPrice) => {
+      return parkingPrice + additionalPrice;
+  };
 
   useEffect(() => {
-    const fetchCustomer = async () => {
+    const fetchCustomerAndPrices = async () => {
       try {
         setLoading(true);
         const token = localStorage.getItem("token");
+        
+        // Fetch prices first
+        const pricesRes = await fetch("http://localhost:5000/api/prices", {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        const pricesData = await pricesRes.json();
+        setAdditionalServices(pricesData.additionalServices || []);
+        setParkingRates({
+            hourly: pricesData.hourly_price || 0,
+            daily: pricesData.daily_price || 0,
+        });
+
+        // Fetch customer data
         const res = await fetch(`http://localhost:5000/api/customers/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -75,11 +125,17 @@ export default function DetailPage() {
             )[0];
             setLatestServiceInfo(latest);
 
-            // ✅ แก้ไข: ค้นหาข้อมูลบริการที่เกี่ยวข้องกับการเช่าที่จอดรถโดยเฉพาะ
             const parking = firstCar.service_history.find(
-              (s) => (s.services || []).includes(PARKING_SERVICE_ID)
+              (s) => !!s.parking_slot
             );
             setParkingServiceInfo(parking);
+
+            // Set exit time for modal
+            if (parking && parking.exit_time) {
+                setExitTime(dayjs(parking.exit_time).format("YYYY-MM-DDTHH:mm"));
+            } else {
+                setExitTime(dayjs().format("YYYY-MM-DDTHH:mm"));
+            }
           }
         }
         setLoading(false);
@@ -88,14 +144,39 @@ export default function DetailPage() {
         setLoading(false);
       }
     };
-
-    fetchCustomer();
+    fetchCustomerAndPrices();
   }, [id]);
+
+  useEffect(() => {
+    if (latestServiceInfo) {
+      const hasParking = !!parkingServiceInfo;
+      let parkingPrice = 0;
+      if (hasParking) {
+          parkingPrice = calculateDurationAndPrice(parkingServiceInfo.entry_time, exitTime, parkingRates);
+      }
+      
+      const additionalPrice = (latestServiceInfo.services || [])
+          .filter(serviceId => additionalServices.some(s => s.id === serviceId))
+          .reduce((sum, serviceId) => {
+              const service = additionalServices.find(s => s.id === serviceId);
+              return sum + (service ? service.price : 0);
+          }, 0);
+          
+      setTotalCalculatedPrice(calculateTotal(parkingPrice, additionalPrice));
+    }
+  }, [exitTime, latestServiceInfo, additionalServices, parkingServiceInfo, parkingRates]);
 
   const handleEditOpen = () => {
     if (latestServiceInfo) {
-      const hasParking = (parkingServiceInfo?.services || []).includes(PARKING_SERVICE_ID);
-      setExitTime(parkingServiceInfo?.exit_time ? dayjs(parkingServiceInfo.exit_time) : dayjs());
+      const parkingExists = !!parkingServiceInfo;
+      if (parkingExists && parkingServiceInfo.exit_time) {
+        setExitTime(dayjs(parkingServiceInfo.exit_time).format("YYYY-MM-DDTHH:mm"));
+      } else if (parkingExists) {
+        setExitTime(dayjs().format("YYYY-MM-DDTHH:mm"));
+      } else {
+        setExitTime("");
+      }
+
       setSelectedServices(
         (latestServiceInfo.services || []).filter((id) => id !== PARKING_SERVICE_ID)
       );
@@ -108,21 +189,45 @@ export default function DetailPage() {
   const handleSave = async () => {
     try {
       const token = localStorage.getItem("token");
-      const hasParking = (parkingServiceInfo?.services || []).includes(PARKING_SERVICE_ID);
-      const updatedServices = [
-        ...(hasParking ? [PARKING_SERVICE_ID] : []),
-        ...selectedServices,
-      ];
-      const newTotalServices = updatedServices.map(id => serviceDefinitions.find(s => s.id === id)).filter(Boolean);
-      const newTotalPrice = newTotalServices.reduce((sum, service) => sum + service.price, 0);
+      const hasParking = !!parkingServiceInfo;
+
+      let parking_price = 0;
+      let day_park = "";
+      let updatedServices = [...selectedServices];
+      let entry_time_parking = parkingServiceInfo?.entry_time;
+
+      if (hasParking) {
+          parking_price = calculateDurationAndPrice(parkingServiceInfo.entry_time, exitTime, parkingRates);
+          updatedServices.push(PARKING_SERVICE_ID);
+          const entry = dayjs(parkingServiceInfo.entry_time);
+          const exit = dayjs(exitTime);
+          const durationInMinutes = exit.diff(entry, 'minute', true);
+          const totalMinutes = Math.round(durationInMinutes);
+          const totalDays = Math.floor(totalMinutes / (24 * 60));
+          const remainingMinutesAfterDays = totalMinutes % (24 * 60);
+          const totalHours = Math.floor(remainingMinutesAfterDays / 60);
+          const remainingMinutesAfterHours = remainingMinutesAfterDays % 60;
+          day_park = `${totalDays} วัน ${totalHours} ชั่วโมง ${remainingMinutesAfterHours} นาที`;
+          entry_time_parking = parkingServiceInfo.entry_time;
+      }
+      
+      const additional_price = selectedServices.reduce((sum, serviceId) => {
+          const service = additionalServices.find(s => s.id === serviceId);
+          return sum + (service ? service.price : 0);
+      }, 0);
+
+      const total_price = parking_price + additional_price;
 
       const updatedServiceHistory = {
         ...latestServiceInfo,
         services: updatedServices,
-        exit_time: hasParking ? exitTime.toISOString() : undefined,
-        total_price: newTotalPrice
+        exit_time: exitTime ? dayjs(exitTime).toISOString() : undefined,
+        parking_price,
+        day_park,
+        additional_price,
+        total_price,
       };
-      
+
       const updatedCars = customer.cars.map(car => {
           if (car.car_registration === carInfo.car_registration) {
               return {
@@ -174,9 +279,15 @@ export default function DetailPage() {
           setLatestServiceInfo(latest);
 
           const parking = firstCar.service_history.find(
-            (s) => (s.services || []).includes(PARKING_SERVICE_ID)
+            (s) => !!s.parking_slot
           );
           setParkingServiceInfo(parking);
+          
+          if (parking && parking.exit_time) {
+            setExitTime(dayjs(parking.exit_time).format("YYYY-MM-DDTHH:mm"));
+          } else {
+            setExitTime(dayjs().format("YYYY-MM-DDTHH:mm"));
+          }
         }
       }
     } catch (err) {
@@ -196,6 +307,10 @@ export default function DetailPage() {
         : [...prevSelected, serviceId]
     );
   };
+  
+  const currentAdditionalServices = selectedServices
+    .map((id) => additionalServices.find((s) => s.id === id))
+    .filter(Boolean);
 
   if (loading) {
     return (
@@ -221,17 +336,7 @@ export default function DetailPage() {
       </div>
     );
   }
-
-  const additionalServices = (latestServiceInfo?.services || [])
-    .filter((id) => id !== PARKING_SERVICE_ID)
-    .map((id) => serviceDefinitions.find((s) => s.id === id))
-    .filter(Boolean);
-    
-  const totalServicePrice = latestServiceInfo ? latestServiceInfo.total_price : 0;
-  const allAdditionalServices = serviceDefinitions.filter(
-    (s) => s.id !== PARKING_SERVICE_ID
-  );
-
+  
   return (
     <div className="p-8 bg-gray-100 min-h-screen">
       <div className="flex items-center mb-6">
@@ -317,13 +422,13 @@ export default function DetailPage() {
                 </div>
               </div>
             )}
-            {additionalServices.length > 0 && (
+            {latestServiceInfo && latestServiceInfo.services && latestServiceInfo.services.length > 0 && (
               <div>
                 <h4 className="font-bold text-lg text-green-600">
                   - บริการเพิ่มเติม:
                 </h4>
                 <ul className="list-none space-y-2 pl-4 mt-2">
-                  {additionalServices.map((s) => (
+                  {additionalServices.filter(s => latestServiceInfo.services.includes(s.id)).map((s) => (
                     <li
                       key={s.id}
                       className="bg-green-100 p-2 rounded-lg flex justify-between items-center"
@@ -341,7 +446,7 @@ export default function DetailPage() {
               <Typography className="text-lg font-bold">
                 ยอดรวมทั้งหมด:{" "}
                 <span className="text-2xl text-gray-800">
-                  {totalServicePrice}
+                  {latestServiceInfo.total_price.toFixed(2)}
                 </span>{" "}
                 บาท
               </Typography>
@@ -374,27 +479,27 @@ export default function DetailPage() {
           <Typography id="modal-title" variant="h6" component="h2" className="text-xl font-bold mb-4 text-center">
             แก้ไขข้อมูลลูกค้า
           </Typography>
-          {parkingServiceInfo && (
+          {!!parkingServiceInfo && (
             <div className="mb-4">
               <Typography variant="h6" className="font-bold text-lg mb-2">แก้ไขวันเวลาที่ออก</Typography>
               <TextField
                 fullWidth
                 type="datetime-local"
                 label="วันเวลาที่ออก"
-                value={exitTime.format("YYYY-MM-DDTHH:mm")}
-                onChange={(e) => setExitTime(dayjs(e.target.value))}
+                value={exitTime}
+                onChange={(e) => setExitTime(e.target.value)}
                 InputLabelProps={{ shrink: true }}
               />
             </div>
           )}
-          {latestServiceInfo && ((latestServiceInfo.services || []).length > 1 || !(latestServiceInfo.services || []).includes(PARKING_SERVICE_ID)) ? (
+          {!!(additionalServices.length > 0) && (
             <div>
               <Typography variant="h6" className="font-bold text-lg mb-2">แก้ไขบริการเพิ่มเติม</Typography>
               <div className="flex flex-col space-y-2">
                 <Typography className="text-gray-600 text-sm mb-2">
                   เลือกบริการที่ลูกค้าต้องการ
                 </Typography>
-                {allAdditionalServices.map((service) => (
+                {additionalServices.map((service) => (
                   <FormControlLabel
                     key={service.id}
                     control={
@@ -408,18 +513,23 @@ export default function DetailPage() {
                 ))}
               </div>
             </div>
-          ) : null}
-          <div className="flex justify-end space-x-2 mt-4">
-            <Button variant="outlined" onClick={handleEditClose}>
-              ยกเลิก
-            </Button>
-            <Button
-              variant="contained"
-              onClick={handleSave}
-              sx={{ bgcolor: "#ea7f33", "&:hover": { bgcolor: "#e06d1f" } }}
-            >
-              บันทึก
-            </Button>
+          )}
+          <div className="flex justify-between items-center mt-4">
+            <Typography variant="h6" className="font-bold text-lg">
+                ยอดรวม: {totalCalculatedPrice.toFixed(2)} บาท
+            </Typography>
+            <div className="flex space-x-2">
+              <Button variant="outlined" onClick={handleEditClose}>
+                ยกเลิก
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleSave}
+                sx={{ bgcolor: "#ea7f33", "&:hover": { bgcolor: "#e06d1f" } }}
+              >
+                บันทึก
+              </Button>
+            </div>
           </div>
         </Box>
       </Modal>

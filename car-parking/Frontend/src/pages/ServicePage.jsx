@@ -4,19 +4,12 @@ import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
 
 const carColors = ["ดำ", "ขาว", "เงิน", "แดง", "น้ำเงิน"];
-// ✅ ลบตัวแปร additionalServices ที่เป็นแบบ hardcode ออก
-// const additionalServices = [
-//   { id: 1, name: "ล้างรถ", price: 100 },
-//   { id: 2, name: "เช็ดภายใน", price: 50 },
-//   { id: 3, name: "ตรวจสภาพ", price: 200 },
-// ];
 const PARKING_SERVICE_ID = 4;
 const parkingSections = ["A", "B", "C", "D"];
 const parkingNumbers = Array.from({ length: 100 }, (_, i) => i + 1);
 
 export default function ServicePage() {
   const [currentStep, setCurrentStep] = useState(1);
-
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [customerId, setCustomerId] = useState("");
@@ -25,7 +18,6 @@ export default function ServicePage() {
     houseNo: "", village: "", street: "", district: null,
     amphoe: null, province: null, country: "", zipcode: "",
   });
-
   const [vehicle, setVehicle] = useState({
     plate: "", province: "", brand: null, model: null,
     type: null, color: null,
@@ -33,43 +25,47 @@ export default function ServicePage() {
   const [showParkingForm, setShowParkingForm] = useState(false);
   const [showAdditionalForm, setShowAdditionalForm] = useState(false);
   const [selectedServices, setSelectedServices] = useState([]);
-  const [totalPrice, setTotalPrice] = useState(0);
+  
+  const [parkingPrice, setParkingPrice] = useState(0);
+  const [additionalPrice, setAdditionalPrice] = useState(0);
+  const [dayPark, setDayPark] = useState("");
+
   const [exitTime, setExitTime] = useState("");
   const [selectedParkingSlot, setSelectedParkingSlot] = useState(null);
-  const [occupiedSlots, setOccupiedSlots] = useState(new Set());
+  const [occupiedSlots, setOccupiedSlots] = new useState(new Set());
   const [selectedSection, setSelectedSection] = useState("A");
-
   const [provinceList, setProvinceList] = useState([]);
   const [amphoeList, setAmphoeList] = useState([]);
   const [districtList, setDistrictList] = useState([]);
-  // ✅ เพิ่ม state สำหรับเก็บข้อมูลบริการที่ดึงมาจาก API
-  const [additionalServices, setAdditionalServices] = useState([]);
+  const [allAdditionalServices, setAllAdditionalServices] = useState([]);
+  const [parkingRates, setParkingRates] = useState({ hourly: 0, daily: 0 });
+  const [parkingEntryTime, setParkingEntryTime] = useState(null);
 
-  const currentTime = dayjs().toISOString();
-
-  // ✅ แก้ไขฟังก์ชันให้ดึงข้อมูลลูกค้าและช่องจอด รวมถึงข้อมูลราคาและบริการเพิ่มเติม
   const fetchCustomersAndServices = async () => {
     try {
       const token = localStorage.getItem("token");
-      // ดึงข้อมูลลูกค้าและช่องจอด
+
+      const pricesRes = await fetch("http://localhost:5000/api/prices", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const pricesData = await pricesRes.json();
+      setAllAdditionalServices(pricesData.additionalServices || []);
+      setParkingRates({
+        hourly: pricesData.hourlyRate || 0,
+        daily: pricesData.dailyRate || 0,
+      });
+
       const customersRes = await fetch("http://localhost:5000/api/customers", {
         headers: { Authorization: `Bearer ${token}` },
       });
       const customersData = await customersRes.json();
       setCustomerList(customersData);
       
-      // ดึงข้อมูลราคาและบริการเพิ่มเติม
-      const pricesRes = await fetch("http://localhost:5000/api/prices", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const pricesData = await pricesRes.json();
-      setAdditionalServices(pricesData.additionalServices || []);
-
       const occupied = new Set();
       customersData.forEach(customer => {
         customer.cars?.forEach(car => {
             car.service_history?.forEach(service => {
-                if (service.services?.includes(PARKING_SERVICE_ID) && !service.is_paid && service.parking_slot) {
+                if (service.parking_slot && !service.is_paid) {
                     occupied.add(service.parking_slot);
                 }
             });
@@ -98,7 +94,6 @@ export default function ServicePage() {
       }
     };
     fetchAddressData();
-    // ✅ เรียกใช้ฟังก์ชันใหม่เพื่อดึงข้อมูลลูกค้าและบริการ
     fetchCustomersAndServices();
   }, []);
 
@@ -124,6 +119,76 @@ export default function ServicePage() {
     }
   }, [address.district]);
 
+  // คำนวณราคาบริการเสริมแบบเรียลไทม์
+  useEffect(() => {
+    const addPrice = selectedServices.reduce((sum, id) => {
+      const service = allAdditionalServices.find(s => s.id === id);
+      return sum + (service ? service.price : 0);
+    }, 0);
+    setAdditionalPrice(addPrice);
+  }, [selectedServices, allAdditionalServices]);
+  
+  const calculateDurationAndPrice = (entryTime, exitTime, rates) => {
+    const entry = dayjs(entryTime);
+    const exit = exitTime ? dayjs(exitTime) : dayjs();
+    
+    // Total duration in minutes (including fractions)
+    const durationInMinutes = exit.diff(entry, 'minute', true);
+    
+    const dailyRate = parseFloat(rates.daily) || 0;
+    const hourlyRate = parseFloat(rates.hourly) || 0;
+
+    let parkingCost = 0;
+    let durationString = "";
+    
+    const totalMinutes = Math.round(durationInMinutes);
+    const totalDays = Math.floor(totalMinutes / (24 * 60));
+    const remainingMinutesAfterDays = totalMinutes % (24 * 60);
+    const totalHours = Math.floor(remainingMinutesAfterDays / 60);
+    const remainingMinutesAfterHours = remainingMinutesAfterDays % 60;
+
+    durationString = `${totalDays} วัน ${totalHours} ชั่วโมง ${remainingMinutesAfterHours} นาที`;
+
+    // New Pricing Logic based on user's rules
+    const totalDurationInHours = durationInMinutes / 60;
+    const remainingHoursAfterDays = (durationInMinutes % (24 * 60)) / 60;
+    
+    if (remainingHoursAfterDays >= 10) {
+        // If remaining hours are 10 or more, round up to the next full day
+        const totalChargedDays = totalDays + 1;
+        parkingCost = totalChargedDays * dailyRate;
+    } else {
+        // Normal calculation: full days + remaining hours
+        let chargedHours = Math.floor(remainingHoursAfterDays);
+        const remainingMinsForRounding = remainingMinutesAfterDays % 60;
+        
+        if (remainingMinsForRounding > 10) {
+            chargedHours++;
+        }
+        
+        parkingCost = (totalDays * dailyRate) + (chargedHours * hourlyRate);
+    }
+
+    // A check to ensure some cost is applied for very short parking
+    if (parkingCost === 0 && durationInMinutes > 0) {
+        parkingCost = hourlyRate;
+    }
+
+    return {
+        price: parkingCost,
+        duration: durationString
+    };
+  };
+
+  // คำนวณราคาค่าจอดรถแบบเรียลไทม์ (เพื่อแสดงผลบนหน้าจอ)
+  useEffect(() => {
+    if (showParkingForm && parkingEntryTime && parkingRates.hourly > 0) {
+      const result = calculateDurationAndPrice(parkingEntryTime, exitTime, parkingRates);
+      setParkingPrice(result.price);
+      setDayPark(result.duration);
+    }
+  }, [showParkingForm, parkingEntryTime, parkingRates, exitTime]);
+
   const handleProceed = () => setCurrentStep(2);
   const handleBack = () => setCurrentStep(1);
 
@@ -133,17 +198,6 @@ export default function ServicePage() {
       ? selectedServices.filter((sid) => sid !== id)
       : [...selectedServices, id];
     setSelectedServices(updated);
-
-    // ✅ ลบโค้ดการคำนวณราคาในฟังก์ชันนี้ออก เพราะจะไปคำนวณใน useEffect แทน
-    // const sum = updated.reduce((acc, sid) => {
-    //   const s = additionalServices.find((srv) => srv.id === sid);
-    //   return acc + (s ? s.price : 0);
-    // }, 0);
-    // if (showParkingForm) {
-    //   setTotalPrice(sum);
-    // } else {
-    //   setTotalPrice(sum);
-    // }
   };
 
   const handleSelectCustomer = (cust) => {
@@ -222,26 +276,19 @@ export default function ServicePage() {
       color: null,
     });
     setSelectedServices([]);
-    setTotalPrice(0);
+    setParkingPrice(0);
+    setAdditionalPrice(0);
+    setDayPark("");
     setShowParkingForm(false);
     setShowAdditionalForm(false);
     setExitTime("");
     setSelectedParkingSlot(null);
+    setParkingEntryTime(null);
   };
 
   const handleSave = async () => {
-    const allServices = [...selectedServices];
-    if (showParkingForm) {
-      allServices.push(PARKING_SERVICE_ID);
-    }
-    
-    if (allServices.length === 0) {
-        alert("โปรดเลือกบริการอย่างน้อยหนึ่งบริการ");
-        return;
-    }
-    
-    if (!customerName || !phone) {
-        alert("โปรดกรอกชื่อ-นามสกุลและเบอร์โทรศัพท์ให้ครบถ้วน");
+    if (!customerName || !phone || !vehicle.plate || !vehicle.province) {
+        alert("กรุณากรอกข้อมูลลูกค้าและข้อมูลรถให้ครบถ้วน");
         return;
     }
 
@@ -249,10 +296,36 @@ export default function ServicePage() {
         alert("โปรดเลือกช่องจอดรถ");
         return;
     }
+    
+    const calculatedAdditionalPrice = selectedServices.reduce((sum, id) => {
+      const service = allAdditionalServices.find(s => s.id === id);
+      return sum + (service ? service.price : 0);
+    }, 0);
+
+    const parkingData = showParkingForm ? 
+        calculateDurationAndPrice(parkingEntryTime, exitTime, parkingRates) :
+        { price: 0, duration: "" };
 
     const payload = {
         customer_name: customerName,
         phone_number: phone,
+        car: {
+            car_registration: vehicle.plate,
+            car_registration_province: vehicle.province,
+            brand_car: vehicle.brand,
+            type_car: vehicle.type,
+            color: vehicle.color,
+            service_history: {
+                services: selectedServices,
+                entry_time: parkingEntryTime ? dayjs(parkingEntryTime).toISOString() : dayjs().toISOString(),
+                exit_time: exitTime,
+                parking_slot: showParkingForm ? selectedParkingSlot : null,
+                parking_price: parkingData.price,
+                day_park: parkingData.duration,
+                additional_price: calculatedAdditionalPrice,
+                total_price: parkingData.price + calculatedAdditionalPrice,
+            }
+        },
         house_number: address.houseNo,
         village: address.village,
         road: address.street,
@@ -261,21 +334,10 @@ export default function ServicePage() {
         province: address.province ? address.province.name_th : "",
         zip_code: address.zipcode,
         country: address.country,
-        car: {
-            car_registration: vehicle.plate,
-            car_registration_province: vehicle.province,
-            brand_car: vehicle.brand,
-            type_car: vehicle.model,
-            color: vehicle.color,
-            // ✅ ใช้ allServices ที่รวมบริการทั้งหมดแล้ว
-            services: allServices,
-            entry_time: currentTime,
-            exit_time: exitTime,
-            parking_slot: selectedParkingSlot,
-            total_price: totalPrice
-        }
     };
-
+    
+    console.log("Final Payload:", payload);
+    
     try {
         const token = localStorage.getItem("token");
         const res = await fetch("http://localhost:5000/api/customers", {
@@ -292,7 +354,6 @@ export default function ServicePage() {
             alert("บันทึกข้อมูลสำเร็จ!");
             console.log("Saved:", data);
             clearAll();
-            // ✅ เพิ่มการเรียกฟังก์ชันนี้เพื่ออัปเดตสถานะช่องจอดทันที
             fetchCustomersAndServices();
         } else {
             alert("ผิดพลาด: " + data.message);
@@ -303,15 +364,6 @@ export default function ServicePage() {
     }
   };
   
-  // ✅ เพิ่ม useEffect สำหรับอัปเดตราคาเมื่อมีการเลือกบริการหรือข้อมูลบริการเปลี่ยนแปลง
-  useEffect(() => {
-    let price = selectedServices.reduce((sum, id) => {
-        const service = additionalServices.find(s => s.id === id);
-        return sum + (service ? service.price : 0);
-    }, 0);
-    setTotalPrice(price);
-  }, [selectedServices, additionalServices]);
-
   return (
     <div className="flex min-h-screen bg-gray-50">
       <div className="flex-1 flex flex-col">
@@ -585,10 +637,9 @@ export default function ServicePage() {
               <div className="flex gap-4 mt-4">
                 <button
                   onClick={() => {
-                      if (showParkingForm && showAdditionalForm) {
-                          setShowAdditionalForm(false);
-                      }
-                      setShowParkingForm((v) => !v);
+                    const nextShowParkingForm = !showParkingForm;
+                    setShowParkingForm(nextShowParkingForm);
+                    setParkingEntryTime(nextShowParkingForm ? dayjs().toISOString() : null);
                   }}
                   className={`flex-1 py-3 rounded-lg border-2 text-gray-800 font-semibold transition ${
                     showParkingForm
@@ -599,12 +650,7 @@ export default function ServicePage() {
                   🚗 เช่าที่จอด
                 </button>
                 <button
-                  onClick={() => {
-                      if (showAdditionalForm && showParkingForm) {
-                          setShowParkingForm(false);
-                      }
-                      setShowAdditionalForm((v) => !v);
-                  }}
+                  onClick={() => setShowAdditionalForm((v) => !v)}
                   className={`flex-1 py-3 rounded-lg border-2 text-gray-800 font-semibold transition ${
                     showAdditionalForm
                       ? "border-[#ea7f33] bg-gray-50 shadow"
@@ -621,7 +667,7 @@ export default function ServicePage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <TextField
                       label="วันที่/เวลาเข้า"
-                      value={currentTime}
+                      value={parkingEntryTime ? dayjs(parkingEntryTime).format('YYYY-MM-DD HH:mm:ss') : ''}
                       InputProps={{ readOnly: true }}
                       fullWidth
                     />
@@ -689,8 +735,7 @@ export default function ServicePage() {
               {showAdditionalForm && (
                 <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm mt-4 space-y-4">
                   <h3 className="text-xl font-bold text-[#ea7f33]">บริการเพิ่มเติม</h3>
-                  {/* ✅ แก้ไข: ใช้ additionalServices ที่ดึงมาจาก state แทน */}
-                  {additionalServices.map((s) => (
+                  {allAdditionalServices.map((s) => (
                     <label
                       key={s.id}
                       className="flex items-center gap-3 text-base p-2 rounded cursor-pointer"
@@ -706,12 +751,17 @@ export default function ServicePage() {
                       </span>
                     </label>
                   ))}
-                  <p className="text-right font-semibold">
-                    รวมราคา: {totalPrice} บาท
-                  </p>
                 </div>
               )}
-
+                <div className="mt-4 text-right text-lg font-bold">
+                    รวมราคาค่าจอด: {parkingPrice.toFixed(2)} บาท
+                </div>
+                <div className="mt-2 text-right text-lg font-bold">
+                    รวมราคาบริการเสริม: {additionalPrice.toFixed(2)} บาท
+                </div>
+                <div className="mt-2 text-right text-xl font-bold text-[#ea7f33]">
+                    ยอดรวมทั้งหมด: {(parkingPrice + additionalPrice).toFixed(2)} บาท
+                </div>
               <div className="flex justify-end mt-4">
                 <button
                   onClick={handleSave}

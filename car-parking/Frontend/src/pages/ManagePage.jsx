@@ -14,13 +14,6 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 
-const additionalServices = [
-  { id: 1, name: "ล้างรถ", price: 100 },
-  { id: 2, name: "เช็ดภายใน", price: 50 },
-  { id: 3, name: "ตรวจสภาพ", price: 200 },
-];
-const PARKING_SERVICE_ID = 1;
-
 export default function ManagePage() {
   const [unpaidServices, setUnpaidServices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,17 +24,16 @@ export default function ManagePage() {
     const fetchCustomers = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch("http://localhost:5000/api/customers", {
+        
+        const customersRes = await fetch("http://localhost:5000/api/customers", {
           headers: { Authorization: `Bearer ${token}` },
         });
-
-        if (!res.ok) {
+        if (!customersRes.ok) {
           throw new Error("Failed to fetch customers");
         }
+        const customersData = await customersRes.json();
 
-        const data = await res.json();
-        
-        const allUnpaidServices = data.flatMap((customer) =>
+        const allUnpaidServices = customersData.flatMap((customer) =>
           customer.cars.flatMap((car) =>
             car.service_history
               .filter((service) => service.is_paid === false)
@@ -54,13 +46,13 @@ export default function ManagePage() {
                 entry_time: service.entry_time,
                 parking_slot: service.parking_slot,
                 services: service.services,
+                total_price: service.total_price,
               }))
           )
         )
         .sort((a, b) => new Date(a.entry_time) - new Date(b.entry_time));
 
         setUnpaidServices(allUnpaidServices);
-
       } catch (err) {
         console.error(err);
         setError(err.message);
@@ -89,7 +81,7 @@ export default function ManagePage() {
   }
   
   const parkingOnly = unpaidServices.filter(
-    (service) => service.parking_slot && service.services.length === 0
+    (service) => !!service.parking_slot && service.services.length === 0
   );
   
   const additionalOnly = unpaidServices.filter(
@@ -97,7 +89,7 @@ export default function ManagePage() {
   );
   
   const parkingAndAdditional = unpaidServices.filter(
-    (service) => service.parking_slot && service.services.length > 0
+    (service) => !!service.parking_slot && service.services.length > 0
   );
 
   const renderTable = (data) => (
@@ -111,6 +103,7 @@ export default function ManagePage() {
             <TableCell className="font-bold text-lg text-gray-700">ทะเบียนรถ</TableCell>
             <TableCell className="font-bold text-lg text-gray-700">เวลาเข้า</TableCell>
             <TableCell className="font-bold text-lg text-gray-700 text-center">ประเภทบริการ</TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">ยอดรวม</TableCell>
             <TableCell className="font-bold text-lg text-gray-700">ดำเนินการ</TableCell>
           </TableRow>
         </TableHead>
@@ -132,6 +125,9 @@ export default function ManagePage() {
               } else if (hasServices) {
                 serviceType = "บริการเพิ่มเติม";
                 bgColor = "bg-green-500";
+              } else {
+                serviceType = "ไม่ระบุ";
+                bgColor = "bg-gray-400";
               }
 
               return (
@@ -148,6 +144,7 @@ export default function ManagePage() {
                       {serviceType}
                     </div>
                   </TableCell>
+                  <TableCell>{service.total_price.toFixed(2)} บาท</TableCell>
                   <TableCell>
                     <Tooltip title="ดูรายละเอียด">
                       <IconButton
@@ -163,7 +160,7 @@ export default function ManagePage() {
             })
           ) : (
             <TableRow>
-              <TableCell colSpan={7} align="center">
+              <TableCell colSpan={8} align="center">
                 ไม่มีรายการประเภทนี้ในขณะนี้
               </TableCell>
             </TableRow>
@@ -177,7 +174,7 @@ export default function ManagePage() {
     <div className="p-6 sm:p-10 space-y-8">
       <h2 className="text-3xl font-bold text-[#ea7f33]">จัดการบริการ</h2>
 
-      <div className="flex flex-wrap gap-4 text-sm font-semibold">
+      <div className="flex flex-wrap gap-4 text-sm font-medium ">
         <div className="flex items-center gap-2">
           <span className="w-4 h-4 rounded-full bg-orange-400"></span>
           <span>เช่าที่จอด</span>
