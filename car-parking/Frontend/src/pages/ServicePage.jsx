@@ -4,12 +4,12 @@ import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
 
 const carColors = ["ดำ", "ขาว", "เงิน", "แดง", "น้ำเงิน"];
-const additionalServices = [
-  { id: 1, name: "ล้างรถ", price: 100 },
-  { id: 2, name: "เช็ดภายใน", price: 50 },
-  { id: 3, name: "ตรวจสภาพ", price: 200 },
-];
-// ✅ แก้ไข: เปลี่ยนค่า PARKING_SERVICE_ID ให้ตรงกับโค้ดอื่น
+// ✅ ลบตัวแปร additionalServices ที่เป็นแบบ hardcode ออก
+// const additionalServices = [
+//   { id: 1, name: "ล้างรถ", price: 100 },
+//   { id: 2, name: "เช็ดภายใน", price: 50 },
+//   { id: 3, name: "ตรวจสภาพ", price: 200 },
+// ];
 const PARKING_SERVICE_ID = 4;
 const parkingSections = ["A", "B", "C", "D"];
 const parkingNumbers = Array.from({ length: 100 }, (_, i) => i + 1);
@@ -42,23 +42,33 @@ export default function ServicePage() {
   const [provinceList, setProvinceList] = useState([]);
   const [amphoeList, setAmphoeList] = useState([]);
   const [districtList, setDistrictList] = useState([]);
+  // ✅ เพิ่ม state สำหรับเก็บข้อมูลบริการที่ดึงมาจาก API
+  const [additionalServices, setAdditionalServices] = useState([]);
 
- const currentTime = dayjs().toISOString();
+  const currentTime = dayjs().toISOString();
 
-  const fetchCustomersAndOccupiedSlots = async () => {
+  // ✅ แก้ไขฟังก์ชันให้ดึงข้อมูลลูกค้าและช่องจอด รวมถึงข้อมูลราคาและบริการเพิ่มเติม
+  const fetchCustomersAndServices = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:5000/api/customers", {
+      // ดึงข้อมูลลูกค้าและช่องจอด
+      const customersRes = await fetch("http://localhost:5000/api/customers", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      setCustomerList(data);
+      const customersData = await customersRes.json();
+      setCustomerList(customersData);
+      
+      // ดึงข้อมูลราคาและบริการเพิ่มเติม
+      const pricesRes = await fetch("http://localhost:5000/api/prices", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const pricesData = await pricesRes.json();
+      setAdditionalServices(pricesData.additionalServices || []);
+
       const occupied = new Set();
-      data.forEach(customer => {
-        // ✅ แก้ไข: วนลูปดูประวัติการบริการในรถแต่ละคัน
+      customersData.forEach(customer => {
         customer.cars?.forEach(car => {
             car.service_history?.forEach(service => {
-                // ✅ แก้ไข: ตรวจสอบว่ามีบริการเช่าที่จอด และยังไม่จ่ายเงิน และมี slot ที่ถูกจอง
                 if (service.services?.includes(PARKING_SERVICE_ID) && !service.is_paid && service.parking_slot) {
                     occupied.add(service.parking_slot);
                 }
@@ -88,8 +98,8 @@ export default function ServicePage() {
       }
     };
     fetchAddressData();
-    // ✅ เพิ่มการเรียกฟังก์ชันเพื่อดึงข้อมูลลูกค้าและช่องจอดตั้งแต่เริ่มต้น
-    fetchCustomersAndOccupiedSlots();
+    // ✅ เรียกใช้ฟังก์ชันใหม่เพื่อดึงข้อมูลลูกค้าและบริการ
+    fetchCustomersAndServices();
   }, []);
 
   useEffect(() => {
@@ -124,17 +134,16 @@ export default function ServicePage() {
       : [...selectedServices, id];
     setSelectedServices(updated);
 
-    const sum = updated.reduce((acc, sid) => {
-      const s = additionalServices.find((srv) => srv.id === sid);
-      return acc + (s ? s.price : 0);
-    }, 0);
-    
-    // ✅ แก้ไข: เพิ่มเงื่อนไขเพื่อรวมราคาบริการเช่าที่จอดรถ (ซึ่งมีราคา 0)
-    if (showParkingForm) {
-      setTotalPrice(sum);
-    } else {
-      setTotalPrice(sum);
-    }
+    // ✅ ลบโค้ดการคำนวณราคาในฟังก์ชันนี้ออก เพราะจะไปคำนวณใน useEffect แทน
+    // const sum = updated.reduce((acc, sid) => {
+    //   const s = additionalServices.find((srv) => srv.id === sid);
+    //   return acc + (s ? s.price : 0);
+    // }, 0);
+    // if (showParkingForm) {
+    //   setTotalPrice(sum);
+    // } else {
+    //   setTotalPrice(sum);
+    // }
   };
 
   const handleSelectCustomer = (cust) => {
@@ -284,7 +293,7 @@ export default function ServicePage() {
             console.log("Saved:", data);
             clearAll();
             // ✅ เพิ่มการเรียกฟังก์ชันนี้เพื่ออัปเดตสถานะช่องจอดทันที
-            fetchCustomersAndOccupiedSlots();
+            fetchCustomersAndServices();
         } else {
             alert("ผิดพลาด: " + data.message);
         }
@@ -294,14 +303,14 @@ export default function ServicePage() {
     }
   };
   
-  // ✅ แก้ไข: เพิ่ม useEffect เพื่ออัปเดตราคาเมื่อมีการเลือกบริการ
+  // ✅ เพิ่ม useEffect สำหรับอัปเดตราคาเมื่อมีการเลือกบริการหรือข้อมูลบริการเปลี่ยนแปลง
   useEffect(() => {
     let price = selectedServices.reduce((sum, id) => {
         const service = additionalServices.find(s => s.id === id);
         return sum + (service ? service.price : 0);
     }, 0);
     setTotalPrice(price);
-  }, [selectedServices]);
+  }, [selectedServices, additionalServices]);
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -680,6 +689,7 @@ export default function ServicePage() {
               {showAdditionalForm && (
                 <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm mt-4 space-y-4">
                   <h3 className="text-xl font-bold text-[#ea7f33]">บริการเพิ่มเติม</h3>
+                  {/* ✅ แก้ไข: ใช้ additionalServices ที่ดึงมาจาก state แทน */}
                   {additionalServices.map((s) => (
                     <label
                       key={s.id}

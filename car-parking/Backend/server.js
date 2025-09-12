@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 const connectDB = require('./config/db');
 const settingRoutes = require('./routes/setting.routes');
+const priceRoutes = require('./routes/price.routes');
 
 const app = express();
 connectDB();
@@ -16,6 +17,7 @@ app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/users', require('./routes/user.routes'));
 app.use('/api/customers', require('./routes/customer.routes'));
 app.use('/api/settings', settingRoutes);
+app.use('/api/prices', priceRoutes);
 
 app.listen(process.env.PORT, () => {
   console.log(`🚀 Server running on port ${process.env.PORT}`);
