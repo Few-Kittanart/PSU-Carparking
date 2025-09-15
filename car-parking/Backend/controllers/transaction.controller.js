@@ -1,81 +1,61 @@
 const Transaction = require('../models/transaction.model');
 
-// Create Transaction
+// สร้าง transaction
 exports.createTransaction = async (req, res) => {
   try {
-    const transaction = new Transaction({
-      date: req.body.date || Date.now(),
-      customer: req.body.customer, // ObjectId ของ Customer
-      carpark: req.body.carpark || null, // ObjectId ของ ParkingRent
-      additional: req.body.additional || [], // Array ของ ObjectId Additional
-      total_amount: req.body.total_amount || 0
-    });
-
+    const transaction = new Transaction(req.body);
     await transaction.save();
     res.status(201).json(transaction);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 };
 
-// Get All Transactions with populated data
-exports.getTransactions = async (req, res) => {
+// ดึง transaction ทั้งหมด
+exports.getAllTransactions = async (req, res) => {
   try {
     const transactions = await Transaction.find()
-      .populate({ path: 'customer', select: 'customer_name phone_number house_number village road canton district province zip_code country car_registration car_registration_province brand_car type_car color' })
-      .populate({ path: 'parkingRent', select: 'parking_zone parking_slot enter_date enter_time out_date out_time note' })
-      .populate({ path: 'additional', select: 'additional_name additional_price' });
-
+      .populate('customer')
+      .populate('car')
+      .populate('serviceHistory');
     res.json(transactions);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-// Get Transaction by ID
+// ดึง transaction ตาม ID
 exports.getTransactionById = async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.id)
-      .populate({ path: 'customer', select: 'customer_name phone_number house_number village road canton district province zip_code country car_registration car_registration_province brand_car type_car color' })
-      .populate({ path: 'parkingRent', select: 'parking_zone parking_slot enter_date enter_time out_date out_time note' })
-      .populate({ path: 'additional', select: 'additional_name additional_price' });
-
-    if (!transaction) return res.status(404).json({ message: 'Transaction not found' });
+      .populate('customer')
+      .populate('car')
+      .populate('serviceHistory');
+    if (!transaction) return res.status(404).json({ error: 'Transaction not found' });
     res.json(transaction);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-// Update Transaction
+// แก้ไข transaction
 exports.updateTransaction = async (req, res) => {
   try {
-    const transaction = await Transaction.findByIdAndUpdate(
-      req.params.id,
-      {
-        date: req.body.date,
-        customer: req.body.customer,
-        carpark: req.body.carpark || null,
-        additional: req.body.additional || [],
-        total_amount: req.body.total_amount
-      },
-      { new: true }
-    );
-
-    if (!transaction) return res.status(404).json({ message: 'Transaction not found' });
+    const transaction = await Transaction.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!transaction) return res.status(404).json({ error: 'Transaction not found' });
     res.json(transaction);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 };
 
-// Delete Transaction
+// ลบ transaction
 exports.deleteTransaction = async (req, res) => {
   try {
     const transaction = await Transaction.findByIdAndDelete(req.params.id);
-    if (!transaction) return res.status(404).json({ message: 'Transaction not found' });
+    if (!transaction) return res.status(404).json({ error: 'Transaction not found' });
     res.json({ message: 'Transaction deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
