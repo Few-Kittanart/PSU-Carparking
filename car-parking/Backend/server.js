@@ -18,6 +18,9 @@ app.use('/api/users', require('./routes/user.routes'));
 app.use('/api/customers', require('./routes/customer.routes'));
 app.use('/api/settings', settingRoutes);
 app.use('/api/prices', priceRoutes);
+app.use('/api/cars', require('./routes/car.routes'));
+app.use('/api/serviceHistories', require('./routes/serviceHistory.routes'));
+app.use('/api/transactions', require('./routes/transaction.routes'));
 
 app.listen(process.env.PORT, () => {
   console.log(`🚀 Server running on port ${process.env.PORT}`);
