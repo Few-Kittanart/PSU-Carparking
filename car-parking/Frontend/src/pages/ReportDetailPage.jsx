@@ -8,23 +8,26 @@ import { Button, Paper, Typography } from "@mui/material";
 dayjs.extend(duration);
 dayjs.locale("th");
 
-const additionalServices = [
-  { id: 1, name: "ล้างรถ", price: 100 },
-  { id: 2, name: "เช็ดภายใน", price: 50 },
-  { id: 3, name: "ตรวจสภาพ", price: 200 },
-];
-
 export default function ReportDetailPage() {
-  const { customerId, serviceId } = useParams(); // ✅ รับ serviceId จาก URL
+  const { customerId, serviceId } = useParams();
   const navigate = useNavigate();
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [additionalServices, setAdditionalServices] = useState([]);
 
   useEffect(() => {
     const fetchReport = async () => {
       try {
         const token = localStorage.getItem("token");
+
+        // Fetch prices first to have a list of additional services
+        const pricesRes = await fetch("http://localhost:5000/api/prices", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const pricesData = await pricesRes.json();
+        setAdditionalServices(pricesData.additionalServices || []);
+
         const res = await fetch(
           `http://localhost:5000/api/customers/${customerId}`,
           {
@@ -81,7 +84,7 @@ export default function ReportDetailPage() {
       }
     };
     fetchReport();
-  }, [customerId, serviceId]); // ✅ เปลี่ยน dependency เป็น serviceId
+  }, [customerId, serviceId]);
 
   const getServiceName = (serviceIds) => {
     if (!serviceIds || serviceIds.length === 0) return "ไม่มี";
@@ -129,20 +132,22 @@ export default function ReportDetailPage() {
     type_car,
     color,
     parking_slot,
-    parking_lot,
     entry_time,
     exit_time,
     services,
     total_price,
+    parking_price,
+    additional_price,
     note,
+    day_park,
   } = reportData;
 
-  const getServicePrice = (id) =>
-    additionalServices.find((s) => s.id === id)?.price || 0;
-  const totalServicesPrice = services.reduce(
-    (sum, id) => sum + getServicePrice(id),
-    0
-  );
+  const getAdditionalServiceName = (serviceIds) => {
+    return serviceIds.map((id) => {
+      const service = additionalServices.find((s) => s.id === id);
+      return service ? service.name : "";
+    }).filter(Boolean);
+  };
 
   return (
     <div className="p-6 sm:p-10 space-y-6">
@@ -226,7 +231,10 @@ export default function ReportDetailPage() {
                 </Typography>
                 <Typography>
                   <strong>รวมระยะเวลา:</strong>{" "}
-                  {calculateDuration(entry_time, exit_time)}
+                  {day_park || calculateDuration(entry_time, exit_time)}
+                </Typography>
+                <Typography className="font-bold mt-2">
+                  <strong>ราคาค่าจอด:</strong> {parking_price?.toFixed(2) || "0.00"} บาท
                 </Typography>
               </div>
             )}
@@ -239,23 +247,17 @@ export default function ReportDetailPage() {
                   บริการเพิ่มเติม
                 </Typography>
                 <ul className="list-disc pl-5 space-y-1">
-                  {services.map((serviceId) => {
-                    const service = additionalServices.find(
-                      (s) => s.id === serviceId
-                    );
-                    return (
-                      <li key={serviceId}>
-                        <Typography>
-                          **{service?.name || "ไม่ระบุ"}:**{" "}
-                          {service?.price || 0} บาท
-                        </Typography>
-                      </li>
-                    );
-                  })}
+                  {getAdditionalServiceName(services).map((name, index) => (
+                    <li key={index}>
+                      <Typography>
+                        **{name}**
+                      </Typography>
+                    </li>
+                  ))}
                 </ul>
-                <Typography className="mt-2">
-                  <strong>รวมราคาบริการเพิ่มเติม:</strong> {totalServicesPrice}{" "}
-                  บาท
+                <Typography className="font-bold mt-2">
+                  <strong>รวมราคาบริการเพิ่มเติม:</strong>{" "}
+                  {additional_price?.toFixed(2) || "0.00"} บาท
                 </Typography>
               </div>
             )}
@@ -269,7 +271,8 @@ export default function ReportDetailPage() {
             <strong>หมายเหตุ:</strong> {note || "-"}
           </Typography>
           <Typography className="text-xl font-bold mt-2">
-            <strong>ยอดรวมทั้งหมด:</strong> {total_price} บาท
+            <strong>ยอดรวมทั้งหมด:</strong>{" "}
+            {total_price?.toFixed(2) || "0.00"} บาท
           </Typography>
         </div>
       </Paper>
