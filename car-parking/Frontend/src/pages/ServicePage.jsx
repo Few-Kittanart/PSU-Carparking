@@ -15,17 +15,27 @@ export default function ServicePage() {
   const [customerId, setCustomerId] = useState("");
   const [customerList, setCustomerList] = useState([]);
   const [address, setAddress] = useState({
-    houseNo: "", village: "", street: "", district: null,
-    amphoe: null, province: null, country: "", zipcode: "",
+    houseNo: "",
+    village: "",
+    street: "",
+    district: null,
+    amphoe: null,
+    province: null,
+    country: "",
+    zipcode: "",
   });
   const [vehicle, setVehicle] = useState({
-    plate: "", province: "", brand: null, model: null,
-    type: null, color: null,
+    plate: "",
+    province: "",
+    brand: null,
+    model: null,
+    type: null,
+    color: null,
   });
   const [showParkingForm, setShowParkingForm] = useState(false);
   const [showAdditionalForm, setShowAdditionalForm] = useState(false);
   const [selectedServices, setSelectedServices] = useState([]);
-  
+
   const [parkingPrice, setParkingPrice] = useState(0);
   const [additionalPrice, setAdditionalPrice] = useState(0);
   const [dayPark, setDayPark] = useState("");
@@ -60,15 +70,15 @@ export default function ServicePage() {
       });
       const customersData = await customersRes.json();
       setCustomerList(customersData);
-      
+
       const occupied = new Set();
-      customersData.forEach(customer => {
-        customer.cars?.forEach(car => {
-            car.service_history?.forEach(service => {
-                if (service.parking_slot && !service.is_paid) {
-                    occupied.add(service.parking_slot);
-                }
-            });
+      customersData.forEach((customer) => {
+        customer.cars?.forEach((car) => {
+          car.service_history?.forEach((service) => {
+            if (service.parking_slot && !service.is_paid) {
+              occupied.add(service.parking_slot);
+            }
+          });
         });
       });
       setOccupiedSlots(occupied);
@@ -90,7 +100,9 @@ export default function ServicePage() {
         setProvinceList(data);
       } catch (err) {
         console.error("Error fetching address data:", err);
-        alert("ไม่สามารถดึงข้อมูลจังหวัด อำเภอ ตำบลได้ โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ต");
+        alert(
+          "ไม่สามารถดึงข้อมูลจังหวัด อำเภอ ตำบลได้ โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ต"
+        );
       }
     };
     fetchAddressData();
@@ -122,25 +134,25 @@ export default function ServicePage() {
   // คำนวณราคาบริการเสริมแบบเรียลไทม์
   useEffect(() => {
     const addPrice = selectedServices.reduce((sum, id) => {
-      const service = allAdditionalServices.find(s => s.id === id);
+      const service = allAdditionalServices.find((s) => s.id === id);
       return sum + (service ? service.price : 0);
     }, 0);
     setAdditionalPrice(addPrice);
   }, [selectedServices, allAdditionalServices]);
-  
+
   const calculateDurationAndPrice = (entryTime, exitTime, rates) => {
     const entry = dayjs(entryTime);
     const exit = exitTime ? dayjs(exitTime) : dayjs();
-    
+
     // Total duration in minutes (including fractions)
-    const durationInMinutes = exit.diff(entry, 'minute', true);
-    
+    const durationInMinutes = exit.diff(entry, "minute", true);
+
     const dailyRate = parseFloat(rates.daily) || 0;
     const hourlyRate = parseFloat(rates.hourly) || 0;
 
     let parkingCost = 0;
     let durationString = "";
-    
+
     const totalMinutes = Math.round(durationInMinutes);
     const totalDays = Math.floor(totalMinutes / (24 * 60));
     const remainingMinutesAfterDays = totalMinutes % (24 * 60);
@@ -152,38 +164,42 @@ export default function ServicePage() {
     // New Pricing Logic based on user's rules
     const totalDurationInHours = durationInMinutes / 60;
     const remainingHoursAfterDays = (durationInMinutes % (24 * 60)) / 60;
-    
+
     if (remainingHoursAfterDays >= 10) {
-        // If remaining hours are 10 or more, round up to the next full day
-        const totalChargedDays = totalDays + 1;
-        parkingCost = totalChargedDays * dailyRate;
+      // If remaining hours are 10 or more, round up to the next full day
+      const totalChargedDays = totalDays + 1;
+      parkingCost = totalChargedDays * dailyRate;
     } else {
-        // Normal calculation: full days + remaining hours
-        let chargedHours = Math.floor(remainingHoursAfterDays);
-        const remainingMinsForRounding = remainingMinutesAfterDays % 60;
-        
-        if (remainingMinsForRounding > 10) {
-            chargedHours++;
-        }
-        
-        parkingCost = (totalDays * dailyRate) + (chargedHours * hourlyRate);
+      // Normal calculation: full days + remaining hours
+      let chargedHours = Math.floor(remainingHoursAfterDays);
+      const remainingMinsForRounding = remainingMinutesAfterDays % 60;
+
+      if (remainingMinsForRounding > 10) {
+        chargedHours++;
+      }
+
+      parkingCost = totalDays * dailyRate + chargedHours * hourlyRate;
     }
 
     // A check to ensure some cost is applied for very short parking
     if (parkingCost === 0 && durationInMinutes > 0) {
-        parkingCost = hourlyRate;
+      parkingCost = hourlyRate;
     }
 
     return {
-        price: parkingCost,
-        duration: durationString
+      price: parkingCost,
+      duration: durationString,
     };
   };
 
   // คำนวณราคาค่าจอดรถแบบเรียลไทม์ (เพื่อแสดงผลบนหน้าจอ)
   useEffect(() => {
     if (showParkingForm && parkingEntryTime && parkingRates.hourly > 0) {
-      const result = calculateDurationAndPrice(parkingEntryTime, exitTime, parkingRates);
+      const result = calculateDurationAndPrice(
+        parkingEntryTime,
+        exitTime,
+        parkingRates
+      );
       setParkingPrice(result.price);
       setDayPark(result.duration);
     }
@@ -206,14 +222,25 @@ export default function ServicePage() {
     setCustomerName(cust.customer_name);
     setPhone(cust.phone_number);
 
-    const foundProvince = provinceList.find(p => p.name_th === cust.province) || null;
+    const foundProvince =
+      provinceList.find((p) => p.name_th === cust.province) || null;
     let foundAmphoe = null;
     let foundDistrict = null;
 
     if (foundProvince) {
-      foundAmphoe = foundProvince.amphure.find(a => a.name_th.toLowerCase().trim() === cust.district.toLowerCase().trim()) || null;
+      foundAmphoe =
+        foundProvince.amphure.find(
+          (a) =>
+            a.name_th.toLowerCase().trim() ===
+            cust.district.toLowerCase().trim()
+        ) || null;
       if (foundAmphoe) {
-        foundDistrict = foundAmphoe.tambon.find(t => t.name_th.toLowerCase().trim() === cust.canton.toLowerCase().trim()) || null;
+        foundDistrict =
+          foundAmphoe.tambon.find(
+            (t) =>
+              t.name_th.toLowerCase().trim() ===
+              cust.canton.toLowerCase().trim()
+          ) || null;
       }
     }
 
@@ -234,22 +261,22 @@ export default function ServicePage() {
     if (cust.cars && cust.cars.length > 0) {
       const lastCar = cust.cars[cust.cars.length - 1];
       setVehicle({
-          plate: lastCar.car_registration || "",
-          province: lastCar.car_registration_province || "",
-          brand: lastCar.brand_car || null,
-          model: lastCar.type_car || null,
-          type: null,
-          color: lastCar.color || null,
+        plate: lastCar.car_registration || "",
+        province: lastCar.car_registration_province || "",
+        brand: lastCar.brand_car || null,
+        model: lastCar.type_car || null,
+        type: null,
+        color: lastCar.color || null,
       });
     } else {
-        setVehicle({
-            plate: "",
-            province: "",
-            brand: null,
-            model: null,
-            type: null,
-            color: null,
-        });
+      setVehicle({
+        plate: "",
+        province: "",
+        brand: null,
+        model: null,
+        type: null,
+        color: null,
+      });
     }
   };
 
@@ -287,83 +314,132 @@ export default function ServicePage() {
   };
 
   const handleSave = async () => {
+    // 1. ตรวจสอบข้อมูลเบื้องต้น
     if (!customerName || !phone || !vehicle.plate || !vehicle.province) {
         alert("กรุณากรอกข้อมูลลูกค้าและข้อมูลรถให้ครบถ้วน");
         return;
     }
-
     if (showParkingForm && !selectedParkingSlot) {
         alert("โปรดเลือกช่องจอดรถ");
         return;
     }
     
-    const calculatedAdditionalPrice = selectedServices.reduce((sum, id) => {
-      const service = allAdditionalServices.find(s => s.id === id);
-      return sum + (service ? service.price : 0);
-    }, 0);
-
+    // คำนวณราคา
     const parkingData = showParkingForm ? 
         calculateDurationAndPrice(parkingEntryTime, exitTime, parkingRates) :
         { price: 0, duration: "" };
 
-    const payload = {
-        customer_name: customerName,
-        phone_number: phone,
-        car: {
-            car_registration: vehicle.plate,
-            car_registration_province: vehicle.province,
-            brand_car: vehicle.brand,
-            type_car: vehicle.type,
-            color: vehicle.color,
-            service_history: {
-                services: selectedServices,
-                entry_time: parkingEntryTime ? dayjs(parkingEntryTime).toISOString() : dayjs().toISOString(),
-                exit_time: exitTime,
-                parking_slot: showParkingForm ? selectedParkingSlot : null,
-                parking_price: parkingData.price,
-                day_park: parkingData.duration,
-                additional_price: calculatedAdditionalPrice,
-                total_price: parkingData.price + calculatedAdditionalPrice,
-            }
-        },
-        house_number: address.houseNo,
-        village: address.village,
-        road: address.street,
-        canton: address.district ? address.district.name_th : "",
-        district: address.amphoe ? address.amphoe.name_th : "",
-        province: address.province ? address.province.name_th : "",
-        zip_code: address.zipcode,
-        country: address.country,
-    };
+    const additionalServicesPrice = allAdditionalServices
+        .filter((s) => selectedServices.includes(s.id))
+        .reduce((sum, service) => sum + service.price, 0);
     
-    console.log("Final Payload:", payload);
-    
+    const finalTotalPrice = parkingData.price + additionalServicesPrice;
+
     try {
         const token = localStorage.getItem("token");
-        const res = await fetch("http://localhost:5000/api/customers", {
+        
+        // 2. สร้าง Service History และบันทึกลงฐานข้อมูลก่อน
+        const serviceHistoryPayload = {
+            services: selectedServices,
+            entry_time: parkingEntryTime ? dayjs(parkingEntryTime).toISOString() : null,
+            exit_time: exitTime ? dayjs(exitTime).toISOString() : null,
+            parking_slot: showParkingForm ? selectedParkingSlot : null,
+            parking_price: parkingData.price,
+            day_park: parkingData.duration,
+            additional_price: additionalServicesPrice,
+            total_price: finalTotalPrice,
+        };
+        const serviceHistoryRes = await fetch("http://localhost:5000/api/serviceHistories", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify(payload),
+            body: JSON.stringify(serviceHistoryPayload),
         });
-
-        const data = await res.json();
-        if (res.ok) {
-            alert("บันทึกข้อมูลสำเร็จ!");
-            console.log("Saved:", data);
-            clearAll();
-            fetchCustomersAndServices();
-        } else {
-            alert("ผิดพลาด: " + data.message);
-        }
+        if (!serviceHistoryRes.ok) throw new Error("Failed to save service history.");
+        const newServiceHistory = await serviceHistoryRes.json();
+        
+        // 3. สร้าง Car โดยใช้ _id ของ Service History ที่บันทึกไปเมื่อครู่
+        const carPayload = {
+            car_registration: vehicle.plate,
+            car_registration_province: vehicle.province,
+            brand_car: vehicle.brand,
+            type_car: vehicle.type,
+            color: vehicle.color,
+            service_history: [newServiceHistory._id],
+        };
+        const carRes = await fetch("http://localhost:5000/api/cars", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(carPayload),
+        });
+        if (!carRes.ok) throw new Error("Failed to save car.");
+        const newCar = await carRes.json();
+        
+        // 4. สร้าง Customer โดยใช้ _id ของ Car ที่บันทึกไป
+        const customerPayload = {
+            customer_name: customerName,
+            phone_number: phone,
+            house_number: address.houseNo,
+            village: address.village,
+            road: address.street,
+            canton: address.district ? address.district.name_th : "",
+            district: address.amphoe ? address.amphoe.name_th : "",
+            province: address.province ? address.province.name_th : "",
+            zip_code: address.zipcode,
+            country: address.country,
+            cars: [newCar._id],
+        };
+        const customerRes = await fetch("http://localhost:5000/api/customers", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(customerPayload),
+        });
+        if (!customerRes.ok) throw new Error("Failed to save customer.");
+        const newCustomer = await customerRes.json();
+        
+        // 5. สร้าง Transaction โดยใช้ _id ของเอกสารทั้งหมดที่บันทึก
+        const transactionPayload = {
+            customer: newCustomer._id,
+            car: newCar._id,
+            serviceHistory: newServiceHistory._id,
+            total_price: finalTotalPrice,
+            transaction_id: Date.now(),
+            date: new Date().toISOString(),
+            
+        };
+        const transactionRes = await fetch("http://localhost:5000/api/transactions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(transactionPayload),
+        });
+        if (!transactionRes.ok) throw new Error("Failed to save transaction.");
+        const newTransaction = await transactionRes.json();
+        
+        // 6. จัดการเมื่อสำเร็จทั้งหมด
+        alert("บันทึกข้อมูลสำเร็จ!");
+        console.log("Saved Customer:", newCustomer);
+        console.log("Saved Car:", newCar);
+        console.log("Saved Service History:", newServiceHistory);
+        console.log("Saved Transaction:", newTransaction);
+        clearAll();
+        fetchCustomersAndServices();
     } catch (err) {
-        console.error(err);
-        alert("เกิดข้อผิดพลาดที่ frontend");
+        console.error("Error during save process:", err);
+        alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + err.message);
     }
   };
-  
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <div className="flex-1 flex flex-col">
@@ -380,7 +456,9 @@ export default function ServicePage() {
                   options={customerList.map((c) => c.customer_name)}
                   value={customerName || null}
                   onChange={(e, newValue) => {
-                    const foundCustomer = customerList.find(c => c.customer_name === newValue);
+                    const foundCustomer = customerList.find(
+                      (c) => c.customer_name === newValue
+                    );
                     handleSelectCustomer(foundCustomer);
                   }}
                   renderInput={(params) => (
@@ -397,7 +475,9 @@ export default function ServicePage() {
                   options={customerList.map((c) => c.phone_number)}
                   value={phone || null}
                   onChange={(e, newValue) => {
-                    const foundCustomer = customerList.find(c => c.phone_number === newValue);
+                    const foundCustomer = customerList.find(
+                      (c) => c.phone_number === newValue
+                    );
                     handleSelectCustomer(foundCustomer);
                   }}
                   renderInput={(params) => (
@@ -566,7 +646,10 @@ export default function ServicePage() {
                     variant="outlined"
                     value={vehicle.plate}
                     onChange={(e) =>
-                      setVehicle((old) => ({ ...old, plate: e.target.value.toUpperCase() }))
+                      setVehicle((old) => ({
+                        ...old,
+                        plate: e.target.value.toUpperCase(),
+                      }))
                     }
                     placeholder="เช่น 1กข 1234"
                   />
@@ -576,7 +659,10 @@ export default function ServicePage() {
                     variant="outlined"
                     value={vehicle.province}
                     onChange={(e) =>
-                      setVehicle((old) => ({ ...old, province: e.target.value }))
+                      setVehicle((old) => ({
+                        ...old,
+                        province: e.target.value,
+                      }))
                     }
                     placeholder="เช่น กรุงเทพมหานคร"
                   />
@@ -639,7 +725,9 @@ export default function ServicePage() {
                   onClick={() => {
                     const nextShowParkingForm = !showParkingForm;
                     setShowParkingForm(nextShowParkingForm);
-                    setParkingEntryTime(nextShowParkingForm ? dayjs().toISOString() : null);
+                    setParkingEntryTime(
+                      nextShowParkingForm ? dayjs().toISOString() : null
+                    );
                   }}
                   className={`flex-1 py-3 rounded-lg border-2 text-gray-800 font-semibold transition ${
                     showParkingForm
@@ -663,11 +751,19 @@ export default function ServicePage() {
 
               {showParkingForm && (
                 <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm mt-4 space-y-4">
-                  <h3 className="text-xl font-bold text-[#ea7f33]">เช่าที่จอด</h3>
+                  <h3 className="text-xl font-bold text-[#ea7f33]">
+                    เช่าที่จอด
+                  </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <TextField
                       label="วันที่/เวลาเข้า"
-                      value={parkingEntryTime ? dayjs(parkingEntryTime).format('YYYY-MM-DD HH:mm:ss') : ''}
+                      value={
+                        parkingEntryTime
+                          ? dayjs(parkingEntryTime).format(
+                              "YYYY-MM-DD HH:mm:ss"
+                            )
+                          : ""
+                      }
                       InputProps={{ readOnly: true }}
                       fullWidth
                     />
@@ -680,53 +776,64 @@ export default function ServicePage() {
                       onChange={(e) => setExitTime(e.target.value)}
                     />
                   </div>
-                  
+
                   <div className="mt-6">
-                    <h4 className="text-lg font-semibold mb-2">เลือกช่องจอดรถ:</h4>
+                    <h4 className="text-lg font-semibold mb-2">
+                      เลือกช่องจอดรถ:
+                    </h4>
                     <div className="flex gap-2 mb-4">
-                        {parkingSections.map(section => (
-                            <button
-                                key={section}
-                                className={`px-6 py-2 rounded-lg font-bold transition-colors ${
-                                    selectedSection === section
-                                        ? "bg-[#ea7f33] text-white shadow-md"
-                                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                }`}
-                                onClick={() => setSelectedSection(section)}
-                            >
-                                โซน {section}
-                            </button>
-                        ))}
+                      {parkingSections.map((section) => (
+                        <button
+                          key={section}
+                          className={`px-6 py-2 rounded-lg font-bold transition-colors ${
+                            selectedSection === section
+                              ? "bg-[#ea7f33] text-white shadow-md"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                          }`}
+                          onClick={() => setSelectedSection(section)}
+                        >
+                          โซน {section}
+                        </button>
+                      ))}
                     </div>
 
                     <div className="border border-gray-300 rounded-lg p-4">
-                        <div className="grid grid-cols-10 sm:grid-cols-10 md:grid-cols-12 lg:grid-cols-15 xl:grid-cols-20 gap-2">
-                            {parkingNumbers.map(number => {
-                                const slotId = `${selectedSection}-${number}`;
-                                const isOccupied = occupiedSlots.has(slotId);
-                                const isSelected = selectedParkingSlot === slotId;
-                                const slotColor = isOccupied ? 'bg-red-500' : 'bg-green-500';
-                                const hoverColor = isOccupied ? '' : 'hover:bg-green-600';
-                                const selectedStyle = isSelected ? 'ring-2 ring-offset-2 ring-[#ea7f33]' : '';
-                                
-                                return (
-                                    <button
-                                        key={slotId}
-                                        className={`p-2 rounded-md text-white font-bold transition-colors ${slotColor} ${hoverColor} ${selectedStyle}`}
-                                        disabled={isOccupied}
-                                        onClick={() => setSelectedParkingSlot(slotId)}
-                                    >
-                                        {slotId}
-                                    </button>
-                                );
-                            })}
-                        </div>
+                      <div className="grid grid-cols-10 sm:grid-cols-10 md:grid-cols-12 lg:grid-cols-15 xl:grid-cols-20 gap-2">
+                        {parkingNumbers.map((number) => {
+                          const slotId = `${selectedSection}-${number}`;
+                          const isOccupied = occupiedSlots.has(slotId);
+                          const isSelected = selectedParkingSlot === slotId;
+                          const slotColor = isOccupied
+                            ? "bg-red-500"
+                            : "bg-green-500";
+                          const hoverColor = isOccupied
+                            ? ""
+                            : "hover:bg-green-600";
+                          const selectedStyle = isSelected
+                            ? "ring-2 ring-offset-2 ring-[#ea7f33]"
+                            : "";
+
+                          return (
+                            <button
+                              key={slotId}
+                              className={`p-2 rounded-md text-white font-bold transition-colors ${slotColor} ${hoverColor} ${selectedStyle}`}
+                              disabled={isOccupied}
+                              onClick={() => setSelectedParkingSlot(slotId)}
+                            >
+                              {slotId}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
 
                   {selectedParkingSlot && (
                     <div className="mt-4 text-center text-lg font-semibold text-gray-800">
-                        คุณได้เลือกช่องจอด: <span className="text-[#ea7f33]">{selectedParkingSlot}</span>
+                      คุณได้เลือกช่องจอด:{" "}
+                      <span className="text-[#ea7f33]">
+                        {selectedParkingSlot}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -734,7 +841,9 @@ export default function ServicePage() {
 
               {showAdditionalForm && (
                 <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm mt-4 space-y-4">
-                  <h3 className="text-xl font-bold text-[#ea7f33]">บริการเพิ่มเติม</h3>
+                  <h3 className="text-xl font-bold text-[#ea7f33]">
+                    บริการเพิ่มเติม
+                  </h3>
                   {allAdditionalServices.map((s) => (
                     <label
                       key={s.id}
@@ -753,15 +862,15 @@ export default function ServicePage() {
                   ))}
                 </div>
               )}
-                <div className="mt-4 text-right text-lg font-bold">
-                    รวมราคาค่าจอด: {parkingPrice.toFixed(2)} บาท
-                </div>
-                <div className="mt-2 text-right text-lg font-bold">
-                    รวมราคาบริการเสริม: {additionalPrice.toFixed(2)} บาท
-                </div>
-                <div className="mt-2 text-right text-xl font-bold text-[#ea7f33]">
-                    ยอดรวมทั้งหมด: {(parkingPrice + additionalPrice).toFixed(2)} บาท
-                </div>
+              <div className="mt-4 text-right text-lg font-bold">
+                รวมราคาค่าจอด: {parkingPrice.toFixed(2)} บาท
+              </div>
+              <div className="mt-2 text-right text-lg font-bold">
+                รวมราคาบริการเสริม: {additionalPrice.toFixed(2)} บาท
+              </div>
+              <div className="mt-2 text-right text-xl font-bold text-[#ea7f33]">
+                ยอดรวมทั้งหมด: {(parkingPrice + additionalPrice).toFixed(2)} บาท
+              </div>
               <div className="flex justify-end mt-4">
                 <button
                   onClick={handleSave}

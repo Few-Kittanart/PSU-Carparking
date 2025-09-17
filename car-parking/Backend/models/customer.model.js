@@ -1,10 +1,7 @@
-const mongoose = require('mongoose');
-const AutoIncrement = require('mongoose-sequence')(mongoose);
-const carSchema = require('./car.model').schema;
+const mongoose = require("mongoose");
 
 // กำหนด schema หลักสำหรับลูกค้า
 const customerSchema = new mongoose.Schema({
-  customer_id: { type: Number, unique: true, required: true },
   customer_name: { type: String, required: true },
   phone_number: { type: String, required: true },
   house_number: { type: String },
@@ -15,7 +12,7 @@ const customerSchema = new mongoose.Schema({
   province: { type: String },
   zip_code: { type: String },
   country: { type: String },
-  cars: [carSchema],
+  cars: [{ type: mongoose.Schema.Types.ObjectId, ref: "Car" }],
 });
 
 const Customer = mongoose.model("Customer", customerSchema);

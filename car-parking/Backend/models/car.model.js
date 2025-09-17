@@ -1,6 +1,5 @@
 // models/Car.js
 const mongoose = require("mongoose");
-const serviceHistorySchema = require('./serviceHistory.model').schema;
 
 // กำหนด schema สำหรับข้อมูลรถแต่ละคัน
 const carSchema = new mongoose.Schema({
@@ -9,7 +8,7 @@ const carSchema = new mongoose.Schema({
   brand_car: { type: String },
   type_car: { type: String },
   color: { type: String },
-  service_history: [serviceHistorySchema],
+  service_history: [{ type: mongoose.Schema.Types.ObjectId, ref: 'ServiceHistory' }],
 });
 
 module.exports = mongoose.model("Car", carSchema);

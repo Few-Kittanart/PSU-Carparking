@@ -82,7 +82,7 @@ export default function PriceSettingsPage() {
 
         <div className="space-y-6">
           {/* Parking Price Settings */}
-          <div className="p-6 bg-gray-100 rounded-lg border border-gray-200">
+          <div className="p-6 bg-white-100 rounded-lg border border-gray-200">
             <h3 className="text-xl font-semibold text-gray-800 mb-4">
               ตั้งค่าราคาค่าจอด
             </h3>
@@ -107,7 +107,7 @@ export default function PriceSettingsPage() {
           </div>
 
           {/* Additional Service Settings */}
-          <div className="p-6 bg-gray-100 rounded-lg border border-gray-200">
+          <div className="p-6 bg-white-100 rounded-lg border border-gray-200">
             <h3 className="text-xl font-semibold text-gray-800 mb-4">
               ตั้งค่าบริการเพิ่มเติม
             </h3>
