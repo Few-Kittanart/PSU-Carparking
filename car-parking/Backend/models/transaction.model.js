@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 
 const transactionSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now }, // วันที่ทำรายการ
-  transaction_id: { type: Number, unique: true, required: true },
   customer: { type: mongoose.Schema.Types.ObjectId, ref: "Customer", required: true },
   car: { type: mongoose.Schema.Types.ObjectId, ref: "Car", required: true },
   serviceHistory: { type: mongoose.Schema.Types.ObjectId, ref: "ServiceHistory", required: true },
