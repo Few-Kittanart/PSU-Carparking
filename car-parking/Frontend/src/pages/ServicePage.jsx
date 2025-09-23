@@ -264,8 +264,8 @@ export default function ServicePage() {
         plate: lastCar.car_registration || "",
         province: lastCar.car_registration_province || "",
         brand: lastCar.brand_car || null,
-        model: lastCar.type_car || null,
-        type: null,
+        model: lastCar.model_car || null,
+        type: lastCar.type_car || null,
         color: lastCar.color || null,
       });
     } else {
@@ -365,6 +365,7 @@ export default function ServicePage() {
             car_registration: vehicle.plate,
             car_registration_province: vehicle.province,
             brand_car: vehicle.brand,
+            model_car: vehicle.model,
             type_car: vehicle.type,
             color: vehicle.color,
             service_history: [newServiceHistory._id],

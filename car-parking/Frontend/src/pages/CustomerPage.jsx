@@ -64,8 +64,7 @@ export default function CustomerPage() {
           <TableHead>
             <TableRow className="bg-gray-100">
               <TableCell align="center">ลำดับ</TableCell>
-              <TableCell>รหัสลูกค้า</TableCell>
-              <TableCell>ชื่อลูกค้า</TableCell>
+              <TableCell>ชื่อ</TableCell>
               <TableCell>เบอร์โทรศัพท์</TableCell>
               <TableCell>ที่อยู่</TableCell>
               <TableCell align="center">ดำเนินการ</TableCell>
@@ -75,7 +74,6 @@ export default function CustomerPage() {
             {filteredData.map((row, index) => (
               <TableRow key={row.customer_id} hover>
                 <TableCell align="center">{index + 1}</TableCell>
-                <TableCell>{row.customer_id}</TableCell>
                 <TableCell>{row.customer_name}</TableCell>
                 <TableCell>{row.phone_number}</TableCell>
                 <TableCell>
@@ -92,9 +90,6 @@ export default function CustomerPage() {
                     }
                   >
                     <InfoIcon />
-                  </IconButton>
-                  <IconButton color="secondary" title="พิมพ์ใบรับบริการ">
-                    <PrintIcon />
                   </IconButton>
                 </TableCell>
               </TableRow>
