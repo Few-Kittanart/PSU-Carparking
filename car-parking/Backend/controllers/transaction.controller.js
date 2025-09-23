@@ -14,10 +14,16 @@ exports.createTransaction = async (req, res) => {
 // ดึง transaction ทั้งหมด
 exports.getAllTransactions = async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1; // หน้าที่อยากดู (default = 1)
+    const limit = parseInt(req.query.limit) || 10; // จำนวนต่อหน้า (default = 10)
+    const skip = (page - 1) * limit;
+
     const transactions = await Transaction.find()
       .populate('customer')
       .populate('car')
-      .populate('serviceHistory');
+      .populate('serviceHistory')
+      .skip(skip)
+      .limit(limit);
     res.json(transactions);
   } catch (err) {
     res.status(500).json({ error: err.message });
