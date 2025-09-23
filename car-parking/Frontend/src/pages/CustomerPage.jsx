@@ -49,7 +49,7 @@ export default function CustomerPage() {
         <TextField
           variant="outlined"
           size="small"
-          label="ค้นหา (รหัส, ชื่อ, เบอร์โทรศัพท์)"
+          label="ค้นหา (ชื่อ, เบอร์โทรศัพท์)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           InputProps={{
@@ -72,7 +72,7 @@ export default function CustomerPage() {
           </TableHead>
           <TableBody>
             {filteredData.map((row, index) => (
-              <TableRow key={row.customer_id} hover>
+              <TableRow key={row._id} hover>
                 <TableCell align="center">{index + 1}</TableCell>
                 <TableCell>{row.customer_name}</TableCell>
                 <TableCell>{row.phone_number}</TableCell>
@@ -86,7 +86,7 @@ export default function CustomerPage() {
                     title="รายละเอียด"
                     // ✅ เปลี่ยนเส้นทางไปที่หน้ารายละเอียดลูกค้าใหม่
                     onClick={() =>
-                      navigate(`/crm/customer/details/${row.customer_id}`)
+                      navigate(`/crm/customer/details/${row._id}`)
                     }
                   >
                     <InfoIcon />

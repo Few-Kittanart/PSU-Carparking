@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import dayjs from "dayjs";
 import { IconButton } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import InfoIcon from "@mui/icons-material/Info";
@@ -55,7 +54,9 @@ export default function DetailCustomer() {
 
   if (!customer) {
     return (
-      <div className="p-6 text-center text-lg font-semibold">ไม่พบข้อมูลลูกค้า</div>
+      <div className="p-6 text-center text-lg font-semibold">
+        ไม่พบข้อมูลลูกค้า
+      </div>
     );
   }
 
@@ -65,37 +66,27 @@ export default function DetailCustomer() {
         <IconButton onClick={() => navigate(-1)} className="text-gray-600">
           <ArrowBackIcon />
         </IconButton>
-        <h2 className="text-3xl font-bold text-[#ea7f33]">
-          รายละเอียดลูกค้า
-        </h2>
+        <h2 className="text-3xl font-bold text-[#ea7f33]">รายละเอียดลูกค้า</h2>
       </div>
 
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
         <h3 className="text-xl font-semibold mb-4 text-[#ea7f33]">
           ข้อมูลทั่วไป
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <p>
-            <strong>รหัสลูกค้า:</strong> {customer.customer_id}
-          </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 text-gray-700 ">
           <p>
             <strong>ชื่อ-นามสกุล:</strong> {customer.customer_name}
           </p>
           <p>
             <strong>เบอร์โทรศัพท์:</strong> {customer.phone_number}
           </p>
+          <p>
+            <strong>ที่อยู่:</strong>
+            {customer.house_number}, {customer.village} หมู่บ้าน {customer.road}
+            , ถนน {customer.canton}, ตำบล {customer.district}, อำเภอ{" "}
+            {customer.province}, จังหวัด {customer.zip_code}
+          </p>
         </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-        <h3 className="text-xl font-semibold mb-4 text-[#ea7f33]">
-          ข้อมูลที่อยู่
-        </h3>
-        <p>
-          {customer.house_number}, {customer.village} หมู่บ้าน {customer.road},
-          ถนน {customer.canton}, ตำบล {customer.district}, อำเภอ{" "}
-          {customer.province}, จังหวัด {customer.zip_code}
-        </p>
       </div>
 
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
@@ -107,28 +98,52 @@ export default function DetailCustomer() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     ลำดับ
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     ทะเบียน
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     จังหวัด
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     ยี่ห้อ
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     รุ่น
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     ประเภท
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     สี
                   </th>
-                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     ดำเนินการ
                   </th>
                 </tr>
@@ -136,18 +151,29 @@ export default function DetailCustomer() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {customer.cars.map((car, index) => (
                   <tr key={car._id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-900">{index + 1}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{car.car_registration}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{car.car_registration_province}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{car.brand_car}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{car.type_car}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{car.type_car}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{car.color}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-900">
+                      {index + 1}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {car.car_registration}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {car.car_registration_province}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {car.brand_car}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {car.type_car}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {car.type_car}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {car.color}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                      <IconButton
-                        color="primary"
-                        title="รายละเอียด"
-                      >
+                      <IconButton color="primary" title="รายละเอียด">
                         <InfoIcon />
                       </IconButton>
                       <IconButton color="secondary" title="พิมพ์ใบรับบริการ">

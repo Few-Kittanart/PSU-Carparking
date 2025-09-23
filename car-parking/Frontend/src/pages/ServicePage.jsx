@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import dayjs from "dayjs";
 import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
+import provincesData from "../mockupdataadress/provinces.json";
+import districtsData from "../mockupdataadress/districts.json";
+import subDistrictsData from "../mockupdataadress/sub_districts.json";
 
 const carColors = ["ดำ", "ขาว", "เงิน", "แดง", "น้ำเงิน"];
 const PARKING_SERVICE_ID = 4;
@@ -42,7 +45,7 @@ export default function ServicePage() {
 
   const [exitTime, setExitTime] = useState("");
   const [selectedParkingSlot, setSelectedParkingSlot] = useState(null);
-  const [occupiedSlots, setOccupiedSlots] = new useState(new Set());
+  const [occupiedSlots, setOccupiedSlots] = useState(new Set());
   const [selectedSection, setSelectedSection] = useState("A");
   const [provinceList, setProvinceList] = useState([]);
   const [amphoeList, setAmphoeList] = useState([]);
@@ -87,26 +90,19 @@ export default function ServicePage() {
     }
   };
 
+  // ------------------ Mockup Address Setup ------------------
   useEffect(() => {
-    const fetchAddressData = async () => {
-      try {
-        const res = await fetch(
-          "https://raw.githubusercontent.com/kongvut/thai-province-data/master/api_province_with_amphure_tambon.json"
-        );
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        const data = await res.json();
-        setProvinceList(data);
-      } catch (err) {
-        console.error("Error fetching address data:", err);
-        alert(
-          "ไม่สามารถดึงข้อมูลจังหวัด อำเภอ ตำบลได้ โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ต"
-        );
-      }
-    };
-    fetchAddressData();
-    fetchCustomersAndServices();
+    // ทำ nested structure: province -> amphoe -> tambon
+    const provincesWithAmphoe = provincesData.map((p) => ({
+      ...p,
+      amphure: districtsData
+        .filter((d) => d.province_id === p.id)
+        .map((d) => ({
+          ...d,
+          tambon: subDistrictsData.filter((s) => s.district_id === d.id),
+        })),
+    }));
+    setProvinceList(provincesWithAmphoe);
   }, []);
 
   useEffect(() => {
@@ -131,7 +127,7 @@ export default function ServicePage() {
     }
   }, [address.district]);
 
-  // คำนวณราคาบริการเสริมแบบเรียลไทม์
+// ------------------ Calculate Prices ------------------
   useEffect(() => {
     const addPrice = selectedServices.reduce((sum, id) => {
       const service = allAdditionalServices.find((s) => s.id === id);
@@ -316,128 +312,136 @@ export default function ServicePage() {
   const handleSave = async () => {
     // 1. ตรวจสอบข้อมูลเบื้องต้น
     if (!customerName || !phone || !vehicle.plate || !vehicle.province) {
-        alert("กรุณากรอกข้อมูลลูกค้าและข้อมูลรถให้ครบถ้วน");
-        return;
+      alert("กรุณากรอกข้อมูลลูกค้าและข้อมูลรถให้ครบถ้วน");
+      return;
     }
     if (showParkingForm && !selectedParkingSlot) {
-        alert("โปรดเลือกช่องจอดรถ");
-        return;
+      alert("โปรดเลือกช่องจอดรถ");
+      return;
     }
-    
+
     // คำนวณราคา
-    const parkingData = showParkingForm ? 
-        calculateDurationAndPrice(parkingEntryTime, exitTime, parkingRates) :
-        { price: 0, duration: "" };
+    const parkingData = showParkingForm
+      ? calculateDurationAndPrice(parkingEntryTime, exitTime, parkingRates)
+      : { price: 0, duration: "" };
 
     const additionalServicesPrice = allAdditionalServices
-        .filter((s) => selectedServices.includes(s.id))
-        .reduce((sum, service) => sum + service.price, 0);
-    
+      .filter((s) => selectedServices.includes(s.id))
+      .reduce((sum, service) => sum + service.price, 0);
+
     const finalTotalPrice = parkingData.price + additionalServicesPrice;
 
     try {
-        const token = localStorage.getItem("token");
-        
-        // 2. สร้าง Service History และบันทึกลงฐานข้อมูลก่อน
-        const serviceHistoryPayload = {
-            services: selectedServices,
-            entry_time: parkingEntryTime ? dayjs(parkingEntryTime).toISOString() : null,
-            exit_time: exitTime ? dayjs(exitTime).toISOString() : null,
-            parking_slot: showParkingForm ? selectedParkingSlot : null,
-            parking_price: parkingData.price,
-            day_park: parkingData.duration,
-            additional_price: additionalServicesPrice,
-            total_price: finalTotalPrice,
-        };
-        const serviceHistoryRes = await fetch("http://localhost:5000/api/serviceHistories", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(serviceHistoryPayload),
-        });
-        if (!serviceHistoryRes.ok) throw new Error("Failed to save service history.");
-        const newServiceHistory = await serviceHistoryRes.json();
-        
-        // 3. สร้าง Car โดยใช้ _id ของ Service History ที่บันทึกไปเมื่อครู่
-        const carPayload = {
-            car_registration: vehicle.plate,
-            car_registration_province: vehicle.province,
-            brand_car: vehicle.brand,
-            model_car: vehicle.model,
-            type_car: vehicle.type,
-            color: vehicle.color,
-            service_history: [newServiceHistory._id],
-        };
-        const carRes = await fetch("http://localhost:5000/api/cars", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(carPayload),
-        });
-        if (!carRes.ok) throw new Error("Failed to save car.");
-        const newCar = await carRes.json();
-        
-        // 4. สร้าง Customer โดยใช้ _id ของ Car ที่บันทึกไป
-        const customerPayload = {
-            customer_name: customerName,
-            phone_number: phone,
-            house_number: address.houseNo,
-            village: address.village,
-            road: address.street,
-            canton: address.district ? address.district.name_th : "",
-            district: address.amphoe ? address.amphoe.name_th : "",
-            province: address.province ? address.province.name_th : "",
-            zip_code: address.zipcode,
-            country: address.country,
-            cars: [newCar._id],
-        };
-        const customerRes = await fetch("http://localhost:5000/api/customers", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(customerPayload),
-        });
-        if (!customerRes.ok) throw new Error("Failed to save customer.");
-        const newCustomer = await customerRes.json();
-        
-        // 5. สร้าง Transaction โดยใช้ _id ของเอกสารทั้งหมดที่บันทึก
-        const transactionPayload = {
-            customer: newCustomer._id,
-            car: newCar._id,
-            serviceHistory: newServiceHistory._id,
-            total_price: finalTotalPrice,
-            transaction_id: Date.now(),
-            date: new Date().toISOString(),
-            
-        };
-        const transactionRes = await fetch("http://localhost:5000/api/transactions", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(transactionPayload),
-        });
-        if (!transactionRes.ok) throw new Error("Failed to save transaction.");
-        const newTransaction = await transactionRes.json();
-        
-        // 6. จัดการเมื่อสำเร็จทั้งหมด
-        alert("บันทึกข้อมูลสำเร็จ!");
-        console.log("Saved Customer:", newCustomer);
-        console.log("Saved Car:", newCar);
-        console.log("Saved Service History:", newServiceHistory);
-        console.log("Saved Transaction:", newTransaction);
-        clearAll();
-        fetchCustomersAndServices();
+      const token = localStorage.getItem("token");
+
+      // 2. สร้าง Service History และบันทึกลงฐานข้อมูลก่อน
+      const serviceHistoryPayload = {
+        services: selectedServices,
+        entry_time: parkingEntryTime
+          ? dayjs(parkingEntryTime).toISOString()
+          : null,
+        exit_time: exitTime ? dayjs(exitTime).toISOString() : null,
+        parking_slot: showParkingForm ? selectedParkingSlot : null,
+        parking_price: parkingData.price,
+        day_park: parkingData.duration,
+        additional_price: additionalServicesPrice,
+        total_price: finalTotalPrice,
+      };
+      const serviceHistoryRes = await fetch(
+        "http://localhost:5000/api/serviceHistories",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(serviceHistoryPayload),
+        }
+      );
+      if (!serviceHistoryRes.ok)
+        throw new Error("Failed to save service history.");
+      const newServiceHistory = await serviceHistoryRes.json();
+
+      // 3. สร้าง Car โดยใช้ _id ของ Service History ที่บันทึกไปเมื่อครู่
+      const carPayload = {
+        car_registration: vehicle.plate,
+        car_registration_province: vehicle.province,
+        brand_car: vehicle.brand,
+        model_car: vehicle.model,
+        type_car: vehicle.type,
+        color: vehicle.color,
+        service_history: [newServiceHistory._id],
+      };
+      const carRes = await fetch("http://localhost:5000/api/cars", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(carPayload),
+      });
+      if (!carRes.ok) throw new Error("Failed to save car.");
+      const newCar = await carRes.json();
+
+      // 4. สร้าง Customer โดยใช้ _id ของ Car ที่บันทึกไป
+      const customerPayload = {
+        customer_name: customerName,
+        phone_number: phone,
+        house_number: address.houseNo,
+        village: address.village,
+        road: address.street,
+        canton: address.district ? address.district.name_th : "",
+        district: address.amphoe ? address.amphoe.name_th : "",
+        province: address.province ? address.province.name_th : "",
+        zip_code: address.zipcode,
+        country: address.country,
+        cars: [newCar._id],
+      };
+      const customerRes = await fetch("http://localhost:5000/api/customers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(customerPayload),
+      });
+      if (!customerRes.ok) throw new Error("Failed to save customer.");
+      const newCustomer = await customerRes.json();
+
+      // 5. สร้าง Transaction โดยใช้ _id ของเอกสารทั้งหมดที่บันทึก
+      const transactionPayload = {
+        customer: newCustomer._id,
+        car: newCar._id,
+        serviceHistory: newServiceHistory._id,
+        total_price: finalTotalPrice,
+        transaction_id: Date.now(),
+        date: new Date().toISOString(),
+      };
+      const transactionRes = await fetch(
+        "http://localhost:5000/api/transactions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(transactionPayload),
+        }
+      );
+      if (!transactionRes.ok) throw new Error("Failed to save transaction.");
+      const newTransaction = await transactionRes.json();
+
+      // 6. จัดการเมื่อสำเร็จทั้งหมด
+      alert("บันทึกข้อมูลสำเร็จ!");
+      console.log("Saved Customer:", newCustomer);
+      console.log("Saved Car:", newCar);
+      console.log("Saved Service History:", newServiceHistory);
+      console.log("Saved Transaction:", newTransaction);
+      clearAll();
+      fetchCustomersAndServices();
     } catch (err) {
-        console.error("Error during save process:", err);
-        alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + err.message);
+      console.error("Error during save process:", err);
+      alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + err.message);
     }
   };
 
@@ -445,7 +449,7 @@ export default function ServicePage() {
     <div className="flex min-h-screen bg-gray-50">
       <div className="flex-1 flex flex-col">
         <main className="flex-1 p-6 sm:p-10">
-          {/* Step 1 */}
+          {/* Step 1: Customer Info */}
           {currentStep === 1 && (
             <div className="max-w-6xl mx-auto bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm space-y-6">
               <h2 className="text-2xl font-bold text-[#ea7f33]">
@@ -471,7 +475,6 @@ export default function ServicePage() {
                     />
                   )}
                 />
-
                 <Autocomplete
                   options={customerList.map((c) => c.phone_number)}
                   value={phone || null}
@@ -491,7 +494,6 @@ export default function ServicePage() {
                   )}
                 />
               </div>
-
               <TextField
                 fullWidth
                 label="รหัสลูกค้า"
@@ -501,6 +503,7 @@ export default function ServicePage() {
                 sx={{ mb: 2 }}
               />
 
+              {/* Address Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <TextField
                   fullWidth
@@ -619,7 +622,6 @@ export default function ServicePage() {
               </div>
             </div>
           )}
-
           {/* Step 2 */}
           {currentStep === 2 && (
             <div className="max-w-6xl mx-auto space-y-6">
