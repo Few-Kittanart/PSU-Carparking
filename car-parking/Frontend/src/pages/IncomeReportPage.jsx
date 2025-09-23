@@ -94,7 +94,7 @@ export default function IncomeReportPage() {
     const format =
       filters.groupBy === "day" ? "YYYY-MM-DD" : filters.groupBy === "month" ? "YYYY-MM" : "YYYY";
 
-    temp.forEach((service) => {
+    temp.forEach((service , transaction) => {
       const groupKey = dayjs(service.entry_time).format(format);
       if (!groupedData[groupKey]) {
         groupedData[groupKey] = {
@@ -102,14 +102,14 @@ export default function IncomeReportPage() {
           parkingLot: service.parking_lot,
           servicesCount: 0,
           exitCount: 0,
-          income: 0,
+          total_price: 0,
         };
       }
       groupedData[groupKey].servicesCount += 1;
       if (service.exit_time) {
         groupedData[groupKey].exitCount += 1;
       }
-      groupedData[groupKey].income += service.total_price || 0;
+      groupedData[groupKey].total_price += service.total_price || 0;
     });
 
     // Sort by date
@@ -130,7 +130,7 @@ export default function IncomeReportPage() {
       row.parkingLot,
       row.servicesCount,
       row.exitCount,
-      row.income,
+      row.total_price,
     ]);
     const csvContent = [
       header.join(","),
@@ -248,7 +248,7 @@ export default function IncomeReportPage() {
                   <TableCell>{row.entryDate}</TableCell>
                   <TableCell>{row.servicesCount}</TableCell>
                   <TableCell>{row.exitCount}</TableCell>
-                  <TableCell>{row.income} บาท</TableCell>
+                  <TableCell>{row.total_price} บาท</TableCell>
                 </TableRow>
               ))
             ) : (

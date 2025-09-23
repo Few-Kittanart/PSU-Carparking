@@ -95,7 +95,9 @@ export default function CarPage() {
                   <IconButton
                     color="primary"
                     title="รายละเอียด"
-                    onClick={() => navigate(`/manage/details/${row.customer_id}`)}
+                    onClick={() =>
+                      navigate(`/car/details/${row._id}`)
+                    }
                   >
                     <InfoIcon />
                   </IconButton>

@@ -17,6 +17,7 @@ import ReportDetailPage from './pages/ReportDetailPage';
 import IncomeReportPage from "./pages/IncomeReportPage";
 import SettingPage from './pages/SettingPage';
 import PriceSettingsPage from "./pages/PriceSettingsPage";
+import DetailCar from "./pages/DetailCarPage";
 
 // Layout สำหรับหน้าที่มี Sidebar + Header + Footer
 function AppLayoutWithSidebar({ children }) {
@@ -79,6 +80,7 @@ function App() {
                   <Route path="/report/income" element={<IncomeReportPage />} />
                   <Route path="/settings" element={<SettingPage />} />
                   <Route path="/system/prices" element={<PriceSettingsPage />} />
+                  <Route path="/car/details/:id" element={<DetailCar />} />
 
                 </Routes>
               </AppLayoutWithSidebar>
