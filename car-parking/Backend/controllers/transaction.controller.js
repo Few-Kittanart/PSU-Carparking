@@ -24,8 +24,9 @@ exports.getAllTransactions = async (req, res) => {
   }
 };
 
-// ดึง transaction ตาม ID
+// transaction.controller.js
 exports.getTransactionById = async (req, res) => {
+  console.log("Fetching transaction ID:", req.params.id);
   try {
     const transaction = await Transaction.findById(req.params.id)
       .populate('customer')
@@ -34,9 +35,11 @@ exports.getTransactionById = async (req, res) => {
     if (!transaction) return res.status(404).json({ error: 'Transaction not found' });
     res.json(transaction);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // แก้ไข transaction
 exports.updateTransaction = async (req, res) => {

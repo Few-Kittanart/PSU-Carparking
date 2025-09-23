@@ -70,7 +70,7 @@ function App() {
                 <Routes>
                   <Route path="service" element={<ServicePage />} />
                   <Route path="manage" element={<ManagePage />} />
-                  <Route path="manage/details/:id" element={<DetailPage />} />
+                  <Route path="manage/detail/:id" element={<DetailPage />} />
                   <Route path="crm/customer" element={<CustomerPage />} />
                   <Route path="crm/car" element={<CarPage />} />
                   <Route path="crm/customer/details/:id" element={<DetailCustomer />} />
