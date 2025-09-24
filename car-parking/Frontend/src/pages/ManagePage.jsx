@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import {
   Table,
@@ -15,81 +15,69 @@ import {
 import SearchIcon from "@mui/icons-material/Search";
 
 export default function ManagePage() {
-  const [unpaidServices, setUnpaidServices] = useState([]);
+  const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("allServices");
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchCustomers = async () => {
+    const fetchTransactions = async () => {
       try {
         const token = localStorage.getItem("token");
-        
-        const customersRes = await fetch("http://localhost:5000/api/customers", {
+        const res = await fetch("http://localhost:5000/api/transactions", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!customersRes.ok) {
-          throw new Error("Failed to fetch customers");
-        }
-        const customersData = await customersRes.json();
-
-        const allUnpaidServices = customersData.flatMap((customer) =>
-          customer.cars.flatMap((car) =>
-            car.service_history
-              .filter((service) => service.is_paid === false)
-              .map((service) => ({
-                customer_id: customer.customer_id,
-                customer_name: customer.customer_name,
-                phone_number: customer.phone_number,
-                car_registration: car.car_registration,
-                brand_car: car.brand_car,
-                entry_time: service.entry_time,
-                parking_slot: service.parking_slot,
-                services: service.services,
-                total_price: service.total_price,
-              }))
-          )
-        )
-        .sort((a, b) => new Date(a.entry_time) - new Date(b.entry_time));
-
-        setUnpaidServices(allUnpaidServices);
+        if (!res.ok) throw new Error("Failed to fetch transactions");
+        const data = await res.json();
+        setTransactions(data);
       } catch (err) {
-        console.error(err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-
-    fetchCustomers();
+    fetchTransactions();
   }, []);
 
-  if (loading) {
+  if (loading)
     return (
       <div className="p-6 text-center text-lg font-semibold">
         กำลังโหลดข้อมูล...
       </div>
     );
-  }
-
-  if (error) {
+  if (error)
     return (
       <div className="p-6 text-center text-lg font-semibold text-red-500">
-        เกิดข้อผิดพลาดในการดึงข้อมูล: {error}
+        เกิดข้อผิดพลาด: {error}
       </div>
     );
-  }
-  
+
+  // แปลง transactions -> unpaid services
+  const unpaidServices = transactions
+    .filter((tx) => tx.serviceHistory && tx.serviceHistory.is_paid === false)
+    .map((tx) => ({
+      transaction_id: tx._id, // สำคัญ! ต้องเป็น _id ของ transaction
+      customer_id: tx.customer?._id,
+      customer_name: tx.customer?.customer_name || "-",
+      phone_number: tx.customer?.phone_number || "-",
+      car_registration: tx.car?.car_registration || "-",
+      brand_car: tx.car?.brand_car || "-",
+      entry_time: tx.serviceHistory?.entry_time,
+      parking_slot: tx.serviceHistory?.parking_slot,
+      services: tx.serviceHistory?.services || [],
+      total_price: tx.serviceHistory?.total_price || 0,
+    }));
+
+
   const parkingOnly = unpaidServices.filter(
-    (service) => !!service.parking_slot && service.services.length === 0
+    (s) => s.parking_slot && s.services.length === 0
   );
-  
   const additionalOnly = unpaidServices.filter(
-    (service) => !service.parking_slot && service.services.length > 0
+    (s) => !s.parking_slot && s.services.length > 0
   );
-  
   const parkingAndAdditional = unpaidServices.filter(
-    (service) => !!service.parking_slot && service.services.length > 0
+    (s) => s.parking_slot && s.services.length > 0
   );
 
   const renderTable = (data) => (
@@ -97,25 +85,39 @@ export default function ManagePage() {
       <Table stickyHeader>
         <TableHead>
           <TableRow>
-            <TableCell className="font-bold text-lg text-gray-700">รหัสลูกค้า</TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">ชื่อ-นามสกุล</TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">เบอร์โทรศัพท์</TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">ทะเบียนรถ</TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">เวลาเข้า</TableCell>
-            <TableCell className="font-bold text-lg text-gray-700 text-center">ประเภทบริการ</TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">ยอดรวม</TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">ดำเนินการ</TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">
+              รหัสลูกค้า
+            </TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">
+              ชื่อ-นามสกุล
+            </TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">
+              เบอร์โทรศัพท์
+            </TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">
+              ทะเบียนรถ
+            </TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">
+              เวลาเข้า
+            </TableCell>
+            <TableCell className="font-bold text-lg text-gray-700 text-center">
+              ประเภทบริการ
+            </TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">
+              ยอดรวม
+            </TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">
+              ดำเนินการ
+            </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {data.length > 0 ? (
-            data.map((service, index) => {
-              let serviceType;
-              let bgColor;
-              
+            data.map((service) => {
               const hasParking = !!service.parking_slot;
               const hasServices = service.services.length > 0;
-              
+              let serviceType, bgColor;
+
               if (hasParking && hasServices) {
                 serviceType = `${service.parking_slot} + บริการเพิ่มเติม`;
                 bgColor = "bg-purple-500";
@@ -131,7 +133,7 @@ export default function ManagePage() {
               }
 
               return (
-                <TableRow key={index}>
+                <TableRow key={service.transaction_id}>
                   <TableCell>{service.customer_id}</TableCell>
                   <TableCell>{service.customer_name}</TableCell>
                   <TableCell>{service.phone_number}</TableCell>
@@ -140,7 +142,9 @@ export default function ManagePage() {
                     {dayjs(service.entry_time).format("DD/MM/YYYY HH:mm")}
                   </TableCell>
                   <TableCell>
-                    <div className={`text-center py-2 px-3 rounded-full text-white font-semibold ${bgColor}`}>
+                    <div
+                      className={`text-center py-2 px-3 rounded-full text-white font-semibold ${bgColor}`}
+                    >
                       {serviceType}
                     </div>
                   </TableCell>
@@ -148,10 +152,11 @@ export default function ManagePage() {
                   <TableCell>
                     <Tooltip title="ดูรายละเอียด">
                       <IconButton
-                        component={Link}
-                        to={`/manage/details/${service.customer_id}`}
+                        onClick={() => {
+                          navigate(`/manage/detail/${service.transaction_id}`);
+                        }}
                       >
-                        <SearchIcon color="primary" />
+                        <SearchIcon />
                       </IconButton>
                     </Tooltip>
                   </TableCell>
@@ -188,7 +193,7 @@ export default function ManagePage() {
           <span>ทั้งสองอย่าง</span>
         </div>
       </div>
-      
+
       <div className="flex gap-4 border-b border-gray-300">
         <button
           onClick={() => setActiveTab("allServices")}
@@ -233,10 +238,10 @@ export default function ManagePage() {
       </div>
 
       {activeTab === "allServices" && renderTable(unpaidServices)}
-      {activeTab === "parkingAndAdditional" && renderTable(parkingAndAdditional)}
+      {activeTab === "parkingAndAdditional" &&
+        renderTable(parkingAndAdditional)}
       {activeTab === "parkingOnly" && renderTable(parkingOnly)}
       {activeTab === "additionalOnly" && renderTable(additionalOnly)}
-      
     </div>
   );
 }

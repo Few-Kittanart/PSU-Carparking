@@ -1,538 +1,166 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import PaymentIcon from "@mui/icons-material/Payment";
 import dayjs from "dayjs";
-import {
-  IconButton,
-  Button,
-  Modal,
-  Box,
-  TextField,
-  Checkbox,
-  FormControlLabel,
-  CircularProgress,
-  Typography,
-} from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import "dayjs/locale/th";
-
-const PARKING_SERVICE_ID = 4;
-
-const style = {
-  position: "absolute",
-  top: "50%",
-  left: "50%",
-  transform: "translate(-50%, -50%)",
-  width: 400,
-  bgcolor: "background.paper",
-  boxShadow: 24,
-  p: 4,
-  borderRadius: "8px",
-};
 
 export default function DetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [customer, setCustomer] = useState(null);
-  const [carInfo, setCarInfo] = useState(null);
-  const [latestServiceInfo, setLatestServiceInfo] = useState(null);
-  const [parkingServiceInfo, setParkingServiceInfo] = useState(null);
+
+  const [transaction, setTransaction] = useState(null);
+  const [serviceList, setServiceList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [openModal, setOpenModal] = useState(false);
-  const [exitTime, setExitTime] = useState("");
-  const [selectedServices, setSelectedServices] = useState([]);
-  const [parkingRates, setParkingRates] = useState({ hourly: 0, daily: 0 });
-  const [additionalServices, setAdditionalServices] = useState([]);
-  const [totalCalculatedPrice, setTotalCalculatedPrice] = useState(0);
 
-  const calculateDurationAndPrice = (entryTime, exitTime, rates) => {
-    const entry = dayjs(entryTime);
-    const exit = exitTime ? dayjs(exitTime) : dayjs();
-    
-    // Total duration in minutes (including fractions)
-    const durationInMinutes = exit.diff(entry, 'minute', true);
-    
-    const dailyRate = parseFloat(rates.daily) || 0;
-    const hourlyRate = parseFloat(rates.hourly) || 0;
-
-    let parkingCost = 0;
-    
-    const totalMinutes = Math.round(durationInMinutes);
-    const totalDays = Math.floor(totalMinutes / (24 * 60));
-    const remainingMinutesAfterDays = totalMinutes % (24 * 60);
-    const remainingHoursAfterDays = remainingMinutesAfterDays / 60;
-    
-    if (remainingHoursAfterDays >= 10) {
-        const totalChargedDays = totalDays + 1;
-        parkingCost = totalChargedDays * dailyRate;
-    } else {
-        let chargedHours = Math.floor(remainingHoursAfterDays);
-        const remainingMinsForRounding = remainingMinutesAfterDays % 60;
-        
-        if (remainingMinsForRounding > 10) {
-            chargedHours++;
-        }
-        parkingCost = (totalDays * dailyRate) + (chargedHours * hourlyRate);
-    }
-    
-    if (parkingCost === 0 && durationInMinutes > 0) {
-        parkingCost = hourlyRate;
-    }
-
-    return parkingCost;
-  };
-  
-  const calculateTotal = (parkingPrice, additionalPrice) => {
-      return parkingPrice + additionalPrice;
-  };
-
+  // ดึงข้อมูล transaction ตาม ID
   useEffect(() => {
-    const fetchCustomerAndPrices = async () => {
+    const fetchTransaction = async () => {
       try {
-        setLoading(true);
         const token = localStorage.getItem("token");
-        
-        // Fetch prices first
-        const pricesRes = await fetch("http://localhost:5000/api/prices", {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        const pricesData = await pricesRes.json();
-        setAdditionalServices(pricesData.additionalServices || []);
-        setParkingRates({
-            hourly: pricesData.hourly_price || 0,
-            daily: pricesData.daily_price || 0,
-        });
-
-        // Fetch customer data
-        const res = await fetch(`http://localhost:5000/api/customers/${id}`, {
+        const res = await fetch(`http://localhost:5000/api/transactions/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-
-        if (!res.ok) {
-          throw new Error("ไม่พบข้อมูลลูกค้า");
-        }
-
+        if (!res.ok) throw new Error("ไม่พบข้อมูล transaction");
         const data = await res.json();
-        setCustomer(data);
-
-        if (data.cars && data.cars.length > 0) {
-          const firstCar = data.cars[0];
-          setCarInfo(firstCar);
-          if (firstCar.service_history && firstCar.service_history.length > 0) {
-            const latest = [...firstCar.service_history].sort(
-              (a, b) => dayjs(b.entry_time) - dayjs(a.entry_time)
-            )[0];
-            setLatestServiceInfo(latest);
-
-            const parking = firstCar.service_history.find(
-              (s) => !!s.parking_slot
-            );
-            setParkingServiceInfo(parking);
-
-            // Set exit time for modal
-            if (parking && parking.exit_time) {
-                setExitTime(dayjs(parking.exit_time).format("YYYY-MM-DDTHH:mm"));
-            } else {
-                setExitTime(dayjs().format("YYYY-MM-DDTHH:mm"));
-            }
-          }
-        }
-        setLoading(false);
+        setTransaction(data);
       } catch (err) {
+        console.error(err);
         setError(err.message);
+      }
+    };
+    fetchTransaction();
+  }, [id]);
+
+  // ดึงรายการบริการเพิ่มเติมจาก backend
+  useEffect(() => {
+    const fetchServiceList = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("http://localhost:5000/api/price", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("ไม่สามารถดึงข้อมูลบริการได้");
+        const data = await res.json();
+        setServiceList(data.additionalServices || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
         setLoading(false);
       }
     };
-    fetchCustomerAndPrices();
-  }, [id]);
+    fetchServiceList();
+  }, []);
 
-  useEffect(() => {
-    if (latestServiceInfo) {
-      const hasParking = !!parkingServiceInfo;
-      let parkingPrice = 0;
-      if (hasParking) {
-          parkingPrice = calculateDurationAndPrice(parkingServiceInfo.entry_time, exitTime, parkingRates);
-      }
-      
-      const additionalPrice = (latestServiceInfo.services || [])
-          .filter(serviceId => additionalServices.some(s => s.id === serviceId))
-          .reduce((sum, serviceId) => {
-              const service = additionalServices.find(s => s.id === serviceId);
-              return sum + (service ? service.price : 0);
-          }, 0);
-          
-      setTotalCalculatedPrice(calculateTotal(parkingPrice, additionalPrice));
-    }
-  }, [exitTime, latestServiceInfo, additionalServices, parkingServiceInfo, parkingRates]);
+  if (loading)
+    return <div className="p-6 text-center text-lg font-semibold">กำลังโหลดข้อมูล...</div>;
 
-  const handleEditOpen = () => {
-    if (latestServiceInfo) {
-      const parkingExists = !!parkingServiceInfo;
-      if (parkingExists && parkingServiceInfo.exit_time) {
-        setExitTime(dayjs(parkingServiceInfo.exit_time).format("YYYY-MM-DDTHH:mm"));
-      } else if (parkingExists) {
-        setExitTime(dayjs().format("YYYY-MM-DDTHH:mm"));
-      } else {
-        setExitTime("");
-      }
-
-      setSelectedServices(
-        (latestServiceInfo.services || []).filter((id) => id !== PARKING_SERVICE_ID)
-      );
-      setOpenModal(true);
-    }
-  };
-
-  const handleEditClose = () => setOpenModal(false);
-
-  const handleSave = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const hasParking = !!parkingServiceInfo;
-
-      let parking_price = 0;
-      let day_park = "";
-      let updatedServices = [...selectedServices];
-      let entry_time_parking = parkingServiceInfo?.entry_time;
-
-      if (hasParking) {
-          parking_price = calculateDurationAndPrice(parkingServiceInfo.entry_time, exitTime, parkingRates);
-          updatedServices.push(PARKING_SERVICE_ID);
-          const entry = dayjs(parkingServiceInfo.entry_time);
-          const exit = dayjs(exitTime);
-          const durationInMinutes = exit.diff(entry, 'minute', true);
-          const totalMinutes = Math.round(durationInMinutes);
-          const totalDays = Math.floor(totalMinutes / (24 * 60));
-          const remainingMinutesAfterDays = totalMinutes % (24 * 60);
-          const totalHours = Math.floor(remainingMinutesAfterDays / 60);
-          const remainingMinutesAfterHours = remainingMinutesAfterDays % 60;
-          day_park = `${totalDays} วัน ${totalHours} ชั่วโมง ${remainingMinutesAfterHours} นาที`;
-          entry_time_parking = parkingServiceInfo.entry_time;
-      }
-      
-      const additional_price = selectedServices.reduce((sum, serviceId) => {
-          const service = additionalServices.find(s => s.id === serviceId);
-          return sum + (service ? service.price : 0);
-      }, 0);
-
-      const total_price = parking_price + additional_price;
-
-      const updatedServiceHistory = {
-        ...latestServiceInfo,
-        services: updatedServices,
-        exit_time: exitTime ? dayjs(exitTime).toISOString() : undefined,
-        parking_price,
-        day_park,
-        additional_price,
-        total_price,
-      };
-
-      const updatedCars = customer.cars.map(car => {
-          if (car.car_registration === carInfo.car_registration) {
-              return {
-                  ...car,
-                  service_history: car.service_history.map(service => {
-                      if (dayjs(service.entry_time).isSame(dayjs(latestServiceInfo.entry_time))) {
-                          return updatedServiceHistory;
-                      }
-                      return service;
-                  })
-              }
-          }
-          return car;
-      });
-
-      const updatedCustomerData = {
-          ...customer,
-          cars: updatedCars,
-      };
-
-      await fetch(`http://localhost:5000/api/customers/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(updatedCustomerData),
-      });
-
-      alert("บันทึกข้อมูลเรียบร้อยแล้ว");
-      handleEditClose();
-      
-      const updatedCustomerRes = await fetch(
-        `http://localhost:5000/api/customers/${id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      const updatedCustomerDataRes = await updatedCustomerRes.json();
-      setCustomer(updatedCustomerDataRes);
-      
-      if (updatedCustomerDataRes.cars && updatedCustomerDataRes.cars.length > 0) {
-        const firstCar = updatedCustomerDataRes.cars[0];
-        setCarInfo(firstCar);
-        if (firstCar.service_history && firstCar.service_history.length > 0) {
-          const latest = [...firstCar.service_history].sort(
-            (a, b) => dayjs(b.entry_time) - dayjs(a.entry_time)
-          )[0];
-          setLatestServiceInfo(latest);
-
-          const parking = firstCar.service_history.find(
-            (s) => !!s.parking_slot
-          );
-          setParkingServiceInfo(parking);
-          
-          if (parking && parking.exit_time) {
-            setExitTime(dayjs(parking.exit_time).format("YYYY-MM-DDTHH:mm"));
-          } else {
-            setExitTime(dayjs().format("YYYY-MM-DDTHH:mm"));
-          }
-        }
-      }
-    } catch (err) {
-      alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
-      console.error(err);
-    }
-  };
-
-  const handleToPaymentPage = () => {
-    navigate(`/manage/payment/${id}`);
-  };
-
-  const handleServiceCheckboxChange = (serviceId) => {
-    setSelectedServices((prevSelected) =>
-      prevSelected.includes(serviceId)
-        ? prevSelected.filter((id) => id !== serviceId)
-        : [...prevSelected, serviceId]
-    );
-  };
-  
-  const currentAdditionalServices = selectedServices
-    .map((id) => additionalServices.find((s) => s.id === id))
-    .filter(Boolean);
-
-  if (loading) {
+  if (error)
     return (
-      <div className="flex justify-center items-center h-screen">
-        <CircularProgress />
-        <span className="ml-4 text-xl">กำลังโหลด...</span>
+      <div className="p-6 text-center text-lg font-semibold text-red-500">
+        เกิดข้อผิดพลาด: {error}
       </div>
     );
-  }
 
-  if (error) {
-    return (
-      <div className="flex justify-center items-center h-screen text-xl text-red-600">
-        <p>เกิดข้อผิดพลาด: {error}</p>
-      </div>
-    );
-  }
+  if (!transaction) return null;
 
-  if (!customer || !carInfo) {
-    return (
-      <div className="flex justify-center items-center h-screen text-xl">
-        ไม่พบข้อมูลลูกค้าหรือรถ
-      </div>
-    );
-  }
-  
+  const { customer, car, serviceHistory, total_price } = transaction;
+
   return (
-    <div className="p-8 bg-gray-100 min-h-screen">
-      <div className="flex items-center mb-6">
-        <IconButton onClick={() => navigate(-1)} aria-label="back">
-          <ArrowBackIcon />
-        </IconButton>
-        <h1 className="text-2xl font-bold text-[#ea7f33] ml-4">
-          รายละเอียดลูกค้า
-        </h1>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-lg">
-          <h3 className="text-xl font-bold mb-4 text-[#ea7f33]">
-            ข้อมูลลูกค้า
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
-            <Typography>
-              <strong>ชื่อ-นามสกุล:</strong> {customer.customer_name}
-            </Typography>
-            <Typography>
-              <strong>เบอร์โทรศัพท์:</strong> {customer.phone_number}
-            </Typography>
-            <Typography>
-              <strong>รหัสลูกค้า:</strong> {customer.customer_id}
-            </Typography>
-            <Typography className="md:col-span-2">
-              <strong>ที่อยู่:</strong> {customer.house_number} หมู่บ้าน{" "}
-              {customer.village}, ถนน {customer.road}, ตำบล {customer.canton},
-              อำเภอ {customer.district}, จังหวัด {customer.province},{" "}
-              {customer.zip_code}
-            </Typography>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-lg">
-          <h3 className="text-xl font-bold mb-4 text-[#ea7f33]">ข้อมูลรถ</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
-            <Typography>
-              <strong>ทะเบียนรถ:</strong> {carInfo.car_registration}
-            </Typography>
-            <Typography>
-              <strong>จังหวัด (ป้าย):</strong>{" "}
-              {carInfo.car_registration_province}
-            </Typography>
-            <Typography>
-              <strong>ยี่ห้อ:</strong> {carInfo.brand_car}
-            </Typography>
-            <Typography>
-              <strong>รุ่น:</strong> {carInfo.type_car}
-            </Typography>
-            <Typography>
-              <strong>สี:</strong> {carInfo.color}
-            </Typography>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-lg lg:col-span-2">
-          <h3 className="text-xl font-bold mb-4 text-[#ea7f33]">
-            ข้อมูลบริการ
-          </h3>
-          <div className="space-y-4">
-            {parkingServiceInfo && (
-              <div>
-                <h4 className="font-bold text-lg text-[#ea7f33]">
-                  - เช่าที่จอด:
-                </h4>
-                <div className="pl-4 mt-2">
-                  <Typography>
-                    <strong>ช่องจอด:</strong>{" "}
-                    <span className="bg-[#ea7f33] text-white px-3 py-1 rounded-full text-sm font-semibold">
-                      {parkingServiceInfo.parking_slot}
-                    </span>
-                  </Typography>
-                  <Typography className="mt-2">
-                    <strong>วันเวลาเข้า:</strong>{" "}
-                    {dayjs(parkingServiceInfo.entry_time).format("DD/MM/YYYY HH:mm")}
-                  </Typography>
-                  <Typography>
-                    <strong>วันเวลาออก:</strong>{" "}
-                    {parkingServiceInfo.exit_time
-                      ? dayjs(parkingServiceInfo.exit_time).format("DD/MM/YYYY HH:mm")
-                      : "-"}
-                  </Typography>
-                </div>
-              </div>
-            )}
-            {latestServiceInfo && latestServiceInfo.services && latestServiceInfo.services.length > 0 && (
-              <div>
-                <h4 className="font-bold text-lg text-green-600">
-                  - บริการเพิ่มเติม:
-                </h4>
-                <ul className="list-none space-y-2 pl-4 mt-2">
-                  {additionalServices.filter(s => latestServiceInfo.services.includes(s.id)).map((s) => (
-                    <li
-                      key={s.id}
-                      className="bg-green-100 p-2 rounded-lg flex justify-between items-center"
-                    >
-                      <span className="text-gray-800">{s.name}</span>
-                      <span className="font-semibold text-green-700">
-                        {s.price} บาท
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <div className="mt-6 pt-4 border-t-2 border-dashed border-gray-300 flex justify-end items-center space-x-4">
-              <Typography className="text-lg font-bold">
-                ยอดรวมทั้งหมด:{" "}
-                <span className="text-2xl text-gray-800">
-                  {latestServiceInfo.total_price.toFixed(2)}
-                </span>{" "}
-                บาท
-              </Typography>
-              <button
-                onClick={handleToPaymentPage}
-                className="bg-[#ea7f33] hover:bg-[#e06d1f] text-white font-semibold px-6 py-3 rounded-lg flex items-center gap-2 transition"
-              >
-                <PaymentIcon />
-                ไปหน้าชำระเงิน
-              </button>
-            </div>
-            {latestServiceInfo && (
-                <div className="mt-4 flex justify-end">
-                    <Button variant="outlined" onClick={handleEditOpen}>
-                        แก้ไขข้อมูล
-                    </Button>
-                </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <Modal
-        open={openModal}
-        onClose={handleEditClose}
-        aria-labelledby="modal-title"
-        aria-describedby="modal-description"
+    <div className="p-6 sm:p-10 space-y-6">
+      <button
+        onClick={() => navigate(-1)}
+        className="px-4 py-2 rounded-lg bg-[#ea7f33] text-white font-semibold hover:bg-[#d26d2a]"
       >
-        <Box sx={style}>
-          <Typography id="modal-title" variant="h6" component="h2" className="text-xl font-bold mb-4 text-center">
-            แก้ไขข้อมูลลูกค้า
-          </Typography>
-          {!!parkingServiceInfo && (
-            <div className="mb-4">
-              <Typography variant="h6" className="font-bold text-lg mb-2">แก้ไขวันเวลาที่ออก</Typography>
-              <TextField
-                fullWidth
-                type="datetime-local"
-                label="วันเวลาที่ออก"
-                value={exitTime}
-                onChange={(e) => setExitTime(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-            </div>
-          )}
-          {!!(additionalServices.length > 0) && (
+        ← กลับ
+      </button>
+
+      <h2 className="text-3xl font-bold text-[#ea7f33] mt-4">รายละเอียด Transaction</h2>
+
+      <div className="space-y-4 mt-6">
+
+        <div>
+          <strong>รหัส Transaction:</strong> {transaction._id}
+        </div>
+
+        <div>
+          <strong>วันที่ทำรายการ:</strong>{" "}
+          {dayjs(transaction.date).format("DD/MM/YYYY HH:mm")}
+        </div>
+
+        <div>
+          <strong>ลูกค้า:</strong> {customer.customer_name} ({customer.phone_number})
+        </div>
+
+        <div>
+          <strong>รถ:</strong> {car.brand_car} / {car.car_registration}
+        </div>
+
+        {/* การเช่าที่จอด */}
+        {serviceHistory.parking_slot && (
+          <div className="p-4 rounded-xl bg-blue-100 space-y-2">
+            <h3 className="text-lg font-semibold text-blue-700">เช่าที่จอด</h3>
             <div>
-              <Typography variant="h6" className="font-bold text-lg mb-2">แก้ไขบริการเพิ่มเติม</Typography>
-              <div className="flex flex-col space-y-2">
-                <Typography className="text-gray-600 text-sm mb-2">
-                  เลือกบริการที่ลูกค้าต้องการ
-                </Typography>
-                {additionalServices.map((service) => (
-                  <FormControlLabel
-                    key={service.id}
-                    control={
-                      <Checkbox
-                        checked={selectedServices.includes(service.id)}
-                        onChange={() => handleServiceCheckboxChange(service.id)}
-                      />
-                    }
-                    label={`${service.name} (${service.price} บาท)`}
-                  />
-                ))}
-              </div>
+              <strong>ช่องจอด:</strong> {serviceHistory.parking_slot}
             </div>
-          )}
-          <div className="flex justify-between items-center mt-4">
-            <Typography variant="h6" className="font-bold text-lg">
-                ยอดรวม: {totalCalculatedPrice.toFixed(2)} บาท
-            </Typography>
-            <div className="flex space-x-2">
-              <Button variant="outlined" onClick={handleEditClose}>
-                ยกเลิก
-              </Button>
-              <Button
-                variant="contained"
-                onClick={handleSave}
-                sx={{ bgcolor: "#ea7f33", "&:hover": { bgcolor: "#e06d1f" } }}
-              >
-                บันทึก
-              </Button>
+            <div>
+              <strong>วันที่เข้า:</strong>{" "}
+              {dayjs(serviceHistory.entry_time).format("DD/MM/YYYY HH:mm")}
+            </div>
+            <div>
+              <strong>วันที่ออก:</strong>{" "}
+              {dayjs(serviceHistory.exit_time).format("DD/MM/YYYY HH:mm")}
+            </div>
+            <div>
+              <strong>ราคา:</strong> {serviceHistory.parking_price} บาท
+            </div>
+            <div>
+              <strong>รวมเวลาจอด:</strong> {serviceHistory.day_park}
             </div>
           </div>
-        </Box>
-      </Modal>
+        )}
+
+        {/* บริการเพิ่มเติม */}
+        {serviceHistory.services && serviceHistory.services.length > 0 && (
+          <div className="p-4 rounded-xl bg-green-100 space-y-2">
+            <h3 className="text-lg font-semibold text-green-700">บริการเพิ่มเติม</h3>
+            <div>
+              <strong>รายการ:</strong>{" "}
+              {serviceHistory.services
+                .map((id) => {
+                  const service = serviceList.find((s) => s.id === id);
+                  return service ? service.name : id;
+                })
+                .join(", ")}
+            </div>
+            <div>
+              <strong>ราคา:</strong> {serviceHistory.additional_price} บาท
+            </div>
+          </div>
+        )}
+
+        <div className="p-4 rounded-xl bg-orange-100">
+          <div>
+            <strong>ยอดรวม:</strong> {total_price.toFixed(2)} บาท
+          </div>
+          <div>
+            <strong>สถานะชำระเงิน:</strong>{" "}
+            {serviceHistory.is_paid ? (
+              <span className="text-green-700 font-semibold">ชำระแล้ว</span>
+            ) : (
+              <span className="text-red-500 font-semibold">ยังไม่ได้ชำระ</span>
+            )}
+          </div>
+        </div>
+
+        {/* ปุ่มชำระเงิน */}
+        {!serviceHistory.is_paid && (
+          <button
+            onClick={() => navigate(`/manage/payment/${transaction._id}`)}
+            className="px-6 py-2 rounded-lg bg-[#ea7f33] text-white font-semibold hover:bg-[#d26d2a]"
+          >
+            ชำระเงิน
+          </button>
+        )}
+      </div>
     </div>
   );
 }
