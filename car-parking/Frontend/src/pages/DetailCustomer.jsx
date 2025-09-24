@@ -107,10 +107,10 @@ export default function DetailCustomer() {
                     ลำดับ
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    รถ
+                    ทะเบียนรถ
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    วันที่เข้า
+                    วันที่เข้าใช้บริการ
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                     การบริการ
@@ -137,9 +137,12 @@ export default function DetailCustomer() {
                       <tr key={s._id}>
                         <td className="px-4 py-2 text-center">{index + 1}</td>
                         <td className="px-4 py-2">{car.car_registration}</td>
-                        <td className="px-4 py-2">
-                          {new Date(s.entry_time).toLocaleString()}
+                        <td>
+                          {s.entry_time
+                            ? new Date(s.entry_time).toLocaleDateString()
+                            : "-"}
                         </td>
+
                         <td className="px-4 py-2">{serviceType}</td>
                         <td className="px-4 py-2">
                           {s.total_price?.toFixed(2) || 0} บาท

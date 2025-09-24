@@ -77,7 +77,7 @@ export default function CarPage() {
               <TableCell>รุ่น</TableCell>
               <TableCell>สี</TableCell>
               <TableCell>ชื่อเจ้าของ</TableCell>
-              <TableCell align="center">ดำเนินการ</TableCell>
+              {/* <TableCell align="center">ดำเนินการ</TableCell> */}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -91,7 +91,7 @@ export default function CarPage() {
                 <TableCell>{row.type_car}</TableCell>
                 <TableCell>{row.color}</TableCell>
                 <TableCell>{row.customer_name}</TableCell>
-                <TableCell align="center">
+                {/* <TableCell align="center">
                   <IconButton
                     color="primary"
                     title="รายละเอียด"
@@ -101,7 +101,7 @@ export default function CarPage() {
                   >
                     <InfoIcon />
                   </IconButton>
-                </TableCell>
+                </TableCell> */}
               </TableRow>
             ))}
             {filteredData.length === 0 && (
