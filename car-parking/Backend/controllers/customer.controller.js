@@ -18,7 +18,7 @@ exports.getAllCustomers = async (req, res) => {
   try {
     const customers = await Customer.find().populate({
       path: "cars",
-      populate: { path: "service_history" } // ถ้าต้องการเอา service history ด้วย
+      populate: { path: "service_history" }
     });
     res.json(customers);
   } catch (err) {
@@ -124,6 +124,63 @@ exports.getServiceDetail = async (req, res) => {
     if (!service) return res.status(404).json({ error: "Service not found" });
 
     res.json({ customer, car, serviceHistory: service });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.payService = async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+
+    // ดึง service history ตาม id
+    const service = await ServiceHistory.findById(serviceId);
+    if (!service) return res.status(404).json({ error: "Service not found" });
+
+    // อัปเดตสถานะชำระเงิน
+    service.is_paid = true;
+    await service.save();
+
+    res.json({
+      message: "ชำระเงินเรียบร้อยแล้ว",
+      service,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getCustomerWithServiceHistory = async (req, res) => {
+  try {
+    const customer = await Customer.findById(req.params.id).populate({
+      path: "cars",
+      populate: { path: "service_history" }
+    });
+
+    if (!customer) return res.status(404).json({ error: "Customer not found" });
+
+    // รวม service history ทั้งหมดจากรถทุกคัน
+    const serviceHistories = [];
+    customer.cars.forEach((car) => {
+      car.service_history.forEach((service) => {
+        serviceHistories.push({
+          serviceId: service._id,
+          carId: car._id,
+          carRegistration: car.car_registration,
+          brandCar: car.brand_car,
+          entry_time: service.entry_time,
+          exit_time: service.exit_time,
+          parking_slot: service.parking_slot,
+          services: service.services,
+          total_price: service.total_price,
+          is_paid: service.is_paid,
+        });
+      });
+    });
+
+    res.json({ customer, serviceHistories });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

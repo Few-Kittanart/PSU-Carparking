@@ -12,5 +12,13 @@ router.get(
   "/:customerId/cars/:carId/services/:serviceId",
   customerController.getServiceDetail
 );
+router.put(
+  "/:customerId/cars/:carId/services/:serviceId/pay",
+  customerController.payService
+);
+router.get(
+  "/:id/service-history",
+  customerController.getCustomerWithServiceHistory
+);
 
 module.exports = router;
