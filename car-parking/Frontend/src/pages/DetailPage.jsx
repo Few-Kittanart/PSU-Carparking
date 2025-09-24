@@ -3,34 +3,36 @@ import { useParams, useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 
 export default function DetailPage() {
-  const { id } = useParams();
+  const { customerId, carId, serviceId } = useParams();
   const navigate = useNavigate();
 
-  const [transaction, setTransaction] = useState(null);
+  const [serviceDetail, setServiceDetail] = useState(null);
   const [serviceList, setServiceList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ดึงข้อมูล transaction ตาม ID
+  // ดึงรายละเอียด service
   useEffect(() => {
-    const fetchTransaction = async () => {
+    const fetchServiceDetail = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(`http://localhost:5000/api/transactions/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error("ไม่พบข้อมูล transaction");
+        const res = await fetch(
+          `http://localhost:5000/api/customers/${customerId}/cars/${carId}/services/${serviceId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok) throw new Error("ไม่พบข้อมูลบริการ");
         const data = await res.json();
-        setTransaction(data);
+        setServiceDetail(data);
       } catch (err) {
-        console.error(err);
         setError(err.message);
+      } finally {
+        setLoading(false);
       }
     };
-    fetchTransaction();
-  }, [id]);
+    fetchServiceDetail();
+  }, [customerId, carId, serviceId]);
 
-  // ดึงรายการบริการเพิ่มเติมจาก backend
+  // ดึงรายการบริการเพิ่มเติม
   useEffect(() => {
     const fetchServiceList = async () => {
       try {
@@ -43,15 +45,17 @@ export default function DetailPage() {
         setServiceList(data.additionalServices || []);
       } catch (err) {
         console.error(err);
-      } finally {
-        setLoading(false);
       }
     };
     fetchServiceList();
   }, []);
 
   if (loading)
-    return <div className="p-6 text-center text-lg font-semibold">กำลังโหลดข้อมูล...</div>;
+    return (
+      <div className="p-6 text-center text-lg font-semibold">
+        กำลังโหลดข้อมูล...
+      </div>
+    );
 
   if (error)
     return (
@@ -60,9 +64,9 @@ export default function DetailPage() {
       </div>
     );
 
-  if (!transaction) return null;
+  if (!serviceDetail) return null;
 
-  const { customer, car, serviceHistory, total_price } = transaction;
+  const { customer, car, serviceHistory } = serviceDetail;
 
   return (
     <div className="p-6 sm:p-10 space-y-6">
@@ -76,18 +80,13 @@ export default function DetailPage() {
       <h2 className="text-3xl font-bold text-[#ea7f33] mt-4">รายละเอียด</h2>
 
       <div className="space-y-4 mt-6">
-
         <div>
-          <strong>รหัส:</strong> {transaction._id}
+          <strong>รหัสบริการ:</strong> {serviceHistory._id}
         </div>
 
         <div>
-          <strong>วันที่ทำรายการ:</strong>{" "}
-          {dayjs(transaction.date).format("DD/MM/YYYY HH:mm")}
-        </div>
-
-        <div>
-          <strong>ลูกค้า:</strong> {customer.customer_name} ({customer.phone_number})
+          <strong>ลูกค้า:</strong> {customer.customer_name} (
+          {customer.phone_number})
         </div>
 
         <div>
@@ -121,7 +120,9 @@ export default function DetailPage() {
         {/* บริการเพิ่มเติม */}
         {serviceHistory.services && serviceHistory.services.length > 0 && (
           <div className="p-4 rounded-xl bg-green-100 space-y-2">
-            <h3 className="text-lg font-semibold text-green-700">บริการเพิ่มเติม</h3>
+            <h3 className="text-lg font-semibold text-green-700">
+              บริการเพิ่มเติม
+            </h3>
             <div>
               <strong>รายการ:</strong>{" "}
               {serviceHistory.services
@@ -139,7 +140,7 @@ export default function DetailPage() {
 
         <div className="p-4 rounded-xl bg-orange-100">
           <div>
-            <strong>ยอดรวม:</strong> {total_price.toFixed(2)} บาท
+            <strong>ยอดรวม:</strong> {serviceHistory.total_price.toFixed(2)} บาท
           </div>
           <div>
             <strong>สถานะชำระเงิน:</strong>{" "}
@@ -154,7 +155,11 @@ export default function DetailPage() {
         {/* ปุ่มชำระเงิน */}
         {!serviceHistory.is_paid && (
           <button
-            onClick={() => navigate(`/manage/payment/${transaction._id}`)}
+            onClick={() =>
+              navigate(
+                `/manage/payment/${customer._id}/${car._id}/${serviceHistory._id}`
+              )
+            }
             className="px-6 py-2 rounded-lg bg-[#ea7f33] text-white font-semibold hover:bg-[#d26d2a]"
           >
             ชำระเงิน

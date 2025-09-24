@@ -1,5 +1,4 @@
 const Transaction = require('../models/transaction.model');
-const ServiceHistory = require('../models/serviceHistory.model');
 
 // สร้าง transaction
 exports.createTransaction = async (req, res) => {
@@ -64,24 +63,3 @@ exports.deleteTransaction = async (req, res) => {
   }
 };
 
-exports.payTransaction = async (req, res) => {
-  try {
-    const transaction = await Transaction.findById(req.params.id);
-    if (!transaction) return res.status(404).json({ error: 'Transaction not found' });
-
-    // อัพเดต serviceHistory.is_paid เป็น true
-    const serviceHistory = await ServiceHistory.findById(transaction.serviceHistory);
-    if (!serviceHistory) return res.status(404).json({ error: 'ServiceHistory not found' });
-
-    serviceHistory.is_paid = true;
-    await serviceHistory.save();
-
-    res.json({
-      message: 'ชำระเงินเรียบร้อยแล้ว',
-      transaction
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-};
