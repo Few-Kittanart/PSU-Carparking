@@ -73,12 +73,12 @@ export default function DetailPage() {
         ← กลับ
       </button>
 
-      <h2 className="text-3xl font-bold text-[#ea7f33] mt-4">รายละเอียด Transaction</h2>
+      <h2 className="text-3xl font-bold text-[#ea7f33] mt-4">รายละเอียด</h2>
 
       <div className="space-y-4 mt-6">
 
         <div>
-          <strong>รหัส Transaction:</strong> {transaction._id}
+          <strong>รหัส:</strong> {transaction._id}
         </div>
 
         <div>
