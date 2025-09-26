@@ -10,7 +10,10 @@ router.post('/', verifyToken, userController.createUser);
 router.get('/', verifyToken, userController.getAllUsers);
 router.get('/:id', verifyToken, userController.getUserById);
 
-// Update
+// ✅ Update permissions (ใหม่)
+router.put('/:id/permissions', verifyToken, userController.updateUserPermissions);
+
+// Update user
 router.put('/:id', verifyToken, userController.updateUser);
 
 // Delete
