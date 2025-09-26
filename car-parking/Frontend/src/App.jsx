@@ -18,6 +18,7 @@ import IncomeReportPage from "./pages/IncomeReportPage";
 import SettingPage from './pages/SettingPage';
 import PriceSettingsPage from "./pages/PriceSettingsPage";
 import DetailCar from "./pages/DetailCarPage";
+import ManageEmployees from "./pages/ManageEmployees";
 
 // Layout สำหรับหน้าที่มี Sidebar + Header + Footer
 function AppLayoutWithSidebar({ children }) {
@@ -70,18 +71,18 @@ function App() {
                 <Routes>
                   <Route path="service" element={<ServicePage />} />
                   <Route path="manage" element={<ManagePage />} />
-                  <Route path="manage/detail/:id" element={<DetailPage />} />
+                  <Route path="/manage/detail/:customerId/:carId/:serviceId" element={<DetailPage />} />
                   <Route path="crm/customer" element={<CustomerPage />} />
                   <Route path="crm/car" element={<CarPage />} />
                   <Route path="crm/customer/details/:id" element={<DetailCustomer />} />
-                  <Route path="manage/payment/:id" element={<PaymentPage />} /> 
+                  <Route path="/manage/payment/:customerId/:carId/:serviceId" element={<PaymentPage />} />
                   <Route path="/report" element={<ReportPage />} />
                   <Route path="/report/details/:customerId/:serviceId" element={<ReportDetailPage />} />
                   <Route path="/report/income" element={<IncomeReportPage />} />
                   <Route path="/settings" element={<SettingPage />} />
                   <Route path="/system/prices" element={<PriceSettingsPage />} />
                   <Route path="/car/details/:id" element={<DetailCar />} />
-
+                  <Route path="/system/employees" element={<ManageEmployees />} />
                 </Routes>
               </AppLayoutWithSidebar>
             }

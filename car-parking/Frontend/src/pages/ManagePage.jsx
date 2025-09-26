@@ -15,29 +15,32 @@ import {
 import SearchIcon from "@mui/icons-material/Search";
 
 export default function ManagePage() {
-  const [transactions, setTransactions] = useState([]);
+  const [unpaidServices, setUnpaidServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("allServices");
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchTransactions = async () => {
+    const fetchUnpaidServices = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch("http://localhost:5000/api/transactions", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error("Failed to fetch transactions");
+        const res = await fetch(
+          "http://localhost:5000/api/customers/unpaid-services",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (!res.ok) throw new Error("Failed to fetch data");
         const data = await res.json();
-        setTransactions(data);
+        setUnpaidServices(data);
       } catch (err) {
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-    fetchTransactions();
+    fetchUnpaidServices();
   }, []);
 
   if (loading)
@@ -46,6 +49,7 @@ export default function ManagePage() {
         กำลังโหลดข้อมูล...
       </div>
     );
+
   if (error)
     return (
       <div className="p-6 text-center text-lg font-semibold text-red-500">
@@ -53,23 +57,7 @@ export default function ManagePage() {
       </div>
     );
 
-  // แปลง transactions -> unpaid services
-  const unpaidServices = transactions
-    .filter((tx) => tx.serviceHistory && tx.serviceHistory.is_paid === false)
-    .map((tx) => ({
-      transaction_id: tx._id, // สำคัญ! ต้องเป็น _id ของ transaction
-      customer_id: tx.customer?._id,
-      customer_name: tx.customer?.customer_name || "-",
-      phone_number: tx.customer?.phone_number || "-",
-      car_registration: tx.car?.car_registration || "-",
-      brand_car: tx.car?.brand_car || "-",
-      entry_time: tx.serviceHistory?.entry_time,
-      parking_slot: tx.serviceHistory?.parking_slot,
-      services: tx.serviceHistory?.services || [],
-      total_price: tx.serviceHistory?.total_price || 0,
-    }));
-
-
+  // Filter tabs
   const parkingOnly = unpaidServices.filter(
     (s) => s.parking_slot && s.services.length === 0
   );
@@ -133,7 +121,7 @@ export default function ManagePage() {
               }
 
               return (
-                <TableRow key={service.transaction_id}>
+                <TableRow key={service.service_id}>
                   <TableCell>{service.customer_id}</TableCell>
                   <TableCell>{service.customer_name}</TableCell>
                   <TableCell>{service.phone_number}</TableCell>
@@ -153,7 +141,9 @@ export default function ManagePage() {
                     <Tooltip title="ดูรายละเอียด">
                       <IconButton
                         onClick={() => {
-                          navigate(`/manage/detail/${service.transaction_id}`);
+                          navigate(
+                            `/manage/detail/${service.customer_id}/${service.car_id}/${service.service_id}`
+                          );
                         }}
                       >
                         <SearchIcon />

@@ -7,7 +7,6 @@ import districtsData from "../mockupdataadress/districts.json";
 import subDistrictsData from "../mockupdataadress/sub_districts.json";
 
 const carColors = ["ดำ", "ขาว", "เงิน", "แดง", "น้ำเงิน"];
-const PARKING_SERVICE_ID = 4;
 const parkingSections = ["A", "B", "C", "D"];
 const parkingNumbers = Array.from({ length: 100 }, (_, i) => i + 1);
 
@@ -38,11 +37,9 @@ export default function ServicePage() {
   const [showParkingForm, setShowParkingForm] = useState(false);
   const [showAdditionalForm, setShowAdditionalForm] = useState(false);
   const [selectedServices, setSelectedServices] = useState([]);
-
   const [parkingPrice, setParkingPrice] = useState(0);
   const [additionalPrice, setAdditionalPrice] = useState(0);
   const [dayPark, setDayPark] = useState("");
-
   const [exitTime, setExitTime] = useState("");
   const [selectedParkingSlot, setSelectedParkingSlot] = useState(null);
   const [occupiedSlots, setOccupiedSlots] = useState(new Set());
@@ -56,50 +53,49 @@ export default function ServicePage() {
   const [serviceHistories, setServiceHistories] = useState([]);
 
   // ------------------ Fetch Data ------------------
-const fetchCustomersAndServices = async () => {
-  try {
-    const token = localStorage.getItem("token");
+  const fetchCustomersAndServices = async () => {
+    try {
+      const token = localStorage.getItem("token");
 
-    // ดึงราคาบริการ
-    const pricesRes = await fetch("http://localhost:5000/api/prices", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const pricesData = await pricesRes.json();
-    setParkingRates({
-      daily: pricesData.dailyRate || 0,
-      hourly: pricesData.hourlyRate || 0,
-    });
-    setAllAdditionalServices(pricesData.additionalServices || []);
-
-    // ดึงลูกค้า
-    const customersRes = await fetch("http://localhost:5000/api/customers", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const customersData = await customersRes.json();
-    setCustomerList(customersData);
-
-    // ดึง service histories
-    const serviceRes = await fetch(
-      "http://localhost:5000/api/serviceHistories",
-      {
+      // ราคาบริการ
+      const pricesRes = await fetch("http://localhost:5000/api/prices", {
         headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    const serviceData = await serviceRes.json();
-    setServiceHistories(serviceData);
+      });
+      const pricesData = await pricesRes.json();
+      setParkingRates({
+        daily: pricesData.dailyRate || 0,
+        hourly: pricesData.hourlyRate || 0,
+      });
+      setAllAdditionalServices(pricesData.additionalServices || []);
 
-    // กำหนด occupied slots
-    const occupied = new Set();
-    serviceData.forEach((service) => {
-      if (service.parking_slot) {
-        occupied.add(service.parking_slot);
-      }
-    });
-    setOccupiedSlots(occupied);
-  } catch (err) {
-    console.error(err);
-  }
-};
+      // ลูกค้า
+      const customersRes = await fetch("http://localhost:5000/api/customers", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const customersData = await customersRes.json();
+      setCustomerList(customersData);
+
+      // service histories
+      const serviceRes = await fetch(
+        "http://localhost:5000/api/serviceHistories",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const serviceData = await serviceRes.json();
+      setServiceHistories(serviceData);
+
+      // occupied slots
+      const occupied = new Set();
+      serviceData.forEach((service) => {
+        // เฉพาะรายการที่ยังไม่ได้จ่าย
+        if (service.parking_slot && !service.is_paid) {
+          occupied.add(service.parking_slot);
+        }
+      });
+      setOccupiedSlots(occupied);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // ------------------ Address Setup ------------------
   useEffect(() => {
@@ -144,22 +140,14 @@ const fetchCustomersAndServices = async () => {
   }, [selectedServices, allAdditionalServices]);
 
   // ------------------ Calculate Parking ------------------
-  const roundingMinuteThreshold = 15; // กำหนดว่าหากเหลือมากกว่า 15 นาที ให้คิดเป็น 1 ชั่วโมง
+  const roundingMinuteThreshold = 15;
 
   const calculateDurationAndPrice = (entryTime, exitTime, rates) => {
-    console.log("DEBUG calculateDurationAndPrice", {
-      entryTime,
-      exitTime,
-      rates,
-    });
-
     if (!entryTime) return { price: 0, duration: "0 วัน 0 ชั่วโมง 0 นาที" };
 
     const entry = dayjs(entryTime);
     const exit = exitTime ? dayjs(exitTime) : dayjs();
-
     let durationInMinutes = exit.diff(entry, "minute", true);
-    console.log("DEBUG durationInMinutes:", durationInMinutes);
 
     if (durationInMinutes <= 0)
       return { price: 0, duration: "0 วัน 0 ชั่วโมง 0 นาที" };
@@ -167,25 +155,16 @@ const fetchCustomersAndServices = async () => {
     const dailyRate = parseFloat(rates.daily) || 0;
     const hourlyRate = parseFloat(rates.hourly) || 0;
 
-    // จำนวนวันเต็ม
     let totalDays = Math.floor(durationInMinutes / (24 * 60));
-
-    // นาทีที่เหลือหลังวันเต็ม
     let remainingMinutes = durationInMinutes % (24 * 60);
-
-    // ชั่วโมงเต็ม
     let totalHours = Math.floor(remainingMinutes / 60);
-
-    // นาทีที่เหลือ
     let totalMinutes = Math.round(remainingMinutes % 60);
 
-    // ปรับชั่วโมงถ้านาทีเกิน threshold
     if (totalMinutes > roundingMinuteThreshold) {
       totalHours += 1;
       totalMinutes = 0;
     }
 
-    // หากรวมชั่วโมงเกิน 24 ชั่วโมง เปลี่ยนเป็นวันเต็ม
     if (totalHours >= 24) {
       const extraDays = Math.floor(totalHours / 24);
       totalHours = totalHours % 24;
@@ -198,7 +177,6 @@ const fetchCustomersAndServices = async () => {
     return { price: parkingCost, duration: durationString };
   };
 
-  // ------------------ Update Parking Price when needed ------------------
   useEffect(() => {
     if (showParkingForm && parkingEntryTime) {
       const result = calculateDurationAndPrice(
@@ -214,10 +192,12 @@ const fetchCustomersAndServices = async () => {
   // ------------------ Customer Selection ------------------
   const handleSelectCustomer = (cust) => {
     if (!cust) return;
-    setCustomerId(cust.customer_id);
+
+    setCustomerId(cust._id);
     setCustomerName(cust.customer_name);
     setPhone(cust.phone_number);
 
+    // ตั้งค่า address
     const foundProvince =
       provinceList.find((p) => p.name_th === cust.province) || null;
     let foundAmphoe = null;
@@ -254,7 +234,9 @@ const fetchCustomersAndServices = async () => {
       zipcode: cust.zip_code || "",
     });
 
+    // ใช้ cars ที่ populate จาก backend เลย
     if (cust.cars && cust.cars.length > 0) {
+      // เอารถล่าสุด
       const lastCar = cust.cars[cust.cars.length - 1];
       setVehicle({
         plate: lastCar.car_registration || "",
@@ -263,6 +245,7 @@ const fetchCustomersAndServices = async () => {
         model: lastCar.model_car || null,
         type: lastCar.type_car || null,
         color: lastCar.color || null,
+        _id: lastCar._id, // เก็บ _id เผื่อจะต้อง update service_history
       });
     } else {
       setVehicle({
@@ -272,6 +255,7 @@ const fetchCustomersAndServices = async () => {
         model: null,
         type: null,
         color: null,
+        _id: null,
       });
     }
   };
@@ -349,6 +333,7 @@ const fetchCustomersAndServices = async () => {
     try {
       const token = localStorage.getItem("token");
 
+      // สร้าง service history ใหม่
       const serviceHistoryPayload = {
         services: selectedServices,
         entry_time: parkingEntryTime
@@ -361,6 +346,7 @@ const fetchCustomersAndServices = async () => {
         additional_price: additionalServicesPrice,
         total_price: finalTotalPrice,
       };
+
       const serviceHistoryRes = await fetch(
         "http://localhost:5000/api/serviceHistories",
         {
@@ -376,53 +362,128 @@ const fetchCustomersAndServices = async () => {
         throw new Error("Failed to save service history.");
       const newServiceHistory = await serviceHistoryRes.json();
 
-      const carPayload = {
-        car_registration: vehicle.plate,
-        car_registration_province: vehicle.province,
-        brand_car: vehicle.brand,
-        model_car: vehicle.model,
-        type_car: vehicle.type,
-        color: vehicle.color,
-        service_history: [newServiceHistory._id],
-      };
-      const carRes = await fetch("http://localhost:5000/api/cars", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(carPayload),
-      });
-      if (!carRes.ok) throw new Error("Failed to save car.");
-      const newCar = await carRes.json();
+      // ดึงลูกค้าทั้งหมดและหาเบอร์ตรงกัน
+      const existingCustomerRes = await fetch(
+        "http://localhost:5000/api/customers",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const allCustomers = await existingCustomerRes.json();
+      let customerToUse = allCustomers.find((c) => c.phone_number === phone);
+      let carToUse;
 
-      const customerPayload = {
-        customer_name: customerName,
-        phone_number: phone,
-        house_number: address.houseNo,
-        village: address.village,
-        road: address.street,
-        canton: address.district ? address.district.name_th : "",
-        district: address.amphoe ? address.amphoe.name_th : "",
-        province: address.province ? address.province.name_th : "",
-        zip_code: address.zipcode,
-        country: address.country,
-        cars: [newCar._id],
-      };
-      const customerRes = await fetch("http://localhost:5000/api/customers", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(customerPayload),
-      });
-      if (!customerRes.ok) throw new Error("Failed to save customer.");
-      const newCustomer = await customerRes.json();
+      if (customerToUse) {
+        // ลูกค้าเดิม
+        if (vehicle._id) {
+          // รถเดิม → append service_history
+          const carRes = await fetch(
+            `http://localhost:5000/api/cars/${vehicle._id}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          const carData = await carRes.json();
+          const updatedServiceHistory = [
+            ...(carData.service_history || []),
+            newServiceHistory._id,
+          ];
 
+          await fetch(`http://localhost:5000/api/cars/${vehicle._id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ service_history: updatedServiceHistory }),
+          });
+
+          carToUse = { ...carData, service_history: updatedServiceHistory };
+        } else {
+          // รถใหม่ → สร้าง car ใหม่
+          const carPayload = {
+            car_registration: vehicle.plate,
+            car_registration_province: vehicle.province,
+            brand_car: vehicle.brand,
+            model_car: vehicle.model,
+            type_car: vehicle.type,
+            color: vehicle.color,
+            service_history: [newServiceHistory._id],
+          };
+          const carRes = await fetch("http://localhost:5000/api/cars", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(carPayload),
+          });
+          carToUse = await carRes.json();
+
+          // เพิ่มรถใหม่เข้า customer
+          await fetch(
+            `http://localhost:5000/api/customers/${customerToUse._id}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                cars: [...(customerToUse.cars || []), carToUse._id],
+              }),
+            }
+          );
+        }
+      } else {
+        // ลูกค้าใหม่ → สร้าง car + customer
+        const carPayload = {
+          car_registration: vehicle.plate,
+          car_registration_province: vehicle.province,
+          brand_car: vehicle.brand,
+          model_car: vehicle.model,
+          type_car: vehicle.type,
+          color: vehicle.color,
+          service_history: [newServiceHistory._id],
+        };
+        const carRes = await fetch("http://localhost:5000/api/cars", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(carPayload),
+        });
+        carToUse = await carRes.json();
+
+        const customerPayload = {
+          customer_name: customerName,
+          phone_number: phone,
+          house_number: address.houseNo,
+          village: address.village,
+          road: address.street,
+          canton: address.district ? address.district.name_th : "",
+          district: address.amphoe ? address.amphoe.name_th : "",
+          province: address.province ? address.province.name_th : "",
+          zip_code: address.zipcode,
+          country: address.country,
+          cars: [carToUse._id],
+        };
+        const customerRes = await fetch("http://localhost:5000/api/customers", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(customerPayload),
+        });
+        customerToUse = await customerRes.json();
+      }
+
+      // สร้าง transaction
       const transactionPayload = {
-        customer: newCustomer._id,
-        car: newCar._id,
+        customer: customerToUse._id,
+        car: carToUse._id,
         serviceHistory: newServiceHistory._id,
         total_price: finalTotalPrice,
         transaction_id: Date.now(),
@@ -440,7 +501,7 @@ const fetchCustomersAndServices = async () => {
         }
       );
       if (!transactionRes.ok) throw new Error("Failed to save transaction.");
-      const newTransaction = await transactionRes.json();
+      await transactionRes.json();
 
       alert("บันทึกข้อมูลสำเร็จ!");
       clearAll();
@@ -658,10 +719,12 @@ const fetchCustomersAndServices = async () => {
                       setVehicle((old) => ({
                         ...old,
                         plate: e.target.value.toUpperCase(),
+                        _id: null, // reset id เพราะนี่คือรถใหม่
                       }))
                     }
-                    placeholder="เช่น 1กข 1234"
+                    placeholder="เช่น 1 กข 1234"
                   />
+
                   <TextField
                     fullWidth
                     label="จังหวัด (ป้ายทะเบียน)"
@@ -671,6 +734,7 @@ const fetchCustomersAndServices = async () => {
                       setVehicle((old) => ({
                         ...old,
                         province: e.target.value,
+                        _id: null, // reset id เพราะนี่คือรถใหม่
                       }))
                     }
                     placeholder="เช่น กรุงเทพมหานคร"

@@ -37,7 +37,7 @@ export default function CustomerPage() {
     return (
       row.customer_name?.toLowerCase().includes(searchLower) ||
       row.phone_number?.toLowerCase().includes(searchLower) ||
-      row.customer_id?.toString().includes(searchLower)
+      row._id.toString().includes(searchLower)
     );
   });
 
@@ -85,9 +85,7 @@ export default function CustomerPage() {
                     color="primary"
                     title="รายละเอียด"
                     // ✅ เปลี่ยนเส้นทางไปที่หน้ารายละเอียดลูกค้าใหม่
-                    onClick={() =>
-                      navigate(`/crm/customer/details/${row._id}`)
-                    }
+                    onClick={() => navigate(`/crm/customer/details/${row._id}`)}
                   >
                     <InfoIcon />
                   </IconButton>

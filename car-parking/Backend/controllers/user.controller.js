@@ -1,14 +1,22 @@
-const User = require('../models/user.model');
-const bcrypt = require('bcryptjs');
+const User = require("../models/user.model");
+const bcrypt = require("bcryptjs");
 
 // Create User
 exports.createUser = async (req, res) => {
   try {
-    const { username, password, first_name, last_name, phone_number_user, role, department } = req.body;
+    const {
+      username,
+      password,
+      first_name,
+      last_name,
+      phone_number_user,
+      role,
+      department,
+      permissions,
+    } = req.body;
 
-    // เข้ารหัส password
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+
     const newUser = new User({
       username,
       password: hashedPassword,
@@ -16,11 +24,14 @@ exports.createUser = async (req, res) => {
       last_name,
       phone_number_user,
       role,
-      department
+      department,
+      permissions: permissions || [],
     });
 
     await newUser.save();
-    res.status(201).json({ message: 'User created successfully', user: newUser });
+    res
+      .status(201)
+      .json({ message: "User created successfully", user: newUser });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -29,7 +40,7 @@ exports.createUser = async (req, res) => {
 // Read All Users
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select('-password'); // ไม่ส่ง password กลับ
+    const users = await User.find().select("-password"); // ไม่ส่ง password กลับ
     res.json(users);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -39,8 +50,10 @@ exports.getAllUsers = async (req, res) => {
 // Read User by ID
 exports.getUserById = async (req, res) => {
   try {
-    const user = await User.findOne({ user_id: req.params.id }).select('-password');
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    const user = await User.findOne({ user_id: req.params.id }).select(
+      "-password"
+    );
+    if (!user) return res.status(404).json({ message: "User not found" });
     res.json(user);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -50,10 +63,19 @@ exports.getUserById = async (req, res) => {
 // Update User by ID
 exports.updateUser = async (req, res) => {
   try {
-    const { username, password, first_name, last_name, phone_number_user, role, department } = req.body;
+    const {
+      username,
+      password,
+      first_name,
+      last_name,
+      phone_number_user,
+      role,
+      department,
+      permissions,
+    } = req.body;
 
     const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
     // อัปเดต fields
     if (username) user.username = username;
@@ -63,9 +85,10 @@ exports.updateUser = async (req, res) => {
     if (phone_number_user) user.phone_number_user = phone_number_user;
     if (role) user.role = role;
     if (department) user.department = department;
+    if (permissions) user.permissions = permissions;
 
     await user.save();
-    res.json({ message: 'User updated successfully', user });
+    res.json({ message: "User updated successfully", user });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -75,8 +98,24 @@ exports.updateUser = async (req, res) => {
 exports.deleteUser = async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json({ message: "User deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Update only permissions
+exports.updateUserPermissions = async (req, res) => {
+  try {
+    const { permissions } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { permissions },
+      { new: true }
+    );
     if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json({ message: 'User deleted successfully' });
+    res.json({ message: 'Permissions updated', user });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

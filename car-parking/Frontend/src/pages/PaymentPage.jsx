@@ -1,221 +1,151 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
-import { IconButton, Button, CircularProgress, Typography, Paper } from "@mui/material";
+import { Button, CircularProgress, Paper, Typography, IconButton } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import "dayjs/locale/th";
 
 export default function PaymentPage() {
-  const { id } = useParams();
+  const { customerId, carId, serviceId } = useParams();
   const navigate = useNavigate();
-  const [customer, setCustomer] = useState(null);
+
+  const [serviceDetail, setServiceDetail] = useState(null);
+  const [serviceList, setServiceList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [latestUnpaidService, setLatestUnpaidService] = useState(null);
-  const [additionalServices, setAdditionalServices] = useState([]);
 
+  // ดึงรายละเอียด service
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchServiceDetail = async () => {
       try {
         setLoading(true);
         const token = localStorage.getItem("token");
-
-        // Fetch additional services prices
-        const pricesRes = await fetch("http://localhost:5000/api/prices", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const pricesData = await pricesRes.json();
-        setAdditionalServices(pricesData.additionalServices || []);
-
-        // Fetch customer data
-        const customerRes = await fetch(`http://localhost:5000/api/customers/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!customerRes.ok) {
-          throw new Error("ไม่พบข้อมูลลูกค้า");
-        }
-        const data = await customerRes.json();
-        setCustomer(data);
-
-        // Find the latest unpaid service
-        if (data.cars && data.cars.length > 0) {
-          const allUnpaidServices = data.cars.flatMap(car =>
-            car.service_history.filter(service => service.is_paid === false)
-          );
-          
-          if (allUnpaidServices.length > 0) {
-            const latest = allUnpaidServices.sort((a, b) => 
-              dayjs(b.entry_time) - dayjs(a.entry_time)
-            )[0];
-            setLatestUnpaidService(latest);
-          }
-        }
-
+        const res = await fetch(
+          `http://localhost:5000/api/customers/${customerId}/cars/${carId}/services/${serviceId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok) throw new Error("ไม่พบข้อมูลบริการ");
+        const data = await res.json();
+        setServiceDetail(data);
       } catch (err) {
-        console.error("Error fetching data:", err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
-  }, [id]);
+    fetchServiceDetail();
+  }, [customerId, carId, serviceId]);
 
-  const handlePay = async () => {
-    if (!latestUnpaidService) {
-      alert("ไม่พบรายการที่ยังไม่ได้ชำระเงิน");
-      return;
-    }
-    
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:5000/api/customers/${id}/pay`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error("การชำระเงินไม่สำเร็จ");
+  // ดึงรายการบริการเพิ่มเติม
+  useEffect(() => {
+    const fetchServiceList = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("http://localhost:5000/api/price", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("ไม่สามารถดึงข้อมูลบริการได้");
+        const data = await res.json();
+        setServiceList(data.additionalServices || []);
+      } catch (err) {
+        console.error(err);
       }
+    };
+    fetchServiceList();
+  }, []);
 
-      alert("ชำระเงินเรียบร้อยแล้ว!");
-      navigate("/manage"); // Navigate back to manage page after successful payment
-    } catch (err) {
-      alert("เกิดข้อผิดพลาดในการชำระเงิน: " + err.message);
-      console.error(err);
-    }
-  };
-
-  const getServiceName = (serviceIds) => {
-    return serviceIds.map(id => {
-      const service = additionalServices.find(s => s.id === id);
-      return service ? service.name : null;
-    }).filter(Boolean);
-  };
-
-  if (loading) {
+  if (loading)
     return (
       <div className="flex justify-center items-center h-screen">
         <CircularProgress />
         <span className="ml-4 text-xl">กำลังโหลด...</span>
       </div>
     );
-  }
 
-  if (error) {
+  if (error)
     return (
-      <div className="flex justify-center items-center h-screen text-xl text-red-600">
+      <div className="flex justify-center items-center h-screen text-red-600">
         <p>เกิดข้อผิดพลาด: {error}</p>
       </div>
     );
-  }
 
-  if (!customer || !latestUnpaidService) {
-    return (
-      <div className="p-6 text-center text-lg font-semibold text-gray-700">
-        ไม่พบรายการที่ต้องชำระเงินสำหรับลูกค้านี้
-      </div>
+  if (!serviceDetail) return null;
+
+  const { customer, car, serviceHistory } = serviceDetail;
+
+  const getServiceNames = (serviceIds) =>
+    serviceIds
+      .map((id) => serviceList.find((s) => s.id === id)?.name)
+      .filter(Boolean);
+
+  const handlePay = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(
+      `http://localhost:5000/api/customers/${customerId}/cars/${carId}/services/${serviceId}/pay`,
+      { method: "PUT", headers: { Authorization: `Bearer ${token}` } }
     );
+    if (!res.ok) throw new Error("ชำระเงินไม่สำเร็จ");
+    const updated = await res.json();
+    alert("ชำระเงินเรียบร้อยแล้ว!");
+    setServiceDetail(prev => ({
+      ...prev,
+      serviceHistory: updated.service,
+    }));
+  } catch (err) {
+    alert("เกิดข้อผิดพลาด: " + err.message);
   }
-
-  const carInfo = customer.cars.find(car => 
-    car.service_history.some(service => dayjs(service.entry_time).isSame(dayjs(latestUnpaidService.entry_time)))
-  );
+};
 
   return (
-    <div className="p-6 sm:p-10 space-y-8 bg-gray-100 min-h-screen">
+    <div className="p-6 sm:p-10 space-y-6 bg-gray-100 min-h-screen">
       <div className="flex items-center">
-        <IconButton onClick={() => navigate(-1)} aria-label="back">
+        <IconButton onClick={() => navigate(-1)}>
           <ArrowBackIcon />
         </IconButton>
         <h1 className="text-2xl font-bold text-[#ea7f33] ml-4">หน้าชำระเงิน</h1>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Paper elevation={3} className="p-6 rounded-lg">
-          <h3 className="text-xl font-semibold mb-4 text-[#ea7f33]">
-            ข้อมูลลูกค้า
-          </h3>
-          <div className="space-y-2 text-gray-700">
-            <Typography>
-              <strong>ชื่อ-นามสกุล:</strong> {customer.customer_name}
-            </Typography>
-            <Typography>
-              <strong>เบอร์โทรศัพท์:</strong> {customer.phone_number}
-            </Typography>
-            <Typography>
-              <strong>ทะเบียนรถ:</strong> {carInfo?.car_registration || "-"} ({carInfo?.car_registration_province || "-"})
-            </Typography>
-          </div>
-        </Paper>
-
-        <Paper elevation={3} className="p-6 rounded-lg">
-          <h3 className="text-xl font-semibold mb-4 text-[#ea7f33]">
-            ข้อมูลบริการ
-          </h3>
-          <div className="space-y-2 text-gray-700">
-            {latestUnpaidService.parking_slot && (
-              <>
-                <Typography>
-                  <strong>ช่องจอด:</strong> {latestUnpaidService.parking_slot}
-                </Typography>
-                <Typography>
-                  <strong>วันเวลาเข้า:</strong> {dayjs(latestUnpaidService.entry_time).format("DD/MM/YYYY HH:mm")}
-                </Typography>
-                {latestUnpaidService.exit_time && (
-                    <Typography>
-                        <strong>วันเวลาออก:</strong> {dayjs(latestUnpaidService.exit_time).format("DD/MM/YYYY HH:mm")}
-                    </Typography>
-                )}
-                <Typography>
-                    <strong>ราคาค่าจอด:</strong> {latestUnpaidService.parking_price?.toFixed(2) || "0.00"} บาท
-                </Typography>
-              </>
-            )}
-            {latestUnpaidService.services?.length > 0 && (
-              <div className="mt-4">
-                <Typography className="font-bold">
-                  บริการเพิ่มเติม:
-                </Typography>
-                <ul className="list-disc pl-5">
-                  {getServiceName(latestUnpaidService.services).map((name, index) => (
-                    <li key={index}>{name}</li>
-                  ))}
-                </ul>
-                <Typography className="mt-2">
-                    <strong>ราคาบริการเสริม:</strong> {latestUnpaidService.additional_price?.toFixed(2) || "0.00"} บาท
-                </Typography>
-              </div>
-            )}
-          </div>
-        </Paper>
-      </div>
-
-      <Paper elevation={3} className="p-6 rounded-lg flex flex-col items-center justify-center text-center">
-        <h3 className="text-2xl font-bold mb-4 text-gray-800">สรุปค่าใช้จ่าย</h3>
-        <p className="text-4xl font-extrabold text-[#ea7f33] mb-6">
-          {latestUnpaidService.total_price?.toFixed(2) || "0.00"} บาท
-        </p>
-        <Button
-          variant="contained"
-          onClick={handlePay}
-          sx={{
-            bgcolor: "#4CAF50",
-            "&:hover": { bgcolor: "#45a049" },
-            px: 6,
-            py: 1.5,
-            fontSize: "1.2rem",
-          }}
-          startIcon={<CheckCircleIcon />}
-        >
-          ชำระเงิน
-        </Button>
+      <Paper className="p-6 rounded-lg" elevation={3}>
+        <Typography variant="h6" className="mb-2 text-[#ea7f33]">ข้อมูลลูกค้า</Typography>
+        <Typography><strong>ชื่อ-นามสกุล:</strong> {customer.customer_name}</Typography>
+        <Typography><strong>เบอร์โทรศัพท์:</strong> {customer.phone_number}</Typography>
+        <Typography><strong>รถ:</strong> {car.brand_car} / {car.car_registration}</Typography>
       </Paper>
+
+      {serviceHistory && !serviceHistory.is_paid ? (
+        <Paper className="p-6 rounded-lg" elevation={3}>
+          <Typography variant="h6" className="mb-2 text-[#ea7f33]">บริการที่ต้องชำระ</Typography>
+          {serviceHistory.parking_slot && (
+            <>
+              <Typography><strong>ช่องจอด:</strong> {serviceHistory.parking_slot}</Typography>
+              <Typography><strong>วันเวลาเข้า:</strong> {dayjs(serviceHistory.entry_time).format("DD/MM/YYYY HH:mm")}</Typography>
+              {serviceHistory.exit_time && (
+                <Typography><strong>วันเวลาออก:</strong> {dayjs(serviceHistory.exit_time).format("DD/MM/YYYY HH:mm")}</Typography>
+              )}
+              <Typography><strong>ราคาค่าจอด:</strong> {serviceHistory.parking_price?.toFixed(2) || "0.00"} บาท</Typography>
+            </>
+          )}
+
+          {serviceHistory.services?.length > 0 && (
+            <>
+              <Typography className="mt-2 font-semibold">บริการเพิ่มเติม:</Typography>
+              <ul className="list-disc pl-5">
+                {getServiceNames(serviceHistory.services).map((name, i) => <li key={i}>{name}</li>)}
+              </ul>
+              <Typography><strong>ราคาบริการเสริม:</strong> {serviceHistory.additional_price?.toFixed(2) || "0.00"} บาท</Typography>
+            </>
+          )}
+
+          <Typography className="mt-4 text-2xl font-bold text-[#ea7f33]">ยอดรวม: {serviceHistory.total_price?.toFixed(2) || "0.00"} บาท</Typography>
+
+          <Button variant="contained" startIcon={<CheckCircleIcon />} onClick={handlePay} sx={{ mt: 3, bgcolor: "#4CAF50", "&:hover": { bgcolor: "#45a049" }, px: 6, py: 1.5 }}>
+            ชำระเงิน
+          </Button>
+        </Paper>
+      ) : (
+        <div className="p-6 text-center text-lg font-semibold text-gray-700">รายการนี้ชำระเงินแล้ว</div>
+      )}
     </div>
   );
 }
