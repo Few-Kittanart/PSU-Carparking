@@ -1,31 +1,35 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-// 1. นำเข้า Controller ที่เพิ่งแก้ไขไป (dashboard.controller.js)
-const dashboardController = require('../controllers/dashboard.controller');
+const dashboardController = require("../controllers/dashboard.controller");
 
-/**
- * @route GET /api/dashboard/summary
- * @desc ดึงข้อมูลสรุปผู้บริหาร (KPIs)
- * @access Private (ควรมีการตรวจสอบสิทธิ์ เช่น verifyToken หากมีการนำไปใช้)
- */
-router.get('/summary', dashboardController.getExecutiveSummary);
+// Executive Summary
+router.get("/summary", dashboardController.getExecutiveSummary);
 
-/**
- * @route GET /api/dashboard/revenue-by-slot
- * @desc ดึงข้อมูลรายได้ตามช่วงเวลา (Line Chart)
- */
-router.get('/revenue-by-slot', dashboardController.getRevenueBySlot);
+// Revenue by day
+router.get("/revenue-by-slot", dashboardController.getRevenueBySlot);
 
-/**
- * @route GET /api/dashboard/sessions-by-hour
- * @desc ดึงข้อมูลจำนวนการใช้บริการตามชั่วโมง (Bar Chart)
- */
-router.get('/sessions-by-hour', dashboardController.getSessionsByHour);
+// Customer Segments
+router.get("/customer-segments", dashboardController.getCustomerSegments);
 
-/**
- * @route GET /api/dashboard/customer-segments
- * @desc ดึงข้อมูลส่วนแบ่งลูกค้า (Pie Chart)
- */
-router.get('/customer-segments', dashboardController.getCustomerSegments);
+// Revenue Breakdown
+router.get("/revenue-breakdown", dashboardController.getRevenueBreakdown);
+
+// Active Sessions by Day
+router.get("/active-sessions", dashboardController.getActiveSessionsByDay);
+
+// Monthly Trend
+router.get("/monthly-trend", dashboardController.getMonthlyTrend);
+
+// Top Customers
+router.get("/top-customers", dashboardController.getTopCustomers);
+
+// Top Services
+router.get("/services-by-count", dashboardController.getServicesByCount);
+
+// Average Service Duration
+router.get("/avg-service-duration", dashboardController.getAvgServiceDuration);
+
+// Alerts (optional)
+router.get("/alerts", dashboardController.getAlerts);
 
 module.exports = router;

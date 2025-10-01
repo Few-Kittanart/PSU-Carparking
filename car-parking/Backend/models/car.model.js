@@ -1,7 +1,6 @@
-// models/Car.js
+// models/car.model.js
 const mongoose = require("mongoose");
 
-// กำหนด schema สำหรับข้อมูลรถแต่ละคัน
 const carSchema = new mongoose.Schema({
   car_registration: { type: String, required: true },
   car_registration_province: { type: String, required: true },
@@ -10,6 +9,6 @@ const carSchema = new mongoose.Schema({
   type_car: { type: String },
   color: { type: String },
   service_history: [{ type: mongoose.Schema.Types.ObjectId, ref: 'ServiceHistory' }],
-});
+}, { timestamps: true }); // <-- เพิ่ม timestamps
 
 module.exports = mongoose.model("Car", carSchema);

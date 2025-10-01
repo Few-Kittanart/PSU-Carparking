@@ -26,7 +26,6 @@ const ALL_PERMISSIONS = [
   "manage.services",
   "crm.customer",
   "crm.car",
-  "manage.payment",
   "dashboard",
   "report.services",
   "report.income",
