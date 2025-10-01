@@ -39,24 +39,26 @@ export default function IncomeReportPage() {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch("http://localhost:5000/api/customers", {
+        const res = await fetch("http://localhost:5000/api/transactions", {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (!res.ok) {
-          throw new Error("Failed to fetch data");
-        }
+        if (!res.ok) throw new Error("Failed to fetch transactions");
 
         const data = await res.json();
-        const services = data.flatMap((customer) =>
-          customer.cars.flatMap((car) =>
-            car.service_history.map((service) => ({
-              ...service,
-              parking_lot: service.parking_lot || "ไม่ระบุ",
-            }))
-          )
-        );
-        setAllData(services);
+
+        // แปลงข้อมูลสำหรับรายงาน
+        const transactions = data.map((t) => ({
+          id: t._id,
+          // ✅ ใช้วันที่ของการทำรายการ (วันที่จ่ายเงิน)
+          date: t.date,
+          parking_lot: t.serviceHistory?.parking_slot || "ไม่ระบุ",
+          total_price: t.serviceHistory?.total_price || 0,
+          is_paid: t.serviceHistory?.is_paid || false,
+          payment_method: t.payment_method || "unknown",
+        }));
+
+        setAllData(transactions);
       } catch (err) {
         console.error(err);
         setError(err.message);
@@ -72,58 +74,69 @@ export default function IncomeReportPage() {
 
     // Filter by date range
     if (filters.startDate) {
-      temp = temp.filter(
-        (row) => dayjs(row.entry_time).isAfter(dayjs(filters.startDate).startOf("day"))
+      temp = temp.filter((t) =>
+        dayjs(t.date).isAfter(dayjs(filters.startDate).startOf("day"))
       );
     }
     if (filters.endDate) {
-      temp = temp.filter(
-        (row) => dayjs(row.entry_time).isBefore(dayjs(filters.endDate).endOf("day"))
+      temp = temp.filter((t) =>
+        dayjs(t.date).isBefore(dayjs(filters.endDate).endOf("day"))
       );
     }
 
     // Filter by payment method
     if (filters.paymentMethod !== "all") {
-      temp = temp.filter(
-        (row) => row.payment_method === filters.paymentMethod
-      );
+      temp = temp.filter((t) => t.payment_method === filters.paymentMethod);
     }
 
     // Grouping
     const groupedData = {};
     const format =
-      filters.groupBy === "day" ? "YYYY-MM-DD" : filters.groupBy === "month" ? "YYYY-MM" : "YYYY";
+      filters.groupBy === "day"
+        ? "YYYY-MM-DD"
+        : filters.groupBy === "month"
+        ? "YYYY-MM"
+        : "YYYY";
 
-    temp.forEach((service , transaction) => {
-      const groupKey = dayjs(service.entry_time).format(format);
+    temp.forEach((t) => {
+      // ✅ group ตามวันที่ของ transaction (date)
+      const groupKey = dayjs(t.date).format(format);
+
       if (!groupedData[groupKey]) {
         groupedData[groupKey] = {
           entryDate: groupKey,
-          parkingLot: service.parking_lot,
+          parkingLot: t.parking_lot,
           servicesCount: 0,
           exitCount: 0,
           total_price: 0,
         };
       }
+
       groupedData[groupKey].servicesCount += 1;
-      if (service.exit_time) {
+
+      // จำนวนรถที่ออก นับเฉพาะที่ is_paid === true
+      if (t.is_paid) {
         groupedData[groupKey].exitCount += 1;
       }
-      groupedData[groupKey].total_price += service.total_price || 0;
+
+      groupedData[groupKey].total_price += t.total_price || 0;
     });
 
-    // Sort by date
-    const finalData = Object.values(groupedData).sort((a, b) =>
-      dayjs(b.entryDate).unix() - dayjs(a.entryDate).unix()
+    const finalData = Object.values(groupedData).sort(
+      (a, b) => dayjs(b.entryDate).unix() - dayjs(a.entryDate).unix()
     );
 
     setFilteredData(finalData);
-    setCurrentPage(1); // Reset to first page
+    setCurrentPage(1);
   }, [allData, filters]);
 
   const handleExport = () => {
     const header = [
-      "วันที่/เดือน/ปี", "ลานจอด", "จำนวนที่ใช้บริการ", "จำนวนรถที่ออก", "รายได้ทั้งหมด"
+      "วันที่/เดือน/ปี",
+      "ลานจอด",
+      "จำนวนที่ใช้บริการ",
+      "จำนวนรถที่ออก",
+      "รายได้ทั้งหมด",
     ];
     const rows = filteredData.map((row) => [
       row.entryDate,
@@ -134,14 +147,19 @@ export default function IncomeReportPage() {
     ]);
     const csvContent = [
       header.join(","),
-      ...rows.map((e) => e.map(item => `"${item}"`).join(",")),
+      ...rows.map((e) => e.map((item) => `"${item}"`).join(",")),
     ].join("\n");
 
-    const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\ufeff" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `income_report_${dayjs().format("YYYY-MM-DD")}.csv`);
+    link.setAttribute(
+      "download",
+      `income_report_${dayjs().format("YYYY-MM-DD")}.csv`
+    );
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
@@ -159,7 +177,11 @@ export default function IncomeReportPage() {
     return <div className="p-6 text-center text-lg">กำลังโหลดข้อมูล...</div>;
   }
   if (error) {
-    return <div className="p-6 text-center text-lg text-red-500">เกิดข้อผิดพลาด: {error}</div>;
+    return (
+      <div className="p-6 text-center text-lg text-red-500">
+        เกิดข้อผิดพลาด: {error}
+      </div>
+    );
   }
 
   return (
@@ -184,9 +206,7 @@ export default function IncomeReportPage() {
           size="small"
           InputLabelProps={{ shrink: true }}
           value={filters.endDate}
-          onChange={(e) =>
-            setFilters({ ...filters, endDate: e.target.value })
-          }
+          onchange={(e) => setFilters({ ...filters, endDate: e.target.value })}
         />
         <ToggleButtonGroup
           value={filters.groupBy}
@@ -204,7 +224,8 @@ export default function IncomeReportPage() {
           value={filters.paymentMethod}
           exclusive
           onChange={(e, newPaymentMethod) => {
-            if (newPaymentMethod) setFilters({ ...filters, paymentMethod: newPaymentMethod });
+            if (newPaymentMethod)
+              setFilters({ ...filters, paymentMethod: newPaymentMethod });
           }}
           size="small"
         >
@@ -232,7 +253,6 @@ export default function IncomeReportPage() {
           <TableHead>
             <TableRow>
               <TableCell className="font-bold">ลำดับ</TableCell>
-              <TableCell className="font-bold">ลาน</TableCell>
               <TableCell className="font-bold">วันที่/เดือน/ปี</TableCell>
               <TableCell className="font-bold">จำนวนที่ใช้บริการ</TableCell>
               <TableCell className="font-bold">จำนวนรถที่ออก</TableCell>
@@ -243,8 +263,9 @@ export default function IncomeReportPage() {
             {getPageData().length > 0 ? (
               getPageData().map((row, index) => (
                 <TableRow key={index}>
-                  <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                  <TableCell>{row.parkingLot}</TableCell>
+                  <TableCell>
+                    {(currentPage - 1) * itemsPerPage + index + 1}
+                  </TableCell>
                   <TableCell>{row.entryDate}</TableCell>
                   <TableCell>{row.servicesCount}</TableCell>
                   <TableCell>{row.exitCount}</TableCell>
