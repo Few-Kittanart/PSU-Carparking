@@ -1,0 +1,162 @@
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  TextField,
+  Typography,
+  IconButton,
+} from "@mui/material";
+import { DataGrid } from "@mui/x-data-grid";
+import { Add, Edit, Delete } from "@mui/icons-material";
+import axios from "axios";
+
+const API_URL = "http://localhost:5000/api/departments"; // แก้ตาม backend
+
+export default function ManageDepartments() {
+  const [departments, setDepartments] = useState([]);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [editingDept, setEditingDept] = useState(null);
+  const [form, setForm] = useState({
+    department_name: "",
+  });
+
+  // โหลดข้อมูลจาก backend
+  const fetchDepartments = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get(API_URL, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setDepartments(res.data);
+    } catch (error) {
+      console.error("Fetch departments error:", error.response?.data || error);
+    }
+  };
+
+  useEffect(() => {
+    fetchDepartments();
+  }, []);
+
+  // เปิด dialog (เพิ่ม/แก้ไข)
+  const handleOpenDialog = (dept = null) => {
+    setEditingDept(dept);
+    if (dept) {
+      setForm({
+        department_name: dept.department_name,
+      });
+    } else {
+      setForm({ department_name: "" });
+    }
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setEditingDept(null);
+  };
+
+  // บันทึกข้อมูล
+  const handleSubmit = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (editingDept) {
+        await axios.put(`${API_URL}/${editingDept._id}`, form, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else {
+        await axios.post(API_URL, form, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+      handleCloseDialog();
+      fetchDepartments();
+    } catch (error) {
+      console.error("Submit error:", error.response?.data || error);
+      alert(error.response?.data?.message || "เกิดข้อผิดพลาด");
+    }
+  };
+
+  // ลบข้อมูล
+  const handleDelete = async (id) => {
+    if (!window.confirm("ยืนยันการลบแผนกนี้?")) return;
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`${API_URL}/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      fetchDepartments();
+    } catch (error) {
+      console.error("Delete error:", error.response?.data || error);
+    }
+  };
+
+  // columns ของ DataGrid
+  const columns = [
+    { field: "department_name", headerName: "ชื่อแผนก", flex: 1 },
+    {
+      field: "actions",
+      headerName: "จัดการ",
+      flex: 1,
+      renderCell: (params) => (
+        <>
+          <IconButton color="primary" onClick={() => handleOpenDialog(params.row)}>
+            <Edit />
+          </IconButton>
+          <IconButton color="error" onClick={() => handleDelete(params.row._id)}>
+            <Delete />
+          </IconButton>
+        </>
+      ),
+    },
+  ];
+
+  return (
+    <Box p={3}>
+      <Typography variant="h4" gutterBottom>
+        ตั้งค่าแผนก
+      </Typography>
+
+      <Button
+        variant="contained"
+        startIcon={<Add />}
+        onClick={() => handleOpenDialog()}
+        sx={{ mb: 2 }}
+      >
+        เพิ่มแผนก
+      </Button>
+
+      <Box style={{ height: 500, width: "100%" }}>
+        <DataGrid
+          rows={departments}
+          columns={columns}
+          getRowId={(row) => row._id}
+          pageSize={7}
+        />
+      </Box>
+
+      {/* Dialog เพิ่ม/แก้ไข */}
+      <Dialog open={openDialog} onClose={handleCloseDialog} fullWidth maxWidth="sm">
+        <DialogTitle>{editingDept ? "แก้ไขแผนก" : "เพิ่มแผนก"}</DialogTitle>
+        <DialogContent>
+          <TextField
+            margin="dense"
+            label="ชื่อแผนก"
+            fullWidth
+            value={form.department_name}
+            onChange={(e) => setForm({ ...form, department_name: e.target.value })}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>ยกเลิก</Button>
+          <Button variant="contained" onClick={handleSubmit}>
+            บันทึก
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}
