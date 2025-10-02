@@ -1,8 +1,12 @@
+// department.model.js
 const mongoose = require('mongoose');
 
 const departmentSchema = new mongoose.Schema({
   department_name: { type: String, required: true },
-  permissions: [{ type: String }] // ✅ เพิ่มฟิลด์เก็บสิทธิ์การเข้าถึง
+  permissions: {  // <--- เพิ่มส่วนนี้
+    type: [String],             
+    default: []
+  }
 });
 
 module.exports = mongoose.model('Department', departmentSchema);

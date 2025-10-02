@@ -8,10 +8,6 @@ const userSchema = new mongoose.Schema({
   phone_number_user: { type: String, required: true },
   role: { type: String, enum: ['superadmin', 'admin', 'user'], default: 'user' },
   department: { type: String },
-  permissions: {  
-    type: [String],             
-    default: []
-  }
 });
 
 

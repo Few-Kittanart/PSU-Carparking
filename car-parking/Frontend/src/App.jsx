@@ -86,7 +86,7 @@ function App() {
                   <Route path="/settings" element={<SettingPage />} />
                   <Route path="/system/prices" element={<PriceSettingsPage />} />
                   <Route path="/car/details/:id" element={<DetailCar />} />
-                  <Route path="/car/settings" element={<CarSettingPage />} />
+                  <Route path="/system/employees" element={<ManageEmployees />} />
                   <Route path="/system/cars" element={<CarSettingPage />} />
                   <Route path="/system/employees" element={<ManageEmployees />} />
                   <Route path="/system/departments" element={<ManageDepartments />} />
