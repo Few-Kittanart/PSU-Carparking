@@ -1,201 +1,353 @@
-const Transaction = require('../models/transaction.model');
-const ServiceHistory = require('../models/serviceHistory.model');
-const Car = require('../models/car.model');
-const { format } = require('date-fns');
+const Transaction = require("../models/transaction.model");
+const ServiceHistory = require("../models/serviceHistory.model");
+const Car = require("../models/car.model");
+const Customer = require("../models/customer.model");
+const { format } = require("date-fns");
 
-// ฟังก์ชันช่วยในการจัดรูปแบบระยะเวลาสำหรับ KPI
 const formatDuration = (milliseconds) => {
-    if (!milliseconds || isNaN(milliseconds)) return '0 ชั่วโมง 0 นาที';
-    const totalSeconds = Math.floor(milliseconds / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    return `${hours} ชั่วโมง ${minutes} นาที`;
+  if (!milliseconds || isNaN(milliseconds)) return "0 ชั่วโมง 0 นาที";
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  return `${hours} ชั่วโมง ${minutes} นาที`;
 };
 
-// ฟังก์ชันเตรียมวันที่เริ่มต้นและสิ้นสุดจากการ Query Parameter
 const prepareDateRange = (req) => {
-    const { startDate, endDate } = req.query;
-    // ใช้ Date.parse เพื่อให้รองรับรูปแบบ 'yyyy-MM-dd' ได้ดีขึ้น
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0); // Start of day
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999); // End of day
-    return { start, end };
+  const { startDate, endDate } = req.query;
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(endDate);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
 };
 
-// --- 1. ดึงข้อมูลสรุปผู้บริหาร (Executive Summary / KPIs) ---
-// Route: /api/dashboard/summary
+// --- Executive Summary ---
 exports.getExecutiveSummary = async (req, res) => {
-    try {
-        const { start, end } = prepareDateRange(req);
+  try {
+    const { start, end } = prepareDateRange(req);
 
-        // ดึง Transaction ที่เสร็จสมบูรณ์ในช่วงเวลาที่กำหนด (อิงจาก created_at ใน Transaction)
-        const transactions = await Transaction.aggregate([
-            // Match based on Transaction creation date
-            { $match: { created_at: { $gte: start, $lte: end } } },
-            // Populate serviceHistory และ car เพื่อดึงข้อมูลที่ใช้คำนวณ
-            { $lookup: { from: 'servicehistories', localField: 'serviceHistory', foreignField: '_id', as: 'serviceDetails' } },
-            { $unwind: { path: '$serviceDetails', preserveNullAndEmptyArrays: true } }, 
-            { $lookup: { from: 'cars', localField: 'car', foreignField: '_id', as: 'carDetails' } },
-            { $unwind: { path: '$carDetails', preserveNullAndEmptyArrays: true } },
-        ]);
+    const transactions = await Transaction.find({
+      created_at: { $gte: start, $lte: end },
+    })
+      .populate("serviceHistory")
+      .populate("car");
 
-        let totalRevenue = 0;
-        let uniqueCars = new Set();
-        let totalParkingDurationMs = 0;
-        let completedSessionsCount = 0;
+    let totalRevenue = 0;
+    const uniqueCars = new Set();
+    let totalDuration = 0;
+    let sessionCount = 0;
 
-        transactions.forEach(t => {
-            // 1. Total Revenue
-            totalRevenue += t.total_price || 0;
+    transactions.forEach((t) => {
+      totalRevenue += t.total_price || 0;
 
-            // 2. Unique Cars (ใช้ทะเบียนรถเป็นตัวระบุหลัก)
-            if (t.carDetails && t.carDetails.car_registration) {
-                uniqueCars.add(t.carDetails.car_registration);
-            } else if (t.car) {
-                 // Fallback to car ID if registration is missing
-                 uniqueCars.add(t.car.toString()); 
-            }
+      if (t.car && t.car.car_registration)
+        uniqueCars.add(t.car.car_registration);
 
-            // 3. Average Parking Duration (ต้องมีทั้ง entry_time และ exit_time)
-            if (t.serviceDetails && t.serviceDetails.entry_time && t.serviceDetails.exit_time) {
-                const entry = new Date(t.serviceDetails.entry_time);
-                const exit = new Date(t.serviceDetails.exit_time);
-                // ตรวจสอบความถูกต้องของ Date และ exit > entry
-                if (exit instanceof Date && !isNaN(exit) && entry instanceof Date && !isNaN(entry) && exit.getTime() > entry.getTime()) {
-                    totalParkingDurationMs += exit.getTime() - entry.getTime();
-                    completedSessionsCount++;
-                }
-            }
-        });
-
-        const averageParkingTimeMs = completedSessionsCount > 0 ? totalParkingDurationMs / completedSessionsCount : 0;
-
-        // **✅ การปรับปรุง: Active Sessions นับจาก is_paid: false ตามคำแนะนำของผู้ใช้**
-        // หมายถึงบริการที่ยังไม่ชำระเงิน (รถยังอยู่ในร้าน/บริการยังไม่เสร็จสมบูรณ์)
-        const activeSessionsCount = await ServiceHistory.countDocuments({
-            is_paid: false              
-        });
-
-        // Output data is clean, formatted, and ready for display in KPI cards
-        res.json({
-            totalCars: uniqueCars.size,
-            totalRevenue: totalRevenue,
-            activeSessions: activeSessionsCount, // ตอนนี้อิงตาม is_paid: false แล้ว
-            averageParkingTime: formatDuration(averageParkingTimeMs), // เป็น String ที่แสดง "ชั่วโมง นาที"
-        });
-
-    } catch (err) {
-        console.error("Executive Summary API Error:", err);
-        res.status(500).json({ message: "Internal Server Error loading summary data.", error: err.message });
-    }
-};
-
-// --- 2. ดึงข้อมูลรายได้ตามช่วงเวลา (Revenue by Date / Line Chart) ---
-// Route: /api/dashboard/revenue-by-slot
-exports.getRevenueBySlot = async (req, res) => {
-    try {
-        const { start, end } = prepareDateRange(req);
-
-        // ดึง Transaction โดยใช้ created_at เป็นเกณฑ์
-        const transactions = await Transaction.find({ created_at: { $gte: start, $lte: end } });
-        
-        const revenueBySlotMap = {};
-        transactions.forEach(t => {
-            // Grouping by date (yyyy-MM-dd)
-            const dateKey = format(new Date(t.created_at), 'yyyy-MM-dd'); 
-            revenueBySlotMap[dateKey] = (revenueBySlotMap[dateKey] || 0) + t.total_price;
-        });
-
-        // Convert Map to Array and sort by date for Line Chart rendering
-        const revenueBySlot = Object.keys(revenueBySlotMap).map(date => ({
-            date: date, // X-axis label
-            totalRevenue: revenueBySlotMap[date] // Y-axis value
-        })).sort((a, b) => new Date(a.date) - new Date(b.date));
-
-        res.json(revenueBySlot);
-
-    } catch (err) {
-        console.error("Revenue By Slot API Error:", err);
-        res.status(500).json({ message: "Internal Server Error loading revenue data.", error: err.message });
-    }
-};
-
-// --- 3. ดึงข้อมูลจำนวนการใช้บริการตามชั่วโมง (Sessions by Hour / Bar Chart) ---
-// Route: /api/dashboard/sessions-by-hour
-exports.getSessionsByHour = async (req, res) => {
-    try {
-        const { start, end } = prepareDateRange(req);
-
-        // Aggregation to group sessions by the hour of entry_time
-        const sessions = await ServiceHistory.aggregate([
-            { $match: { 
-                entry_time: { $ne: null },
-                // Convert entry_time string to Date for date range comparison
-                $expr: {
-                    $and: [
-                        { $gte: [ { $toDate: "$entry_time" }, start ] },
-                        { $lte: [ { $toDate: "$entry_time" }, end ] }
-                    ]
-                }
-            }},
-            { $group: {
-                // Extract hour (0-23) from the converted entry_time
-                _id: { $hour: { date: { $toDate: "$entry_time" } } }, 
-                count: { $sum: 1 }
-            }},
-            { $sort: { _id: 1 } }
-        ]);
-
-        // IMPORTANT: Ensure all 24 hours (0-23) are present, filling with 0 if no sessions occurred
-        const sessionsByHourMap = {};
-        for (let i = 0; i < 24; i++) {
-            sessionsByHourMap[i] = 0; 
+      if (
+        t.serviceHistory &&
+        t.serviceHistory.entry_time &&
+        t.serviceHistory.exit_time
+      ) {
+        const entry = new Date(t.serviceHistory.entry_time);
+        const exit = new Date(t.serviceHistory.exit_time);
+        if (!isNaN(entry) && !isNaN(exit) && exit > entry) {
+          totalDuration += exit - entry;
+          sessionCount++;
         }
+      }
+    });
 
-        sessions.forEach(s => {
-            sessionsByHourMap[s._id] = s.count;
-        });
+    const activeSessions = await ServiceHistory.countDocuments({
+      is_paid: false,
+    });
 
-        const sessionsByHour = Object.keys(sessionsByHourMap).map(hour => ({
-            hour: parseInt(hour, 10), // X-axis: Hour of the day
-            count: sessionsByHourMap[hour] // Y-axis: Number of sessions
-        })).sort((a, b) => a.hour - b.hour);
-
-        res.json(sessionsByHour);
-
-    } catch (err) {
-        console.error("Sessions By Hour API Error:", err);
-        res.status(500).json({ message: "Internal Server Error loading sessions data.", error: err.message });
-    }
+    res.json({
+      totalCars: uniqueCars.size,
+      totalRevenue,
+      activeSessions,
+      averageParkingTime: formatDuration(
+        sessionCount > 0 ? totalDuration / sessionCount : 0
+      ),
+    });
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ message: "Error loading summary", error: err.message });
+  }
 };
 
-// --- 4. ดึงข้อมูลส่วนแบ่งลูกค้า (Customer Segments / Pie Chart) ---
-// Route: /api/dashboard/customer-segments
+// --- Revenue by Slot ---
+exports.getRevenueBySlot = async (req, res) => {
+  try {
+    const { start, end } = prepareDateRange(req);
+    const transactions = await Transaction.find({
+      created_at: { $gte: start, $lte: end },
+    });
+    const map = {};
+    transactions.forEach((t) => {
+      const key = format(new Date(t.created_at), "yyyy-MM-dd");
+      map[key] = (map[key] || 0) + (t.total_price || 0);
+    });
+    const result = Object.keys(map)
+      .map((date) => ({ date, totalRevenue: map[date] }))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ message: "Error loading revenue by slot", error: err.message });
+  }
+};
+
+// --- Customer Segments ---
 exports.getCustomerSegments = async (req, res) => {
-    try {
-        const { start, end } = prepareDateRange(req);
+  try {
+    const { start, end } = prepareDateRange(req);
+    const segments = await Transaction.aggregate([
+      { $match: { created_at: { $gte: start, $lte: end } } },
+      {
+        $lookup: {
+          from: "cars",
+          localField: "car",
+          foreignField: "_id",
+          as: "carDetails",
+        },
+      },
+      { $unwind: { path: "$carDetails", preserveNullAndEmptyArrays: false } },
+      { $group: { _id: "$carDetails.type_car", count: { $sum: 1 } } },
+    ]);
+    res.json(segments.filter((s) => s._id));
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ message: "Error loading segments", error: err.message });
+  }
+};
 
-        // Aggregation to group completed transactions by Car Type
-        const segments = await Transaction.aggregate([
-            { $match: { created_at: { $gte: start, $lte: end } } },
-            // Populate Car เพื่อเข้าถึง type_car
-            { $lookup: { from: 'cars', localField: 'car', foreignField: '_id', as: 'carDetails' } },
-            { $unwind: { path: '$carDetails', preserveNullAndEmptyArrays: false } }, 
-            { $group: { 
-                _id: '$carDetails.type_car', // Grouping key for Pie Chart label
-                count: { $sum: 1 } // Value for Pie Chart size
-            } }
-        ]);
-        
-        // Output format: [{ _id: 'Sedan', count: 10 }, ...]
-        // กรองค่าที่เป็น null/undefined ใน _id (เช่น ถ้าไม่มี type_car)
-        const filteredSegments = segments.filter(s => s._id);
+// --- Revenue Breakdown ---
+exports.getRevenueBreakdown = async (req, res) => {
+  try {
+    const { start, end } = prepareDateRange(req);
+    const services = await ServiceHistory.find({
+      createdAt: { $gte: start, $lte: end },
+    });
+    let parking = 0,
+      additional = 0;
+    services.forEach((s) => {
+      parking += s.parking_price || 0;
+      additional += s.additional_price || 0;
+    });
+    res.json([
+      { name: "Parking", value: parking },
+      { name: "Additional Services", value: additional },
+    ]);
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ message: "Error loading revenue breakdown", error: err.message });
+  }
+};
 
-        res.json(filteredSegments);
+// --- Active Sessions by Day ---
+exports.getActiveSessionsByDay = async (req, res) => {
+  try {
+    const { start, end } = prepareDateRange(req);
+    const transactions = await Transaction.find({
+      created_at: { $gte: start, $lte: end },
+    }).populate("serviceHistory");
+    const map = {};
+    transactions.forEach((t) => {
+      if (t.serviceHistory && t.serviceHistory.is_paid === false) {
+        const dateKey = format(new Date(t.created_at), "yyyy-MM-dd");
+        map[dateKey] = (map[dateKey] || 0) + 1;
+      }
+    });
+    const result = Object.keys(map)
+      .map((date) => ({ date, activeCount: map[date] }))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ message: "Error loading active sessions", error: err.message });
+  }
+};
 
-    } catch (err) {
-        console.error("Customer Segments API Error:", err);
-        res.status(500).json({ message: "Internal Server Error loading segment data.", error: err.message });
+// --- Monthly Trend ---
+exports.getMonthlyTrend = async (req, res) => {
+  try {
+    const { start, end } = prepareDateRange(req);
+    const transactions = await Transaction.find({
+      created_at: { $gte: start, $lte: end },
+    });
+    const customers = await Customer.find({
+      createdAt: { $gte: start, $lte: end },
+    });
+    const cars = await Car.find({ createdAt: { $gte: start, $lte: end } });
+    const map = {};
+    const getMonth = (date) => format(new Date(date), "yyyy-MM");
+    transactions.forEach((t) => {
+      const key = getMonth(t.created_at);
+      if (!map[key]) map[key] = { revenue: 0, customers: 0, cars: 0 };
+      map[key].revenue += t.total_price || 0;
+    });
+    customers.forEach((c) => {
+      const key = getMonth(c.createdAt || new Date());
+      if (!map[key]) map[key] = { revenue: 0, customers: 0, cars: 0 };
+      map[key].customers += 1;
+    });
+    cars.forEach((c) => {
+      const key = getMonth(c.createdAt || new Date());
+      if (!map[key]) map[key] = { revenue: 0, customers: 0, cars: 0 };
+      map[key].cars += 1;
+    });
+    const result = Object.keys(map)
+      .map((k) => ({ month: k, ...map[k] }))
+      .sort((a, b) => new Date(a.month) - new Date(b.month));
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ message: "Error loading monthly trend", error: err.message });
+  }
+};
+
+// --- Top Customers ---
+exports.getTopCustomers = async (req,res) => {
+  try{
+    const { startDate, endDate, limit=5 } = req.query;
+    const start = new Date(startDate); start.setHours(0,0,0,0);
+    const end = new Date(endDate); end.setHours(23,59,59,999);
+
+    const top = await Transaction.aggregate([
+      { $match: { createdAt: { $gte: start, $lte: end } } }, // ใช้ createdAt
+      { $group: {
+          _id: "$customer",
+          totalSpent: { $sum: "$total_price" },
+          visits: { $sum: 1 }
+        }
+      },
+      { $sort: { totalSpent: -1 } },
+      { $limit: parseInt(limit) },
+      { $lookup: {
+          from: "customers",
+          localField: "_id",
+          foreignField: "_id",
+          as: "customerDetails"
+        }
+      },
+      { $unwind: "$customerDetails" },
+      { $project: {
+          _id: 0,
+          name: "$customerDetails.customer_name",
+          totalSpent: 1,
+          visits: 1
+        }
+      }
+    ]);
+
+    res.json(top);
+  }catch(err){
+    console.error(err);
+    res.status(500).json({ message: "Error loading top customers", error: err.message });
+  }
+};
+
+
+// --- Top Services ---
+exports.getServicesByCount = async (req, res) => {
+  try {
+    const { start, end } = prepareDateRange(req);
+    const serviceIds = await Transaction.find({
+      created_at: { $gte: start, $lte: end },
+    }).distinct("serviceHistory");
+    const counts = await ServiceHistory.aggregate([
+      {
+        $match: {
+          _id: { $in: serviceIds },
+          services: { $exists: true, $ne: [] },
+        },
+      },
+      { $unwind: "$services" },
+      { $group: { _id: "$services", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+    ]);
+    res.json(counts);
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ message: "Error loading top services", error: err.message });
+  }
+};
+
+// --- Average Service Duration ---
+exports.getAvgServiceDuration = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    const services = await ServiceHistory.find({
+      createdAt: { $gte: start, $lte: end }, // ใช้ createdAt
+    });
+
+    const durationMap = {},
+      countMap = {};
+
+    services.forEach((s) => {
+      if (s.entry_time && s.exit_time && s.services.length > 0) {
+        const ms = new Date(s.exit_time) - new Date(s.entry_time);
+        s.services.forEach((id) => {
+          durationMap[id] = (durationMap[id] || 0) + ms;
+          countMap[id] = (countMap[id] || 0) + 1;
+        });
+      }
+    });
+
+    const result = Object.keys(durationMap).map((id) => ({
+      serviceId: id,
+      avgDuration: msToHoursMinutes(durationMap[id] / countMap[id]),
+    }));
+
+    function msToHoursMinutes(ms) {
+      const totalSeconds = Math.floor(ms / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      return `${hours} ชั่วโมง ${minutes} นาที`;
     }
+
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ message: "Error loading avg duration", error: err.message });
+  }
+};
+
+// --- Alerts ---
+exports.getAlerts = async (req, res) => {
+  try {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    const overdue = await ServiceHistory.countDocuments({
+      is_paid: false,
+      createdAt: { $lt: oneMonthAgo },
+    });
+    res.json({ overdue });
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ message: "Error loading alerts", error: err.message });
+  }
 };

@@ -6,7 +6,6 @@ import provincesData from "../mockupdataadress/provinces.json";
 import districtsData from "../mockupdataadress/districts.json";
 import subDistrictsData from "../mockupdataadress/sub_districts.json";
 
-const carColors = ["ดำ", "ขาว", "เงิน", "แดง", "น้ำเงิน"];
 const parkingSections = ["A", "B", "C", "D"];
 const parkingNumbers = Array.from({ length: 100 }, (_, i) => i + 1);
 
@@ -33,6 +32,7 @@ export default function ServicePage() {
     model: null,
     type: null,
     color: null,
+    _id: null,
   });
   const [showParkingForm, setShowParkingForm] = useState(false);
   const [showAdditionalForm, setShowAdditionalForm] = useState(false);
@@ -52,10 +52,28 @@ export default function ServicePage() {
   const [parkingEntryTime, setParkingEntryTime] = useState(null);
   const [serviceHistories, setServiceHistories] = useState([]);
 
+  const [carSettings, setCarSettings] = useState({
+    brands: [],
+    models: [],
+    types: [],
+    colors: [],
+  });
+  // 🆕 State สำหรับรุ่นรถที่ถูกกรองตามยี่ห้อ
+  const [filteredModels, setFilteredModels] = useState([]);
   // ------------------ Fetch Data ------------------
   const fetchCustomersAndServices = async () => {
     try {
       const token = localStorage.getItem("token");
+
+      // 🆕 ดึงข้อมูล Master Data ของรถยนต์
+      const carSettingsRes = await fetch(
+        "http://localhost:5000/api/car-settings",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const carSettingsData = await carSettingsRes.json();
+      setCarSettings(carSettingsData);
 
       // ราคาบริการ
       const pricesRes = await fetch("http://localhost:5000/api/prices", {
@@ -111,6 +129,19 @@ export default function ServicePage() {
     setProvinceList(provincesWithAmphoe);
     fetchCustomersAndServices();
   }, []);
+
+  useEffect(() => {
+    // ถ้ามีการเลือกยี่ห้อรถแล้ว
+    if (vehicle.brand && carSettings.models.length > 0) {
+      const brandId = vehicle.brand._id;
+      // กรองรุ่นรถตาม brandId ที่เลือก
+      setFilteredModels(
+        carSettings.models.filter((m) => m.brandId === brandId)
+      );
+    } else {
+      setFilteredModels([]);
+    }
+  }, [vehicle.brand, carSettings.models]);
 
   useEffect(() => {
     if (address.province) setAmphoeList(address.province.amphure);
@@ -190,6 +221,10 @@ export default function ServicePage() {
   }, [showParkingForm, parkingEntryTime, parkingRates, exitTime]);
 
   // ------------------ Customer Selection ------------------
+  const findSettingObject = (array, name) => {
+    // ใช้เพื่อค้นหา Object จากชื่อที่เก็บเป็น String ใน Customer History
+    return array.find((item) => item.name === name) || null;
+  };
   const handleSelectCustomer = (cust) => {
     if (!cust) return;
 
@@ -236,16 +271,16 @@ export default function ServicePage() {
 
     // ใช้ cars ที่ populate จาก backend เลย
     if (cust.cars && cust.cars.length > 0) {
-      // เอารถล่าสุด
       const lastCar = cust.cars[cust.cars.length - 1];
       setVehicle({
         plate: lastCar.car_registration || "",
         province: lastCar.car_registration_province || "",
-        brand: lastCar.brand_car || null,
-        model: lastCar.model_car || null,
-        type: lastCar.type_car || null,
-        color: lastCar.color || null,
-        _id: lastCar._id, // เก็บ _id เผื่อจะต้อง update service_history
+        // ค้นหา Object ที่ตรงกับชื่อที่เก็บใน DB (lastCar.brand_car คือ String)
+        brand: findSettingObject(carSettings.brands, lastCar.brand_car),
+        model: findSettingObject(carSettings.models, lastCar.model_car),
+        type: findSettingObject(carSettings.types, lastCar.type_car),
+        color: findSettingObject(carSettings.colors, lastCar.color),
+        _id: lastCar._id,
       });
     } else {
       setVehicle({
@@ -404,10 +439,11 @@ export default function ServicePage() {
           const carPayload = {
             car_registration: vehicle.plate,
             car_registration_province: vehicle.province,
-            brand_car: vehicle.brand,
-            model_car: vehicle.model,
-            type_car: vehicle.type,
-            color: vehicle.color,
+            // ส่งเฉพาะชื่อ (String) ไปยัง Backend ตาม Car Model
+            brand_car: vehicle.brand ? vehicle.brand.name : null,
+            model_car: vehicle.model ? vehicle.model.name : null,
+            type_car: vehicle.type ? vehicle.type.name : null,
+            color: vehicle.color ? vehicle.color.name : null,
             service_history: [newServiceHistory._id],
           };
           const carRes = await fetch("http://localhost:5000/api/cars", {
@@ -709,6 +745,7 @@ export default function ServicePage() {
                 <h3 className="text-xl font-bold text-[#ea7f33]">
                   ข้อมูลรถคันนี้
                 </h3>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <TextField
                     fullWidth
@@ -734,51 +771,92 @@ export default function ServicePage() {
                       setVehicle((old) => ({
                         ...old,
                         province: e.target.value,
-                        _id: null, // reset id เพราะนี่คือรถใหม่
+                        _id: null,
                       }))
                     }
                     placeholder="เช่น กรุงเทพมหานคร"
                   />
                 </div>
+
+                {/* ใช้ Autocomplete สำหรับข้อมูล Master Data */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <TextField
-                    fullWidth
-                    label="ยี่ห้อ"
-                    variant="outlined"
-                    value={vehicle.brand || ""}
-                    onChange={(e) =>
-                      setVehicle((old) => ({ ...old, brand: e.target.value }))
+                  <Autocomplete
+                    options={carSettings.brands}
+                    getOptionLabel={(option) => option.name || ""}
+                    value={vehicle.brand}
+                    onChange={(e, newValue) =>
+                      setVehicle((old) => ({
+                        ...old,
+                        brand: newValue,
+                        model: null, // reset รุ่นเมื่อเปลี่ยนยี่ห้อ
+                        _id: null,
+                      }))
                     }
-                    placeholder="เช่น Toyota"
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="ยี่ห้อ"
+                        variant="outlined"
+                        placeholder="เลือกยี่ห้อรถ"
+                      />
+                    )}
                   />
-                  <TextField
-                    fullWidth
-                    label="รุ่น"
-                    variant="outlined"
-                    value={vehicle.model || ""}
-                    onChange={(e) =>
-                      setVehicle((old) => ({ ...old, model: e.target.value }))
+
+                  <Autocomplete
+                    options={filteredModels}
+                    getOptionLabel={(option) => option.name || ""}
+                    value={vehicle.model}
+                    onChange={(e, newValue) =>
+                      setVehicle((old) => ({
+                        ...old,
+                        model: newValue,
+                        _id: null,
+                      }))
                     }
-                    placeholder="เช่น Vios"
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="รุ่น"
+                        variant="outlined"
+                        placeholder="เลือกรุ่นรถ"
+                      />
+                    )}
+                    disabled={!vehicle.brand} // ปิดจนกว่าจะเลือกยี่ห้อ
                   />
-                  <TextField
-                    fullWidth
-                    label="ประเภท"
-                    variant="outlined"
-                    value={vehicle.type || ""}
-                    onChange={(e) =>
-                      setVehicle((old) => ({ ...old, type: e.target.value }))
+
+                  <Autocomplete
+                    options={carSettings.types}
+                    getOptionLabel={(option) => option.name || ""}
+                    value={vehicle.type}
+                    onChange={(e, newValue) =>
+                      setVehicle((old) => ({
+                        ...old,
+                        type: newValue,
+                        _id: null,
+                      }))
                     }
-                    placeholder="เช่น Sedan"
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="ประเภท"
+                        variant="outlined"
+                        placeholder="เลือกประเภทรถ"
+                      />
+                    )}
                   />
                 </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
                   <Autocomplete
-                    disablePortal
-                    options={carColors}
+                    options={carSettings.colors}
+                    getOptionLabel={(option) => option.name || ""}
                     value={vehicle.color}
-                    onChange={(e, newV) =>
-                      setVehicle((old) => ({ ...old, color: newV }))
+                    onChange={(e, newValue) =>
+                      setVehicle((old) => ({
+                        ...old,
+                        color: newValue,
+                        _id: null,
+                      }))
                     }
                     renderInput={(params) => (
                       <TextField

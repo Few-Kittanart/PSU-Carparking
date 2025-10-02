@@ -41,7 +41,7 @@ export default function PaymentPage() {
     const fetchServiceList = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch("http://localhost:5000/api/price", {
+        const res = await fetch("http://localhost:5000/api/prices", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error("ไม่สามารถดึงข้อมูลบริการได้");

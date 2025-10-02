@@ -5,6 +5,7 @@ const connectDB = require('./config/db');
 const settingRoutes = require('./routes/setting.routes');
 const priceRoutes = require('./routes/price.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
+const carSettingRoute = require('./routes/carSetting.route');
 
 const app = express();
 connectDB();
@@ -21,10 +22,11 @@ app.use('/api/settings', settingRoutes);
 app.use('/api/prices', priceRoutes);
 app.use('/api/price', priceRoutes);
 app.use('/api/cars', require('./routes/car.routes'));
+app.use('/api/car-settings', carSettingRoute); 
 app.use('/api/serviceHistories', require('./routes/serviceHistory.routes'));
 app.use("/api/departments", require("./routes/department.routes"));
 app.use('/api/transactions', require('./routes/transaction.routes'));
-app.use('/api/dashboard', dashboardRoutes); 
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/', require('./routes/transaction.routes'));
 app.use('/api/settingsParking', require('./routes/settingParking.routes'));
 

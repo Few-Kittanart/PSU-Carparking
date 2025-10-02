@@ -1,6 +1,6 @@
+// models/customer.model.js
 const mongoose = require("mongoose");
 
-// กำหนด schema หลักสำหรับลูกค้า
 const customerSchema = new mongoose.Schema({
   customer_name: { type: String, required: true },
   phone_number: { type: String, required: true },
@@ -13,7 +13,6 @@ const customerSchema = new mongoose.Schema({
   zip_code: { type: String },
   country: { type: String },
   cars: [{ type: mongoose.Schema.Types.ObjectId, ref: "Car" }],
-});
+}, { timestamps: true }); // <-- เพิ่ม timestamps
 
-const Customer = mongoose.model("Customer", customerSchema);
-module.exports = Customer;
+module.exports = mongoose.model("Customer", customerSchema);
