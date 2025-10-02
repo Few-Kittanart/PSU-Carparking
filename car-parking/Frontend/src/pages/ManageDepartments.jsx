@@ -9,12 +9,32 @@ import {
   TextField,
   Typography,
   IconButton,
+  FormGroup,
+  FormControlLabel,
+  Checkbox,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { Add, Edit, Delete } from "@mui/icons-material";
 import axios from "axios";
 
-const API_URL = "http://localhost:5000/api/departments"; // แก้ตาม backend
+const API_URL = "http://localhost:5000/api/departments";
+
+// สิทธิ์การเข้าถึงทั้งหมด
+const ALL_PERMISSIONS = [
+  "การใช้บริการ",
+  "จัดการบริการ",
+  "ลูกค้า",
+  "รถลูกค้า",
+  "แดชบอร์ด",
+  "รายงานการบริการ",
+  "รายงานรายได้",
+  "ตั้งค่าระบบ",
+  "ตั้งค่าราคา",
+  "ตั้งค่ารถ",
+  "ตั้งค่าที่จอด",
+  "ตั้งค่าพนักงาน",
+  "ตั้งค่าแผนก",
+];
 
 export default function ManageDepartments() {
   const [departments, setDepartments] = useState([]);
@@ -22,6 +42,7 @@ export default function ManageDepartments() {
   const [editingDept, setEditingDept] = useState(null);
   const [form, setForm] = useState({
     department_name: "",
+    permissions: [], // ✅ เพิ่มฟิลด์ permissions
   });
 
   // โหลดข้อมูลจาก backend
@@ -47,9 +68,10 @@ export default function ManageDepartments() {
     if (dept) {
       setForm({
         department_name: dept.department_name,
+        permissions: dept.permissions || [],
       });
     } else {
-      setForm({ department_name: "" });
+      setForm({ department_name: "", permissions: [] });
     }
     setOpenDialog(true);
   };
@@ -57,6 +79,16 @@ export default function ManageDepartments() {
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setEditingDept(null);
+  };
+
+  // ✅ toggle permissions
+  const togglePermission = (perm) => {
+    setForm((prev) => {
+      const newPermissions = prev.permissions.includes(perm)
+        ? prev.permissions.filter((p) => p !== perm)
+        : [...prev.permissions, perm];
+      return { ...prev, permissions: newPermissions };
+    });
   };
 
   // บันทึกข้อมูล
@@ -97,6 +129,12 @@ export default function ManageDepartments() {
   // columns ของ DataGrid
   const columns = [
     { field: "department_name", headerName: "ชื่อแผนก", flex: 1 },
+    {
+      field: "permissions",
+      headerName: "สิทธิ์การเข้าถึง",
+      flex: 2,
+      renderCell: (params) => params.row.permissions?.join(", ") || "-",
+    },
     {
       field: "actions",
       headerName: "จัดการ",
@@ -149,6 +187,25 @@ export default function ManageDepartments() {
             value={form.department_name}
             onChange={(e) => setForm({ ...form, department_name: e.target.value })}
           />
+
+          {/* ✅ ส่วนสิทธิ์การเข้าถึง */}
+          <Typography mt={2} variant="subtitle1">
+            สิทธิ์การเข้าถึง
+          </Typography>
+          <FormGroup>
+            {ALL_PERMISSIONS.map((perm) => (
+              <FormControlLabel
+                key={perm}
+                control={
+                  <Checkbox
+                    checked={form.permissions.includes(perm)}
+                    onChange={() => togglePermission(perm)}
+                  />
+                }
+                label={perm}
+              />
+            ))}
+          </FormGroup>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>ยกเลิก</Button>

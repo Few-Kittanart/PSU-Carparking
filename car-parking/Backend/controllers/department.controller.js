@@ -3,7 +3,10 @@ const Department = require('../models/department.model');
 // Create
 exports.createDepartment = async (req, res) => {
   try {
-    const department = new Department(req.body);
+    const department = new Department({
+      department_name: req.body.department_name,
+      permissions: req.body.permissions || []  // ✅ รองรับ
+    });
     await department.save();
     res.status(201).json(department);
   } catch (err) {
@@ -35,7 +38,14 @@ exports.getDepartmentById = async (req, res) => {
 // Update
 exports.updateDepartment = async (req, res) => {
   try {
-    const department = await Department.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const department = await Department.findByIdAndUpdate(
+      req.params.id,
+      {
+        department_name: req.body.department_name,
+        permissions: req.body.permissions || [] // ✅ รองรับ
+      },
+      { new: true }
+    );
     if (!department) return res.status(404).json({ error: 'Department not found' });
     res.json(department);
   } catch (err) {
