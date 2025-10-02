@@ -1,15 +1,10 @@
-// controllers/carSetting.controller.js
-
 const CarSetting = require('../models/carSetting.model.js');
 const mongoose = require('mongoose');
 
-// --- 1. GET ALL SETTINGS ---
 exports.getCarSettings = async (req, res) => {
     try {
-        // ดึงเอกสารหลักเพียงชิ้นเดียว
         const settings = await CarSetting.findOne(); 
         if (!settings) {
-            // หากไม่พบ ให้ส่งค่าเริ่มต้นกลับไป (ควรถูกสร้างไว้แล้วจาก model logic)
             return res.json({ brands: [], models: [], types: [], colors: [] });
         }
         res.json(settings);
@@ -17,8 +12,6 @@ exports.getCarSettings = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-
-// --- 2. BRAND CRUD ---
 
 exports.addBrand = async (req, res) => {
     const { name } = req.body;
@@ -29,7 +22,6 @@ exports.addBrand = async (req, res) => {
             { $push: { brands: { name, _id: newId } } },
             { new: true, upsert: true }
         );
-        // คืนค่าเฉพาะ Brand ใหม่
         res.status(201).json(result.brands.find(b => b._id.equals(newId))); 
     } catch (error) {
         res.status(400).json({ message: 'Error adding brand. Name might be duplicated or database error.', error: error.message });
@@ -42,8 +34,8 @@ exports.deleteBrand = async (req, res) => {
         await CarSetting.findOneAndUpdate(
             {}, 
             { $pull: { 
-                brands: { _id: id },         // ลบยี่ห้อออกจาก brands array
-                models: { brandId: id }      // ลบรุ่นทั้งหมดที่เชื่อมโยงกับยี่ห้อนี้ออกจาก models array
+                brands: { _id: id },
+                models: { brandId: id }
             } }
         );
         res.status(200).json({ message: 'Brand and associated models deleted successfully.' });
@@ -51,9 +43,6 @@ exports.deleteBrand = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-
-
-// --- 3. MODEL CRUD ---
 
 exports.addModel = async (req, res) => {
     const { name, brandId } = req.body;
@@ -71,7 +60,7 @@ exports.addModel = async (req, res) => {
 };
 
 exports.deleteModel = async (req, res) => {
-    const { id } = req.params; // modelId
+    const { id } = req.params;
     try {
         await CarSetting.findOneAndUpdate(
             {}, 
@@ -82,8 +71,6 @@ exports.deleteModel = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-
-// --- 4. TYPE CRUD (Logic คล้าย Brand/Color) ---
 
 exports.addType = async (req, res) => {
     const { name } = req.body;
@@ -101,7 +88,7 @@ exports.addType = async (req, res) => {
 };
 
 exports.deleteType = async (req, res) => {
-    const { id } = req.params; // typeId
+    const { id } = req.params;
     try {
         await CarSetting.findOneAndUpdate(
             {}, 
@@ -112,9 +99,6 @@ exports.deleteType = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-
-
-// --- 5. COLOR CRUD (Logic คล้าย Brand/Type) ---
 
 exports.addColor = async (req, res) => {
     const { name, hex_code } = req.body;
@@ -132,7 +116,7 @@ exports.addColor = async (req, res) => {
 };
 
 exports.deleteColor = async (req, res) => {
-    const { id } = req.params; // colorId
+    const { id } = req.params;
     try {
         await CarSetting.findOneAndUpdate(
             {}, 
