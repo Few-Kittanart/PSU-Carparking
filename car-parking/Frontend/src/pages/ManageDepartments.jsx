@@ -118,7 +118,6 @@ export default function ManageDepartments() {
     }
   };
   const togglePermission = (perm) => {
-    // <--- เพิ่มฟังก์ชันนี้
     setForm((prev) => {
       const newPermissions = prev.permissions.includes(perm)
         ? prev.permissions.filter((p) => p !== perm)
