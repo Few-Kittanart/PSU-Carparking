@@ -22,10 +22,10 @@ app.use('/api/prices', priceRoutes);
 app.use('/api/price', priceRoutes);
 app.use('/api/cars', require('./routes/car.routes'));
 app.use('/api/serviceHistories', require('./routes/serviceHistory.routes'));
+app.use("/api/departments", require("./routes/department.routes"));
 app.use('/api/transactions', require('./routes/transaction.routes'));
 app.use('/api/dashboard', dashboardRoutes); 
 app.use('/api/', require('./routes/transaction.routes'));
-app.use('/api/departments', require('./routes/department.routes'));
 app.use('/api/settingsParking', require('./routes/settingParking.routes'));
 
 app.listen(process.env.PORT, () => {

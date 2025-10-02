@@ -22,20 +22,19 @@ const API_URL = "http://localhost:5000/api/users"; // แก้ตาม backend
 
 // เตรียม permissions ทั้งหมดที่สามารถเลือกได้
 const ALL_PERMISSIONS = [
-  "service",
-  "manage.services",
-  "crm.customer",
-  "crm.car",
-  "manage.payment",
-  "dashboard",
-  "report.services",
-  "report.income",
-  "system.settings",
-  "system.prices",
-  "system.cars",
-  "system.parking",
-  "system.employees",
-  "system.departments",
+  "การใช้บริการ",
+  "จัดการบริการ",
+  "ลูกค้า",
+  "รถลูกค้า",
+  "แดชบอร์ด",
+  "รายงานการบริการ",
+  "รายงานรายได้",
+  "ตั้งค่าระบบ",
+  "ตั้งค่าราคา",
+  "ตั้งค่ารถ",
+  "ตั้งค่าที่จอด",
+  "ตั้งค่าพนักงาน",
+  "ตั้งค่าแผนก",
 ];
 
 export default function ManageEmployees() {
