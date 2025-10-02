@@ -12,7 +12,6 @@ exports.createUser = async (req, res) => {
       phone_number_user,
       role,
       department,
-      permissions,
     } = req.body;
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -25,7 +24,6 @@ exports.createUser = async (req, res) => {
       phone_number_user,
       role,
       department,
-      permissions: permissions || [],
     });
 
     await newUser.save();
@@ -71,7 +69,7 @@ exports.updateUser = async (req, res) => {
       phone_number_user,
       role,
       department,
-      permissions,
+      // permissions, <--- ลบออกจาก destructure
     } = req.body;
 
     const user = await User.findById(req.params.id);
@@ -85,7 +83,7 @@ exports.updateUser = async (req, res) => {
     if (phone_number_user) user.phone_number_user = phone_number_user;
     if (role) user.role = role;
     if (department) user.department = department;
-    if (permissions) user.permissions = permissions;
+    // if (permissions) user.permissions = permissions; <--- ลบส่วนนี้
 
     await user.save();
     res.json({ message: "User updated successfully", user });
@@ -114,8 +112,8 @@ exports.updateUserPermissions = async (req, res) => {
       { permissions },
       { new: true }
     );
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json({ message: 'Permissions updated', user });
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json({ message: "Permissions updated", user });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

@@ -1,3 +1,4 @@
+// ManageEmployees.jsx
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -10,35 +11,20 @@ import {
   MenuItem,
   Typography,
   IconButton,
-  FormGroup,
-  FormControlLabel,
-  Checkbox,
+  // ไม่ต้องใช้ FormGroup, FormControlLabel, Checkbox เพราะย้าย Permissions ไปที่ ManageDepartments
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { Add, Edit, Delete } from "@mui/icons-material";
 import axios from "axios";
 
-const API_URL = "http://localhost:5000/api/users"; // แก้ตาม backend
+const API_URL = "http://localhost:5000/api/users";
+const DEPT_API_URL = "http://localhost:5000/api/departments"; // API สำหรับดึงข้อมูลแผนก
 
-// เตรียม permissions ทั้งหมดที่สามารถเลือกได้
-const ALL_PERMISSIONS = [
-  "การใช้บริการ",
-  "จัดการบริการ",
-  "ลูกค้า",
-  "รถลูกค้า",
-  "แดชบอร์ด",
-  "รายงานการบริการ",
-  "รายงานรายได้",
-  "ตั้งค่าระบบ",
-  "ตั้งค่าราคา",
-  "ตั้งค่ารถ",
-  "ตั้งค่าที่จอด",
-  "ตั้งค่าพนักงาน",
-  "ตั้งค่าแผนก",
-];
+// NOTE: ลบ ALL_PERMISSIONS และฟังก์ชัน togglePermission ออกไปจากไฟล์นี้
 
 export default function ManageEmployees() {
   const [employees, setEmployees] = useState([]);
+  const [departments, setDepartments] = useState([]); // State สำหรับเก็บรายชื่อแผนก
   const [openDialog, setOpenDialog] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [form, setForm] = useState({
@@ -48,10 +34,13 @@ export default function ManageEmployees() {
     last_name: "",
     phone_number_user: "",
     role: "user",
-    department: "",
-    permissions: [],
+    department: "", // จะใช้ชื่อแผนกเป็น String ตาม Department Model
+    // ลบ permissions ออกจาก form state
   });
 
+  // ------------------------- API Calls -------------------------
+
+  // ดึงข้อมูลพนักงานทั้งหมด
   const fetchEmployees = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -64,22 +53,39 @@ export default function ManageEmployees() {
     }
   };
 
+  // ดึงข้อมูลแผนกทั้งหมด
+  const fetchDepartments = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get(DEPT_API_URL, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setDepartments(res.data);
+    } catch (error) {
+      console.error("Fetch departments error:", error.response?.data || error);
+    }
+  };
+
   useEffect(() => {
     fetchEmployees();
+    fetchDepartments(); // เรียกดึงแผนกเมื่อ Component โหลด
   }, []);
 
+  // ------------------------- Handlers -------------------------
+
+  // เปิด dialog (เพิ่ม/แก้ไข)
   const handleOpenDialog = (user = null) => {
     setEditingUser(user);
     if (user) {
       setForm({
         username: user.username,
-        password: "",
+        password: "", // ต้องรีเซ็ต Password เมื่อแก้ไข (ผู้ใช้กรอกใหม่ถ้าต้องการเปลี่ยน)
         first_name: user.first_name,
         last_name: user.last_name,
         phone_number_user: user.phone_number_user,
         role: user.role,
         department: user.department || "",
-        permissions: user.permissions || [],
+        // ลบ permissions ออก
       });
     } else {
       setForm({
@@ -90,7 +96,7 @@ export default function ManageEmployees() {
         phone_number_user: "",
         role: "user",
         department: "",
-        permissions: [],
+        // ลบ permissions ออก
       });
     }
     setOpenDialog(true);
@@ -99,30 +105,51 @@ export default function ManageEmployees() {
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setEditingUser(null);
+    setForm({
+      username: "",
+      password: "",
+      first_name: "",
+      last_name: "",
+      phone_number_user: "",
+      role: "user",
+      department: "",
+      // ลบ permissions ออก
+    });
   };
 
+  // ส่งฟอร์ม (เพิ่ม/แก้ไข)
   const handleSubmit = async () => {
+    const token = localStorage.getItem("token");
+    const dataToSend = { ...form };
+
+    // ลบ password ออกจาก payload หากเป็นโหมดแก้ไขและผู้ใช้ไม่ได้กรอก password ใหม่
+    if (editingUser && dataToSend.password === "") {
+      delete dataToSend.password;
+    }
+
     try {
-      const token = localStorage.getItem("token");
       if (editingUser) {
-        await axios.put(`${API_URL}/${editingUser._id}`, form, {
+        // แก้ไขพนักงาน
+        await axios.put(`${API_URL}/${editingUser._id}`, dataToSend, {
           headers: { Authorization: `Bearer ${token}` },
         });
       } else {
-        await axios.post(API_URL, form, {
+        // เพิ่มพนักงานใหม่
+        await axios.post(API_URL, dataToSend, {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
-      handleCloseDialog();
       fetchEmployees();
+      handleCloseDialog();
     } catch (error) {
-      console.error("Submit error:", error.response?.data || error);
-      alert(error.response?.data?.message || "เกิดข้อผิดพลาด");
+      alert("Error saving employee: " + (error.response?.data?.message || error.message));
+      console.error("Error saving employee:", error.response?.data || error);
     }
   };
 
+  // ลบพนักงาน
   const handleDelete = async (id) => {
-    if (!window.confirm("ยืนยันการลบพนักงานนี้?")) return;
+    if (!window.confirm("คุณต้องการลบพนักงานนี้หรือไม่?")) return;
     try {
       const token = localStorage.getItem("token");
       await axios.delete(`${API_URL}/${id}`, {
@@ -130,30 +157,25 @@ export default function ManageEmployees() {
       });
       fetchEmployees();
     } catch (error) {
-      console.error("Delete error:", error.response?.data || error);
+      alert("Error deleting employee: " + (error.response?.data?.message || error.message));
+      console.error("Error deleting employee:", error.response?.data || error);
     }
   };
 
-  const togglePermission = (perm) => {
-    setForm((prev) => {
-      const newPermissions = prev.permissions.includes(perm)
-        ? prev.permissions.filter((p) => p !== perm)
-        : [...prev.permissions, perm];
-      return { ...prev, permissions: newPermissions };
-    });
-  };
+
+  // ------------------------- DataGrid Columns -------------------------
 
   const columns = [
-    { field: "username", headerName: "Username", flex: 1 },
-    { field: "first_name", headerName: "ชื่อ", flex: 1 },
-    { field: "last_name", headerName: "นามสกุล", flex: 1 },
-    { field: "phone_number_user", headerName: "เบอร์โทร", flex: 1 },
-    { field: "role", headerName: "สิทธิ์", flex: 1 },
-    { field: "department", headerName: "แผนก", flex: 1 },
+    { field: "username", headerName: "Username", width: 150 },
+    { field: "first_name", headerName: "ชื่อ", width: 150 },
+    { field: "last_name", headerName: "นามสกุล", width: 150 },
+    { field: "phone_number_user", headerName: "เบอร์โทร", width: 150 },
+    { field: "role", headerName: "สิทธิ์", width: 120 },
+    { field: "department", headerName: "แผนก", width: 150 },
     {
       field: "actions",
-      headerName: "จัดการ",
-      flex: 1,
+      headerName: "การจัดการ",
+      width: 150,
       renderCell: (params) => (
         <>
           <IconButton color="primary" onClick={() => handleOpenDialog(params.row)}>
@@ -166,6 +188,8 @@ export default function ManageEmployees() {
       ),
     },
   ];
+
+  // ------------------------- Render -------------------------
 
   return (
     <Box p={3}>
@@ -188,30 +212,40 @@ export default function ManageEmployees() {
           columns={columns}
           getRowId={(row) => row._id}
           pageSize={7}
+          rowsPerPageOptions={[7]}
+          disableSelectionOnClick
         />
       </Box>
 
       {/* Dialog เพิ่ม/แก้ไข */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} fullWidth maxWidth="md">
+      <Dialog open={openDialog} onClose={handleCloseDialog} fullWidth maxWidth="sm">
         <DialogTitle>{editingUser ? "แก้ไขพนักงาน" : "เพิ่มพนักงาน"}</DialogTitle>
         <DialogContent>
+          
+          {/* ข้อมูล Username */}
           <TextField
             margin="dense"
             label="Username"
             fullWidth
             value={form.username}
             onChange={(e) => setForm({ ...form, username: e.target.value })}
+            // หากต้องการไม่ให้แก้ไข Username เมื่อเป็นการแก้ไข:
+            // disabled={!!editingUser} 
           />
-          {!editingUser && (
-            <TextField
-              margin="dense"
-              label="Password"
-              type="password"
-              fullWidth
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-            />
-          )}
+          
+          {/* ข้อมูล Password */}
+          {/* แสดงข้อความที่แตกต่างกันตามโหมดเพิ่ม/แก้ไข */}
+          <TextField
+            margin="dense"
+            label={editingUser ? "Password (เว้นว่างหากไม่ต้องการเปลี่ยน)" : "Password"}
+            type="password"
+            fullWidth
+            required={!editingUser} // ต้องกรอกเมื่อเป็นการเพิ่มใหม่
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+          />
+          
+          {/* ข้อมูล ชื่อ */}
           <TextField
             margin="dense"
             label="ชื่อ"
@@ -219,6 +253,8 @@ export default function ManageEmployees() {
             value={form.first_name}
             onChange={(e) => setForm({ ...form, first_name: e.target.value })}
           />
+          
+          {/* ข้อมูล นามสกุล */}
           <TextField
             margin="dense"
             label="นามสกุล"
@@ -226,6 +262,8 @@ export default function ManageEmployees() {
             value={form.last_name}
             onChange={(e) => setForm({ ...form, last_name: e.target.value })}
           />
+          
+          {/* ข้อมูล เบอร์โทร */}
           <TextField
             margin="dense"
             label="เบอร์โทร"
@@ -233,6 +271,8 @@ export default function ManageEmployees() {
             value={form.phone_number_user}
             onChange={(e) => setForm({ ...form, phone_number_user: e.target.value })}
           />
+          
+          {/* สิทธิ์ (Role) - Dropdown */}
           <TextField
             select
             margin="dense"
@@ -245,32 +285,29 @@ export default function ManageEmployees() {
             <MenuItem value="admin">Admin</MenuItem>
             <MenuItem value="user">User</MenuItem>
           </TextField>
+          
+          {/* แผนก (Department) - Dropdown */}
           <TextField
+            select
             margin="dense"
             label="แผนก"
             fullWidth
             value={form.department}
             onChange={(e) => setForm({ ...form, department: e.target.value })}
-          />
-
-          {/* Permissions */}
-          <Typography mt={2} variant="subtitle1">
-            สิทธิ์การเข้าถึง
-          </Typography>
-          <FormGroup row>
-            {ALL_PERMISSIONS.map((perm) => (
-              <FormControlLabel
-                key={perm}
-                control={
-                  <Checkbox
-                    checked={form.permissions.includes(perm)}
-                    onChange={() => togglePermission(perm)}
-                  />
-                }
-                label={perm}
-              />
+          >
+            <MenuItem value="">
+              <em>ไม่มีแผนก</em>
+            </MenuItem> 
+            {/* วนลูปแสดงแผนกที่ดึงมา */}
+            {departments.map((dept) => (
+              <MenuItem key={dept._id} value={dept.department_name}>
+                {dept.department_name}
+              </MenuItem>
             ))}
-          </FormGroup>
+          </TextField>
+
+          {/* ส่วน Permissions ถูกลบออกแล้ว */}
+          
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>ยกเลิก</Button>

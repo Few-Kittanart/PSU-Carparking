@@ -221,10 +221,6 @@ export default function ServicePage() {
   }, [showParkingForm, parkingEntryTime, parkingRates, exitTime]);
 
   // ------------------ Customer Selection ------------------
-  const findSettingObject = (array, name) => {
-    // ใช้เพื่อค้นหา Object จากชื่อที่เก็บเป็น String ใน Customer History
-    return array.find((item) => item.name === name) || null;
-  };
   const handleSelectCustomer = (cust) => {
     if (!cust) return;
 
@@ -232,7 +228,7 @@ export default function ServicePage() {
     setCustomerName(cust.customer_name);
     setPhone(cust.phone_number);
 
-    // ตั้งค่า address
+    // ตั้งค่าที่อยู่
     const foundProvince =
       provinceList.find((p) => p.name_th === cust.province) || null;
     let foundAmphoe = null;
@@ -269,18 +265,21 @@ export default function ServicePage() {
       zipcode: cust.zip_code || "",
     });
 
-    // ใช้ cars ที่ populate จาก backend เลย
+    // 🆕 ดึงรถคันล่าสุดที่ลูกค้าเคยใช้
     if (cust.cars && cust.cars.length > 0) {
       const lastCar = cust.cars[cust.cars.length - 1];
+
       setVehicle({
         plate: lastCar.car_registration || "",
         province: lastCar.car_registration_province || "",
-        // ค้นหา Object ที่ตรงกับชื่อที่เก็บใน DB (lastCar.brand_car คือ String)
-        brand: findSettingObject(carSettings.brands, lastCar.brand_car),
-        model: findSettingObject(carSettings.models, lastCar.model_car),
-        type: findSettingObject(carSettings.types, lastCar.type_car),
-        color: findSettingObject(carSettings.colors, lastCar.color),
-        _id: lastCar._id,
+        brand:
+          carSettings.brands.find((b) => b.name === lastCar.brand_car) || null,
+        model:
+          carSettings.models.find((m) => m.name === lastCar.model_car) || null,
+        type:
+          carSettings.types.find((t) => t.name === lastCar.type_car) || null,
+        color: carSettings.colors.find((c) => c.name === lastCar.color) || null,
+        _id: lastCar._id || null, // 🆕 เก็บ _id ของรถเดิม
       });
     } else {
       setVehicle({
@@ -547,6 +546,11 @@ export default function ServicePage() {
       alert("เกิดข้อผิดพลาด: " + err.message);
     }
   };
+  useEffect(() => {
+    fetchCustomersAndServices().then(() => {
+      console.log("✅ carSettings ที่โหลดมา:", carSettings);
+    });
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -568,7 +572,9 @@ export default function ServicePage() {
                       (c) => c.customer_name === newValue
                     );
                     handleSelectCustomer(foundCustomer);
+                    console.log("🚗 รถของลูกค้าที่เลือก:", cust.cars);
                   }}
+                  
                   renderInput={(params) => (
                     <TextField
                       {...params}

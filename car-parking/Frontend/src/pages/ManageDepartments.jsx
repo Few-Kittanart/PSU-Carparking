@@ -9,10 +9,29 @@ import {
   TextField,
   Typography,
   IconButton,
+  FormGroup,
+  FormControlLabel,
+  Checkbox,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { Add, Edit, Delete } from "@mui/icons-material";
 import axios from "axios";
+
+const ALL_PERMISSIONS = [
+  "การใช้บริการ",
+  "จัดการบริการ",
+  "ลูกค้า",
+  "รถลูกค้า",
+  "แดชบอร์ด",
+  "รายงานการบริการ",
+  "รายงานรายได้",
+  "ตั้งค่าระบบ",
+  "ตั้งค่าราคา",
+  "ตั้งค่ารถ",
+  "ตั้งค่าที่จอด",
+  "ตั้งค่าพนักงาน",
+  "ตั้งค่าแผนก",
+]; // <--- เพิ่มส่วนนี้
 
 const API_URL = "http://localhost:5000/api/departments"; // แก้ตาม backend
 
@@ -22,6 +41,7 @@ export default function ManageDepartments() {
   const [editingDept, setEditingDept] = useState(null);
   const [form, setForm] = useState({
     department_name: "",
+    permissions: [], // <--- เพิ่ม permissions ใน form state
   });
 
   // โหลดข้อมูลจาก backend
@@ -47,9 +67,13 @@ export default function ManageDepartments() {
     if (dept) {
       setForm({
         department_name: dept.department_name,
+        permissions: dept.permissions || [], // <--- โหลด permissions
       });
     } else {
-      setForm({ department_name: "" });
+      setForm({
+        department_name: "",
+        permissions: [], // <--- ค่าเริ่มต้น
+      });
     }
     setOpenDialog(true);
   };
@@ -93,6 +117,15 @@ export default function ManageDepartments() {
       console.error("Delete error:", error.response?.data || error);
     }
   };
+  const togglePermission = (perm) => {
+    // <--- เพิ่มฟังก์ชันนี้
+    setForm((prev) => {
+      const newPermissions = prev.permissions.includes(perm)
+        ? prev.permissions.filter((p) => p !== perm)
+        : [...prev.permissions, perm];
+      return { ...prev, permissions: newPermissions };
+    });
+  };
 
   // columns ของ DataGrid
   const columns = [
@@ -103,10 +136,16 @@ export default function ManageDepartments() {
       flex: 1,
       renderCell: (params) => (
         <>
-          <IconButton color="primary" onClick={() => handleOpenDialog(params.row)}>
+          <IconButton
+            color="primary"
+            onClick={() => handleOpenDialog(params.row)}
+          >
             <Edit />
           </IconButton>
-          <IconButton color="error" onClick={() => handleDelete(params.row._id)}>
+          <IconButton
+            color="error"
+            onClick={() => handleDelete(params.row._id)}
+          >
             <Delete />
           </IconButton>
         </>
@@ -139,7 +178,7 @@ export default function ManageDepartments() {
       </Box>
 
       {/* Dialog เพิ่ม/แก้ไข */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} fullWidth maxWidth="sm">
+      <Dialog open={openDialog} onClose={handleCloseDialog} fullWidth maxWidth="md">
         <DialogTitle>{editingDept ? "แก้ไขแผนก" : "เพิ่มแผนก"}</DialogTitle>
         <DialogContent>
           <TextField
@@ -149,6 +188,27 @@ export default function ManageDepartments() {
             value={form.department_name}
             onChange={(e) => setForm({ ...form, department_name: e.target.value })}
           />
+
+          {/* Permissions Section */}
+          <Typography mt={2} variant="subtitle1">
+            สิทธิ์การเข้าถึง (สำหรับแผนก)
+          </Typography>
+          <FormGroup row>
+            {ALL_PERMISSIONS.map((perm) => (
+              <FormControlLabel
+                key={perm}
+                control={
+                  <Checkbox
+                    checked={form.permissions.includes(perm)}
+                    onChange={() => togglePermission(perm)}
+                  />
+                }
+                label={perm}
+              />
+            ))}
+          </FormGroup>
+          {/* End Permissions Section */}
+
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>ยกเลิก</Button>

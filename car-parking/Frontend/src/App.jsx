@@ -87,7 +87,6 @@ function App() {
                   <Route path="/system/prices" element={<PriceSettingsPage />} />
                   <Route path="/car/details/:id" element={<DetailCar />} />
                   <Route path="/system/employees" element={<ManageEmployees />} />
-                  {/* <Route path="/car/settings" element={<CarSettingPage />} /> */}
                   <Route path="/system/cars" element={<CarSettingPage />} />
                   <Route path="/system/employees" element={<ManageEmployees />} />
                   <Route path="/system/departments" element={<ManageDepartments />} />
