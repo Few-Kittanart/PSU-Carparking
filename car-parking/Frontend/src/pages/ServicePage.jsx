@@ -479,6 +479,10 @@ export default function ServicePage() {
           model_car: vehicle.model,
           type_car: vehicle.type,
           color: vehicle.color,
+          brand_car: vehicle.brand ? vehicle.brand.name : null,
+          model_car: vehicle.model ? vehicle.model.name : null,
+          type_car: vehicle.type ? vehicle.type.name : null,
+          color: vehicle.color ? vehicle.color.name : null,
           service_history: [newServiceHistory._id],
         };
         const carRes = await fetch("http://localhost:5000/api/cars", {
@@ -574,7 +578,6 @@ export default function ServicePage() {
                     handleSelectCustomer(foundCustomer);
                     console.log("🚗 รถของลูกค้าที่เลือก:", cust.cars);
                   }}
-                  
                   renderInput={(params) => (
                     <TextField
                       {...params}

@@ -48,33 +48,36 @@ export default function ReportPage() {
         }
 
         const data = await res.json();
-        const flattenedData = data.flatMap((customer) =>
-          customer.cars.flatMap((car) =>
-            car.service_history.map((service, serviceIndex) => ({
-              service_id: `${customer.customer_id}-${dayjs(service.entry_time).format("YYYYMMDDHHmmss")}-${serviceIndex}`,
-              customer_id: customer.customer_id,
-              customer_name: customer.customer_name,
-              phone_number: customer.phone_number,
-              car_registration: car.car_registration,
-              car_registration_province: car.car_registration_province,
-              brand_car: car.brand_car,
-              type_car: car.type_car,
-              color: car.color,
-              entry_time: service.entry_time,
-              exit_time: service.exit_time || "",
-              parking_lot: service.parking_lot || "-",
-              parking_slot: service.parking_slot || "-",
-              services: service.services,
-              total_price: service.total_price,
-              is_paid: service.is_paid,
-              note: service.note || "",
-            }))
+        const flattenedData = data
+          .flatMap((customer) =>
+            customer.cars.flatMap((car) =>
+              car.service_history.map((service, serviceIndex) => ({
+                service_id: `${customer._id}-${dayjs(service.entry_time).format(
+                  "YYYYMMDDHHmmss"
+                )}-${serviceIndex}`,
+                customer_id: customer._id,
+                customer_name: customer.customer_name,
+                phone_number: customer.phone_number,
+                car_registration: car.car_registration,
+                car_registration_province: car.car_registration_province,
+                brand_car: car.brand_car,
+                type_car: car.type_car,
+                color: car.color,
+                entry_time: service.entry_time,
+                exit_time: service.exit_time || "",
+                parking_lot: service.parking_lot || "-",
+                parking_slot: service.parking_slot || "-",
+                services: service.services,
+                total_price: service.total_price,
+                is_paid: service.is_paid,
+                note: service.note || "",
+              }))
+            )
           )
-        ).sort((a, b) => new Date(b.entry_time) - new Date(a.entry_time));
+          .sort((a, b) => new Date(b.entry_time) - new Date(a.entry_time));
 
         setAllData(flattenedData);
         setFilteredData(flattenedData);
-
       } catch (err) {
         console.error(err);
         setError(err.message);
@@ -90,13 +93,13 @@ export default function ReportPage() {
     let temp = [...allData];
 
     if (filters.startDate) {
-      temp = temp.filter(
-        (row) => dayjs(row.entry_time).isAfter(dayjs(filters.startDate).startOf("day"))
+      temp = temp.filter((row) =>
+        dayjs(row.entry_time).isAfter(dayjs(filters.startDate).startOf("day"))
       );
     }
     if (filters.endDate) {
-      temp = temp.filter(
-        (row) => dayjs(row.entry_time).isBefore(dayjs(filters.endDate).endOf("day"))
+      temp = temp.filter((row) =>
+        dayjs(row.entry_time).isBefore(dayjs(filters.endDate).endOf("day"))
       );
     }
     if (filters.searchTerm) {
@@ -127,9 +130,22 @@ export default function ReportPage() {
 
   const handleExport = () => {
     const header = [
-      "ID การบริการ", "รหัสลูกค้า", "ชื่อ-นามสกุล", "เบอร์โทรศัพท์", "ทะเบียนรถ", "จังหวัด",
-      "ยี่ห้อ", "รุ่น/ประเภท", "สี", "เวลาเข้า", "เวลาออก", "ระยะเวลา", "ช่องจอด",
-      "บริการเพิ่มเติม", "ยอดรวม", "สถานะ"
+      "ID การบริการ",
+      "รหัสลูกค้า",
+      "ชื่อ-นามสกุล",
+      "เบอร์โทรศัพท์",
+      "ทะเบียนรถ",
+      "จังหวัด",
+      "ยี่ห้อ",
+      "รุ่น/ประเภท",
+      "สี",
+      "เวลาเข้า",
+      "เวลาออก",
+      "ระยะเวลา",
+      "ช่องจอด",
+      "บริการเพิ่มเติม",
+      "ยอดรวม",
+      "สถานะ",
     ];
 
     const rows = filteredData.map((row) => [
@@ -153,10 +169,12 @@ export default function ReportPage() {
 
     const csvContent = [
       header.join(","),
-      ...rows.map((e) => e.map(item => `"${item}"`).join(",")),
+      ...rows.map((e) => e.map((item) => `"${item}"`).join(",")),
     ].join("\n");
 
-    const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\ufeff" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
@@ -166,7 +184,7 @@ export default function ReportPage() {
     link.click();
     document.body.removeChild(link);
   };
-  
+
   if (loading) {
     return (
       <div className="p-6 text-center text-lg font-semibold">
@@ -205,9 +223,7 @@ export default function ReportPage() {
           size="small"
           InputLabelProps={{ shrink: true }}
           value={filters.endDate}
-          onChange={(e) =>
-            setFilters({ ...filters, endDate: e.target.value })
-          }
+          onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
         />
         <TextField
           label="ค้นหา (ชื่อ/ทะเบียน)"
@@ -260,9 +276,13 @@ export default function ReportPage() {
                     {dayjs(row.entry_time).format("DD/MM/YYYY")}
                   </TableCell>
                   <TableCell>
-                    {row.exit_time ? dayjs(row.exit_time).format("DD/MM/YYYY") : "-"}
+                    {row.exit_time
+                      ? dayjs(row.exit_time).format("DD/MM/YYYY")
+                      : "-"}
                   </TableCell>
-                  <TableCell>{calculateDuration(row.entry_time, row.exit_time)}</TableCell>
+                  <TableCell>
+                    {calculateDuration(row.entry_time, row.exit_time)}
+                  </TableCell>
                   <TableCell>{row.car_registration}</TableCell>
                   <TableCell>{row.car_registration_province}</TableCell>
                   <TableCell>{row.brand_car}</TableCell>
@@ -270,7 +290,11 @@ export default function ReportPage() {
                   <TableCell>
                     <Tooltip title="ดูรายละเอียด">
                       <IconButton
-                        onClick={() => navigate(`/report/details/${row.customer_id}/${row.service_id}`)}
+                        onClick={() =>
+                          navigate(
+                            `/report/details/${row.customer_id}/${row.service_id}`
+                          )
+                        }
                       >
                         <InfoIcon color="primary" />
                       </IconButton>

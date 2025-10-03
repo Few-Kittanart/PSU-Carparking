@@ -1,6 +1,6 @@
-const Customer = require('../models/customer.model');
-const Car = require('../models/car.model');
-const ServiceHistory = require('../models/serviceHistory.model');
+const Customer = require("../models/customer.model");
+const Car = require("../models/car.model");
+const ServiceHistory = require("../models/serviceHistory.model");
 
 // สร้างลูกค้าใหม่
 exports.createCustomer = async (req, res) => {
@@ -18,7 +18,7 @@ exports.getAllCustomers = async (req, res) => {
   try {
     const customers = await Customer.find().populate({
       path: "cars",
-      populate: { path: "service_history" }
+      populate: { path: "service_history" },
     });
     res.json(customers);
   } catch (err) {
@@ -30,9 +30,12 @@ exports.getAllCustomers = async (req, res) => {
 // ดึงลูกค้าตาม ID
 exports.getCustomerById = async (req, res) => {
   try {
-    const customer = await Customer.findById(req.params.id).populate('cars');
-    
-    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    const customer = await Customer.findById(req.params.id).populate({
+      path: "cars",
+      populate: { path: "service_history" },
+    });
+
+    if (!customer) return res.status(404).json({ error: "Customer not found" });
     res.json(customer);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -42,8 +45,10 @@ exports.getCustomerById = async (req, res) => {
 // แก้ไขลูกค้า
 exports.updateCustomer = async (req, res) => {
   try {
-    const customer = await Customer.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    const customer = await Customer.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    });
+    if (!customer) return res.status(404).json({ error: "Customer not found" });
     res.json(customer);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -54,8 +59,8 @@ exports.updateCustomer = async (req, res) => {
 exports.deleteCustomer = async (req, res) => {
   try {
     const customer = await Customer.findByIdAndDelete(req.params.id);
-    if (!customer) return res.status(404).json({ error: 'Customer not found' });
-    res.json({ message: 'Customer deleted successfully' });
+    if (!customer) return res.status(404).json({ error: "Customer not found" });
+    res.json({ message: "Customer deleted successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -64,14 +69,13 @@ exports.deleteCustomer = async (req, res) => {
 exports.getUnpaidServices = async (req, res) => {
   try {
     // ดึงลูกค้า + รถ + service history
-    const customers = await Customer.find()
-      .populate({
-        path: 'cars',
-        populate: {
-          path: 'service_history',
-          match: { is_paid: false }
-        }
-      });
+    const customers = await Customer.find().populate({
+      path: "cars",
+      populate: {
+        path: "service_history",
+        match: { is_paid: false },
+      },
+    });
 
     // filter เอาเฉพาะ service ที่ unpaid
     const unpaid = [];
@@ -83,7 +87,7 @@ exports.getUnpaidServices = async (req, res) => {
             customer_id: customer._id,
             customer_name: customer.customer_name,
             phone_number: customer.phone_number,
-            car_id: car._id, 
+            car_id: car._id,
             car_registration: car.car_registration,
             brand_car: car.brand_car,
             service_id: service._id,
@@ -156,7 +160,7 @@ exports.getCustomerWithServiceHistory = async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id).populate({
       path: "cars",
-      populate: { path: "service_history" }
+      populate: { path: "service_history" },
     });
 
     if (!customer) return res.status(404).json({ error: "Customer not found" });
