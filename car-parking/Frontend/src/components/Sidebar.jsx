@@ -16,22 +16,6 @@ export default function Sidebar() {
         const user = JSON.parse(userString);
         setUserName(`${user.first_name} ${user.last_name}`);
         setUserRole(user.role.charAt(0).toUpperCase() + user.role.slice(1));
-        
-        // **สำคัญ:** เราต้องดึง permissions ของแผนกมาใช้ 
-        // เนื่องจากเราได้ย้าย permissions ไปอยู่กับ Department แล้ว
-        // แต่ใน User Model ที่คุณมี (user.model.js ก่อนแก้ไข) ยังมีฟิลด์ permissions อยู่
-        // ถ้าคุณได้ลบฟิลด์ permissions ออกจาก user.model.js และไม่ได้ดึงข้อมูลแผนกมาใส่ใน object user 
-        // ตอน login/get profile, permissions จะเป็น undefined/[] 
-        // **สมมติว่าตอนนี้ user object ใน Local Storage มี permissions ว่างเปล่า หรือไม่มีเลย**
-
-        // เพื่อให้ Sidebar ใช้งานได้ชั่วคราว เราจะใช้ permissions เดิม
-        // แต่ถ้าคุณได้แก้ไข backend แล้ว user.permissions จะหายไป
-        // หาก user.permissions หายไปจริง (ตามที่เราได้แก้ไขใน user.model.js) 
-        // คุณต้องแก้ไข **API Login/Get Profile** ให้ดึงข้อมูลแผนก (Department)
-        // ของผู้ใช้นั้นมา แล้วส่งค่า department.permissions กลับมาใน object user ด้วย
-        
-        // สำหรับตอนนี้ เรายังใช้ user.permissions ตามโครงสร้างเดิม (แม้จะผิดหลักการ)
-        // หรือถ้าคุณไม่ได้แก้ user.model.js (ยังมี permissions อยู่) ก็จะใช้ได้เลย
         setPermissions(user.permissions || []);
         
       } catch (error) {
@@ -76,7 +60,7 @@ export default function Sidebar() {
         { label: "ตั้งค่าระบบ", path: "/settings", permission: "ตั้งค่าระบบ" }, // <--- แก้ไขชื่อสิทธิ์
         { label: "ตั้งค่าราคา", path: "/system/prices", permission: "ตั้งค่าราคา" }, // <--- แก้ไขชื่อสิทธิ์
         { label: "ตั้งค่าเกี่ยวกับรถ", path: "/system/cars", permission: "ตั้งค่ารถ" }, // <--- แก้ไขชื่อสิทธิ์
-        { label: "ตั้งค่าลานจอดรถ", path: "/system/parking-lots", permission: "ตั้งค่าที่จอด" }, // <--- แก้ไขชื่อสิทธิ์
+        { label: "ตั้งค่าลานจอดรถ", path: "/system/parking", permission: "ตั้งค่าที่จอด" },
         { label: "จัดการพนักงาน", path: "/system/employees", permission: "ตั้งค่าพนักงาน" }, // <--- แก้ไขชื่อสิทธิ์
         { label: "ตั้งค่าแผนก", path: "/system/departments", permission: "ตั้งค่าแผนก" }, // <--- แก้ไขชื่อสิทธิ์
       ],

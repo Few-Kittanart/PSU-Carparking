@@ -1,4 +1,6 @@
-const Transaction = require('../models/transaction.model');
+const Transaction = require("../models/transaction.model");
+const mongoose = require('mongoose');
+
 
 // สร้าง transaction
 exports.createTransaction = async (req, res) => {
@@ -19,9 +21,9 @@ exports.getAllTransactions = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const transactions = await Transaction.find()
-      .populate('customer')
-      .populate('car')
-      .populate('serviceHistory')
+      .populate("customer")
+      .populate("car")
+      .populate("serviceHistory")
       .skip(skip)
       .limit(limit);
     res.json(transactions);
@@ -32,13 +34,20 @@ exports.getAllTransactions = async (req, res) => {
 
 // transaction.controller.js
 exports.getTransactionById = async (req, res) => {
-  console.log("Fetching transaction ID:", req.params.id);
+  const { id } = req.params;
+  console.log("Fetching transaction ID:", id);
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ error: "Invalid transaction ID" });
+  }
+
   try {
-    const transaction = await Transaction.findById(req.params.id)
-      .populate('customer')
-      .populate('car')
-      .populate('serviceHistory');
-    if (!transaction) return res.status(404).json({ error: 'Transaction not found' });
+    const transaction = await Transaction.findById(id)
+      .populate("customer")
+      .populate("car")
+      .populate("serviceHistory");
+    if (!transaction)
+      return res.status(404).json({ error: "Transaction not found" });
     res.json(transaction);
   } catch (err) {
     console.error(err);
@@ -46,11 +55,14 @@ exports.getTransactionById = async (req, res) => {
   }
 };
 
-
 // แก้ไข transaction
 exports.updateTransaction = async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ error: "Invalid transaction ID" });
+  }
   try {
-    const transaction = await Transaction.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const transaction = await Transaction.findByIdAndUpdate(id, req.body, { new: true });
     if (!transaction) return res.status(404).json({ error: 'Transaction not found' });
     res.json(transaction);
   } catch (err) {
@@ -60,12 +72,15 @@ exports.updateTransaction = async (req, res) => {
 
 // ลบ transaction
 exports.deleteTransaction = async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ error: "Invalid transaction ID" });
+  }
   try {
-    const transaction = await Transaction.findByIdAndDelete(req.params.id);
+    const transaction = await Transaction.findByIdAndDelete(id);
     if (!transaction) return res.status(404).json({ error: 'Transaction not found' });
     res.json({ message: 'Transaction deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-

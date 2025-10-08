@@ -442,7 +442,7 @@ export default function ServicePage() {
             brand_car: vehicle.brand ? vehicle.brand.name : null,
             model_car: vehicle.model ? vehicle.model.name : null,
             type_car: vehicle.type ? vehicle.type.name : null,
-            color: vehicle.color ? vehicle.color.name : null,
+            color_car: vehicle.color ? vehicle.color.name : null,
             service_history: [newServiceHistory._id],
           };
           const carRes = await fetch("http://localhost:5000/api/cars", {
@@ -482,7 +482,7 @@ export default function ServicePage() {
           brand_car: vehicle.brand ? vehicle.brand.name : null,
           model_car: vehicle.model ? vehicle.model.name : null,
           type_car: vehicle.type ? vehicle.type.name : null,
-          color: vehicle.color ? vehicle.color.name : null,
+          color_car: vehicle.color ? vehicle.color.name : null,
           service_history: [newServiceHistory._id],
         };
         const carRes = await fetch("http://localhost:5000/api/cars", {
@@ -552,7 +552,6 @@ export default function ServicePage() {
   };
   useEffect(() => {
     fetchCustomersAndServices().then(() => {
-      console.log("✅ carSettings ที่โหลดมา:", carSettings);
     });
   }, []);
 
