@@ -1,3 +1,4 @@
+//// parkingSlot.model.js
 const mongoose = require("mongoose");
 
 const parkingSlotSchema = new mongoose.Schema(
