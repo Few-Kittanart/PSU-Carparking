@@ -5,36 +5,40 @@ import {
 } from "recharts";
 import { format, subDays } from "date-fns";
 import { th } from "date-fns/locale";
-import { FaCarSide, FaDollarSign, FaUsers, FaClock, FaSearch } from "react-icons/fa";
+import { FaCarSide, FaDollarSign, FaUsers, FaClock, FaSearch, FaInfoCircle } from "react-icons/fa";
 
-const API_URL = "http://localhost:5000/api/dashboard";
+const API_URL = "http://localhost:5000/api";
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#E87A90", "#A1A8C8"];
 
+// Helper Functions
 const formatNumber = (num) => (num ? new Intl.NumberFormat('th-TH').format(num) : '0');
 const formatDateForChart = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString.includes('T') ? dateString : dateString + 'T00:00:00');
   return format(date, 'd MMM', { locale: th });
 };
-const formatDuration = (ms) => {
-  if (!ms) return "0 ชั่วโมง 0 นาที";
-  const h = Math.floor(ms / 3600000);
-  const m = Math.floor((ms % 3600000) / 60000);
-  return `${h} ชั่วโมง ${m} นาที`;
-};
+
+const NoDataComponent = () => (
+  <div className="flex flex-col justify-center items-center h-full text-gray-400">
+    <FaInfoCircle className="text-4xl mb-2" />
+    <p>ไม่มีข้อมูลในช่วงวันที่ที่เลือก</p>
+  </div>
+);
 
 const DashboardPage = () => {
   const [summary, setSummary] = useState({});
   const [revenueBySlot, setRevenueBySlot] = useState([]);
   const [customerSegments, setCustomerSegments] = useState([]);
   const [revenueBreakdown, setRevenueBreakdown] = useState([]);
-  const [activeSessionsByDay, setActiveSessionsByDay] = useState([]);
   const [monthlyTrend, setMonthlyTrend] = useState([]);
   const [topCustomers, setTopCustomers] = useState([]);
   const [topServices, setTopServices] = useState([]);
-  const [avgServiceDuration, setAvgServiceDuration] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [serviceNameMap, setServiceNameMap] = useState({});
+
+  // ✨ State ใหม่สำหรับเก็บข้อมูลรายรับตามวิธีชำระเงิน
+  const [revenueByPaymentMethod, setRevenueByPaymentMethod] = useState([]);
 
   const [dateRange, setDateRange] = useState({
     startDate: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
@@ -53,16 +57,33 @@ const DashboardPage = () => {
     const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
     const params = `?startDate=${startDate}&endDate=${endDate}`;
 
+    const pricesRes = await fetch(`${API_URL}/prices`, { headers });
+    if (pricesRes.ok) {
+        const pricesData = await pricesRes.json();
+        const serviceMap = {};
+        pricesData.additionalServices?.forEach(s => {
+            serviceMap[s.id] = s.name;
+        });
+        setServiceNameMap(serviceMap);
+    }
+
+    const dashboardParams = `${API_URL}/dashboard`;
     const endpoints = [
-      { key: 'summary', url: `${API_URL}/summary${params}`, setter: setSummary },
-      { key: 'revenueBySlot', url: `${API_URL}/revenue-by-slot${params}`, setter: setRevenueBySlot },
-      { key: 'customerSegments', url: `${API_URL}/customer-segments${params}`, setter: setCustomerSegments, processor: data => data.map(d => ({ name: d._id || 'ไม่ระบุ', value: d.count })) },
-      { key: 'revenueBreakdown', url: `${API_URL}/revenue-breakdown${params}`, setter: setRevenueBreakdown },
-      { key: 'activeSessionsByDay', url: `${API_URL}/active-sessions${params}`, setter: setActiveSessionsByDay },
-      { key: 'monthlyTrend', url: `${API_URL}/monthly-trend${params}`, setter: setMonthlyTrend },
-      { key: 'topCustomers', url: `${API_URL}/top-customers${params}`, setter: setTopCustomers },
-      { key: 'topServices', url: `${API_URL}/services-by-count${params}`, setter: setTopServices },
-      { key: 'avgServiceDuration', url: `${API_URL}/avg-service-duration${params}`, setter: setAvgServiceDuration },
+      { key: 'summary', url: `${dashboardParams}/summary${params}`, setter: setSummary },
+      { key: 'revenueBySlot', url: `${dashboardParams}/revenue-by-slot${params}`, setter: setRevenueBySlot },
+      { key: 'customerSegments', url: `${dashboardParams}/customer-segments${params}`, setter: setCustomerSegments, processor: data => data.map(d => ({ name: d._id || 'ไม่ระบุ', value: d.count })) },
+      { key: 'revenueBreakdown', url: `${dashboardParams}/revenue-breakdown${params}`, setter: setRevenueBreakdown },
+      { key: 'monthlyTrend', url: `${dashboardParams}/monthly-trend${params}`, setter: setMonthlyTrend },
+      { key: 'topCustomers', url: `${dashboardParams}/top-customers${params}`, setter: setTopCustomers },
+      { key: 'topServices', url: `${dashboardParams}/services-by-count${params}`, setter: setTopServices },
+      // ✨ เพิ่ม API Call ใหม่
+      { 
+        key: 'revenueByPaymentMethod', 
+        url: `${dashboardParams}/revenue-by-payment-method${params}`, 
+        setter: setRevenueByPaymentMethod,
+        // แปลง 'cash' -> 'เงินสด', 'qr' -> 'สแกนจ่าย'
+        processor: data => data.map(d => ({ ...d, name: d.name === 'cash' ? 'เงินสด' : 'สแกนจ่าย' })) 
+      },
     ];
 
     try {
@@ -78,8 +99,12 @@ const DashboardPage = () => {
       setIsLoading(false);
     }
   };
+  
+  useEffect(() => { fetchDashboardData(); }, []);
 
-  useEffect(() => { fetchDashboardData(); }, [dateRange]);
+  const handleSearch = () => {
+    fetchDashboardData();
+  };
 
   const KPI_CARDS = [
     { title: "จำนวนรถทั้งหมด", value: formatNumber(summary.totalCars), icon: FaCarSide, color: "bg-blue-500" },
@@ -92,164 +117,154 @@ const DashboardPage = () => {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-bold mb-6">ภาพรวม Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-6 text-gray-800">ภาพรวม Dashboard</h1>
 
       {/* Date Range */}
       <div className="flex flex-col md:flex-row gap-4 mb-6 p-4 bg-white rounded-xl shadow-md items-center">
-        <label>จากวันที่:</label>
-        <input type="date" name="startDate" value={dateRange.startDate} onChange={handleDateChange} className="p-2 border rounded"/>
-        <label>ถึงวันที่:</label>
-        <input type="date" name="endDate" value={dateRange.endDate} onChange={handleDateChange} className="p-2 border rounded"/>
-        <button onClick={fetchDashboardData} className="bg-orange-600 text-white px-4 py-2 rounded flex items-center gap-2"><FaSearch/>ค้นหา</button>
+        <label className="font-semibold text-gray-600">จากวันที่:</label>
+        <input type="date" name="startDate" value={dateRange.startDate} onChange={handleDateChange} className="p-2 border rounded-lg focus:ring-2 focus:ring-orange-500"/>
+        <label className="font-semibold text-gray-600">ถึงวันที่:</label>
+        <input type="date" name="endDate" value={dateRange.endDate} onChange={handleDateChange} className="p-2 border rounded-lg focus:ring-2 focus:ring-orange-500"/>
+        <button onClick={handleSearch} className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-2 rounded-lg flex items-center gap-2 transition-all"><FaSearch/>ค้นหา</button>
       </div>
 
-      {error && <div className="p-3 bg-red-100 text-red-600 rounded mb-4">{error}</div>}
+      {error && <div className="p-3 bg-red-100 text-red-700 rounded-lg mb-4">{error}</div>}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {KPI_CARDS.map((card,i)=>(
-          <div key={i} className={`p-5 rounded-xl text-white shadow-xl flex items-center ${card.color}`}>
+          <div key={i} className={`p-5 rounded-xl text-white shadow-lg flex items-center transition-transform hover:scale-105 ${card.color}`}>
             <div className="flex-grow">
-              <p>{card.title}</p>
+              <p className="opacity-90">{card.title}</p>
               <p className="text-3xl font-bold">{card.value}</p>
             </div>
             <div className="text-4xl opacity-70"><card.icon/></div>
           </div>
         ))}
       </div>
-
-      {/* Charts and Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+      
+      {/* ✨ ปรับ Layout เป็น 3 columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
 
         {/* Customer Segments Pie */}
         <div className="bg-white p-6 rounded-xl shadow-lg">
-          <h2 className="text-xl font-semibold mb-4">สัดส่วนลูกค้า (ประเภทรถ)</h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">สัดส่วนลูกค้า (ตามประเภทรถ)</h2>
           <ResponsiveContainer width="100%" height={300}>
-            {customerSegments.length>0 ? (
+            {customerSegments && customerSegments.length > 0 ? (
               <PieChart>
-                <Pie data={customerSegments} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({name,percent})=>`${name} (${(percent*100).toFixed(1)}%)`}>
-                  {customerSegments.map((e,i)=><Cell key={i} fill={COLORS[i%COLORS.length]}/>)}
+                <Pie data={customerSegments} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({name,percent})=>`${name} (${(percent*100).toFixed(0)}%)`}>
+                  {customerSegments.map((e,i)=><Cell key={`cell-${i}`} fill={COLORS[i%COLORS.length]}/>)}
                 </Pie>
-                <Tooltip formatter={v=>[formatNumber(v)+' คัน']}/>
+                <Tooltip formatter={(value) => [`${formatNumber(value)} คัน`, "จำนวน"]}/>
                 <Legend/>
               </PieChart>
-            ): <div className="flex justify-center items-center h-full text-gray-500">ไม่มีข้อมูล</div>}
+            ): <NoDataComponent />}
           </ResponsiveContainer>
         </div>
 
         {/* Revenue Breakdown Pie */}
         <div className="bg-white p-6 rounded-xl shadow-lg">
-          <h2 className="text-xl font-semibold mb-4">Revenue Breakdown</h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">สัดส่วนรายได้ (บริการ)</h2>
           <ResponsiveContainer width="100%" height={300}>
-            {revenueBreakdown.length>0 ? (
+            {revenueBreakdown && revenueBreakdown.length > 0 ? (
               <PieChart>
-                <Pie data={revenueBreakdown} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({name,percent})=>`${name} (${(percent*100).toFixed(1)}%)`}>
-                  {revenueBreakdown.map((e,i)=><Cell key={i} fill={COLORS[i%COLORS.length]}/>)}
+                <Pie data={revenueBreakdown} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({name,percent})=>`${name} (${(percent*100).toFixed(0)}%)`}>
+                  {revenueBreakdown.map((e,i)=><Cell key={`cell-${i}`} fill={COLORS[i%COLORS.length]}/>)}
                 </Pie>
-                <Tooltip formatter={v=>[formatNumber(v)+' บาท']}/>
+                <Tooltip formatter={(value) => [`${formatNumber(value)} บาท`, "รายได้"]}/>
                 <Legend/>
               </PieChart>
-            ): <div className="flex justify-center items-center h-full text-gray-500">ไม่มีข้อมูล</div>}
+            ): <NoDataComponent />}
           </ResponsiveContainer>
         </div>
 
-        {/* Active Sessions */}
+        {/* ✨ กราฟใหม่: Revenue by Payment Method */}
         <div className="bg-white p-6 rounded-xl shadow-lg">
-          <h2 className="text-xl font-semibold mb-4">จำนวนรถที่กำลังใช้บริการต่อวัน</h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">สัดส่วนรายได้ (วิธีชำระเงิน)</h2>
           <ResponsiveContainer width="100%" height={300}>
-            {activeSessionsByDay.length>0 ? (
-              <BarChart data={activeSessionsByDay}>
-                <CartesianGrid stroke="#f0f0f0" strokeDasharray="3 3"/>
-                <XAxis dataKey="date" tickFormatter={formatDateForChart}/>
-                <YAxis/>
-                <Tooltip formatter={v=>[v+' คัน']}/>
-                <Bar dataKey="activeCount" fill="#FF8042"/>
-              </BarChart>
-            ) : <div className="flex justify-center items-center h-full text-gray-500">ไม่มีข้อมูล</div>}
-          </ResponsiveContainer>
-        </div>
-
-        {/* Monthly Trend */}
-        <div className="bg-white p-6 rounded-xl shadow-lg col-span-2">
-          <h2 className="text-xl font-semibold mb-4">Monthly Trend</h2>
-          <ResponsiveContainer width="100%" height={350}>
-            {monthlyTrend.length>0 ? (
-              <LineChart data={monthlyTrend}>
-                <CartesianGrid stroke="#f0f0f0" strokeDasharray="3 3"/>
-                <XAxis dataKey="month"/>
-                <YAxis/>
-                <Tooltip/>
+            {revenueByPaymentMethod && revenueByPaymentMethod.length > 0 ? (
+              <PieChart>
+                <Pie data={revenueByPaymentMethod} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({name,percent})=>`${name} (${(percent*100).toFixed(0)}%)`}>
+                  {revenueByPaymentMethod.map((e,i)=><Cell key={`cell-${i}`} fill={['#FFBB28', '#00C49F'][i%2]}/>)}
+                </Pie>
+                <Tooltip formatter={(value) => [`${formatNumber(value)} บาท`, "รายได้"]}/>
                 <Legend/>
-                <Line type="monotone" dataKey="revenue" name="รายได้" stroke="#10b981"/>
-                <Line type="monotone" dataKey="customers" name="ลูกค้าใหม่" stroke="#0088FE"/>
-                <Line type="monotone" dataKey="cars" name="รถใหม่" stroke="#FF8042"/>
-              </LineChart>
-            ) : <div className="flex justify-center items-center h-full text-gray-500">ไม่มีข้อมูล</div>}
+              </PieChart>
+            ): <NoDataComponent />}
           </ResponsiveContainer>
         </div>
-
+      </div>
+      
+      {/* ส่วนที่เหลือของ Dashboard */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        {/* Revenue by Day */}
+        <div className="bg-white p-6 rounded-xl shadow-lg col-span-1 lg:col-span-2">
+            <h2 className="text-xl font-semibold mb-4 text-gray-700">รายได้รายวัน</h2>
+            <ResponsiveContainer width="100%" height={300}>
+                {revenueBySlot && revenueBySlot.length > 0 ? (
+                <LineChart data={revenueBySlot}>
+                    <CartesianGrid stroke="#f0f0f0" strokeDasharray="3 3"/>
+                    <XAxis dataKey="date" tickFormatter={formatDateForChart}/>
+                    <YAxis tickFormatter={formatNumber}/>
+                    <Tooltip formatter={(value) => [`${formatNumber(value)} บาท`, "รายได้"]}/>
+                    <Legend />
+                    <Line type="monotone" dataKey="totalRevenue" name="รายได้รวม" stroke="#10b981" strokeWidth={2}/>
+                </LineChart>
+                ) : <NoDataComponent />}
+            </ResponsiveContainer>
+        </div>
+        
         {/* Top Customers Table */}
-        <div className="bg-white p-6 rounded-xl shadow-lg col-span-1">
-          <h2 className="text-xl font-semibold mb-4">Top Customers</h2>
-          {topCustomers.length>0 ? (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr>
-                  <th className="border-b px-2 py-1">Name</th>
-                  <th className="border-b px-2 py-1">Visits</th>
-                  <th className="border-b px-2 py-1">Total Spent</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topCustomers.map((c,i)=>(
-                  <tr key={i} className="hover:bg-gray-50">
-                    <td className="border-b px-2 py-1">{c.name}</td>
-                    <td className="border-b px-2 py-1">{c.visits}</td>
-                    <td className="border-b px-2 py-1">{formatNumber(c.totalSpent)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ): <div>ไม่มีข้อมูล</div>}
+        <div className="bg-white p-6 rounded-xl shadow-lg">
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">5 ลูกค้าที่มาใช้บริารมากที่สุด</h2>
+          {topCustomers && topCustomers.length > 0 ? (
+            <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                <thead>
+                    <tr className="bg-gray-50">
+                    <th className="p-3 font-semibold">ชื่อลูกค้า</th>
+                    <th className="p-3 font-semibold text-center">จำนวนครั้ง</th>
+                    <th className="p-3 font-semibold text-right">ยอดใช้จ่าย (บาท)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {topCustomers.map((c,i)=>(
+                    <tr key={i} className="border-b hover:bg-gray-50">
+                        <td className="p-3">{c.name}</td>
+                        <td className="p-3 text-center">{c.visits}</td>
+                        <td className="p-3 text-right font-medium text-green-600">{formatNumber(c.totalSpent)}</td>
+                    </tr>
+                    ))}
+                </tbody>
+                </table>
+            </div>
+          ): <NoDataComponent />}
         </div>
-
+        
         {/* Top Services Table */}
-        <div className="bg-white p-6 rounded-xl shadow-lg col-span-1">
-          <h2 className="text-xl font-semibold mb-4">Top Services</h2>
-          {topServices.length>0 ? (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr>
-                  <th className="border-b px-2 py-1">Service ID</th>
-                  <th className="border-b px-2 py-1">Count</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topServices.map((s,i)=>(
-                  <tr key={i} className="hover:bg-gray-50">
-                    <td className="border-b px-2 py-1">{s._id}</td>
-                    <td className="border-b px-2 py-1">{s.count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ): <div>ไม่มีข้อมูล</div>}
+        <div className="bg-white p-6 rounded-xl shadow-lg">
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">5 บริการยอดนิยม</h2>
+          {topServices && topServices.length > 0 ? (
+            <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                <thead>
+                    <tr className="bg-gray-50">
+                    <th className="p-3 font-semibold">ชื่อบริการ</th>
+                    <th className="p-3 font-semibold text-center">จำนวนครั้ง</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {topServices.map((s,i)=>(
+                    <tr key={i} className="border-b hover:bg-gray-50">
+                        <td className="p-3">{serviceNameMap[s._id] || `ID: ${s._id}`}</td>
+                        <td className="p-3 text-center">{s.count}</td>
+                    </tr>
+                    ))}
+                </tbody>
+                </table>
+            </div>
+          ): <NoDataComponent />}
         </div>
-
-        {/* Avg Service Duration */}
-        <div className="bg-white p-6 rounded-xl shadow-lg col-span-2">
-          <h2 className="text-xl font-semibold mb-4">Average Service Duration</h2>
-          {avgServiceDuration.length>0 ? (
-            <BarChart data={avgServiceDuration} height={300}>
-              <CartesianGrid stroke="#f0f0f0" strokeDasharray="3 3"/>
-              <XAxis dataKey="serviceId"/>
-              <YAxis tickFormatter={v=>`${Math.floor(v/3600000)}h ${(Math.floor(v/60000)%60)}m`}/>
-              <Tooltip formatter={v=>`${Math.floor(v/3600000)} ชั่วโมง ${(Math.floor(v/60000)%60)} นาที`}/>
-              <Bar dataKey="avgDuration" fill="#A1A8C8"/>
-            </BarChart>
-          ) : <div className="flex justify-center items-center h-full text-gray-500">ไม่มีข้อมูล</div>}
-        </div>
-
       </div>
     </div>
   );

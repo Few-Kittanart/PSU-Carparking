@@ -32,4 +32,7 @@ router.get("/avg-service-duration", dashboardController.getAvgServiceDuration);
 // Alerts (optional)
 router.get("/alerts", dashboardController.getAlerts);
 
+// Revenue by Payment Method
+router.get("/revenue-by-payment-method", dashboardController.getRevenueByPaymentMethod);
+
 module.exports = router;
