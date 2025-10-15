@@ -1,20 +1,29 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  Button,
-  Paper,
-  Typography,
-  Divider,
-  Box,
-  Grid,
-  Chip,
+  Button, Paper, Typography, Divider, Box, Grid, Chip,
+  CircularProgress, Stack
 } from "@mui/material";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import PersonIcon from "@mui/icons-material/Person";
+import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
 import dayjs from "dayjs";
 import duration from "dayjs/plugin/duration";
 import "dayjs/locale/th";
 
 dayjs.extend(duration);
 dayjs.locale("th");
+
+// Component ย่อยสำหรับแสดง Key-Value
+const DetailItem = ({ label, value }) => (
+  <Grid item xs={12} sm={6}>
+    <Typography color="text.secondary" variant="body2">{label}</Typography>
+    <Typography variant="body1" sx={{ fontWeight: 500, wordBreak: 'break-word' }}>{value || "-"}</Typography>
+  </Grid>
+);
 
 export default function ReportDetailPage() {
   const { customerId, serviceId } = useParams();
@@ -27,26 +36,22 @@ export default function ReportDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // ใช้ Logic การดึงข้อมูลแบบเดิม
   useEffect(() => {
     const fetchDetail = async () => {
       try {
+        setLoading(true);
         const token = localStorage.getItem("token");
+        const headers = { Authorization: `Bearer ${token}` };
 
-        // ดึงข้อมูล master ของบริการเพิ่มเติม
-        const priceRes = await fetch("http://localhost:5000/api/prices", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const priceRes = await fetch("http://localhost:5000/api/prices", { headers });
         const priceData = await priceRes.json();
         setServicesMaster(priceData.additionalServices || []);
 
-        // ดึงข้อมูลลูกค้า
-        const res = await fetch(`http://localhost:5000/api/customers/${customerId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetch(`http://localhost:5000/api/customers/${customerId}`, { headers });
         if (!res.ok) throw new Error("ไม่สามารถโหลดข้อมูลลูกค้าได้");
         const data = await res.json();
 
-        // ค้นหา service
         let foundCar = null;
         let foundService = null;
         for (const c of data.cars) {
@@ -79,146 +84,94 @@ export default function ReportDetailPage() {
   const calculateDuration = (entry, exit) => {
     if (!entry || !exit) return "-";
     const diff = dayjs.duration(dayjs(exit).diff(dayjs(entry)));
-    const d = diff.days();
-    const h = diff.hours();
-    const m = diff.minutes();
+    const d = diff.days(); const h = diff.hours(); const m = diff.minutes();
     return d > 0 ? `${d} วัน ${h} ชม. ${m} นาที` : `${h} ชม. ${m} นาที`;
   };
 
-  // แปลง id ของบริการเพิ่มเติม → ชื่อ
-  const getServiceName = (id) => {
-    const s = servicesMaster.find((item) => item.id === id);
-    return s ? s.name : id;
-  };
-
-  if (loading) return <div className="p-6 text-center text-lg">กำลังโหลดข้อมูล...</div>;
-  if (error) return <div className="p-6 text-center text-lg text-red-500">เกิดข้อผิดพลาด: {error}</div>;
-  if (!customer || !service) return <div className="p-6 text-center text-lg">ไม่พบข้อมูล</div>;
+  const getServiceName = (id) => servicesMaster.find((item) => item.id === id)?.name || `ID: ${id}`;
+  
+  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 6 }}><CircularProgress /></Box>;
+  if (error) return <Typography color="error" sx={{ p: 6, textAlign: 'center' }}>เกิดข้อผิดพลาด: {error}</Typography>;
+  if (!customer || !car || !service) return <Typography sx={{ p: 6, textAlign: 'center' }}>ไม่พบข้อมูล</Typography>;
 
   return (
-    <Box sx={{ p: { xs: 3, md: 6 }, bgcolor: "#f7f7f7", minHeight: "100vh" }}>
-      {/* Header */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
+    <Box sx={{ p: { xs: 2, md: 4 }, bgcolor: "#f9fafb", minHeight: "100vh" }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: "bold", color: "#ea7f33" }}>
           รายละเอียดการบริการ
         </Typography>
-        <Button
-          variant="contained"
-          onClick={() => navigate(-1)}
-          sx={{
-            bgcolor: "#5c6bc0",
-            "&:hover": { bgcolor: "#3f51b5" },
-            textTransform: "none",
-          }}
-        >
+        <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} >
           กลับ
         </Button>
-      </Box>
+      </Stack>
 
-      <Paper elevation={2} sx={{ p: 4, borderRadius: 3 }}>
-        {/* ข้อมูลลูกค้า */}
-        <Typography variant="h6" sx={{ fontWeight: "bold", color: "#ea7f33", mb: 2 }}>
-          ข้อมูลลูกค้า
-        </Typography>
-        <Grid container spacing={2} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography><strong>รหัสลูกค้า:</strong> {customerId}</Typography>
+      {/* ✨ ใช้ Stack เรียงการ์ดทั้งหมดจากบนลงล่าง */}
+      <Stack spacing={4}>
+        {/* การ์ดข้อมูลลูกค้า */}
+        <Paper elevation={2} sx={{ p: 3, borderRadius: 3 }}>
+          <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+            <PersonIcon sx={{ color: "#ea7f33" }} />
+            <Typography variant="h6" sx={{ fontWeight: "bold" }}>ข้อมูลลูกค้า</Typography>
+          </Stack>
+          <Grid container spacing={2}>
+            <DetailItem label="ชื่อ-นามสกุล" value={customer.customer_name} />
+            <DetailItem label="เบอร์โทรศัพท์" value={customer.phone_number} />
           </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography><strong>ชื่อ-นามสกุล:</strong> {customer.customer_name}</Typography>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography><strong>เบอร์โทรศัพท์:</strong> {customer.phone_number}</Typography>
-          </Grid>
-        </Grid>
+        </Paper>
 
-        <Divider sx={{ my: 3 }} />
-
-        {/* ข้อมูลรถ */}
-        <Typography variant="h6" sx={{ fontWeight: "bold", color: "#ea7f33", mb: 2 }}>
-          ข้อมูลรถยนต์
-        </Typography>
-        <Grid container spacing={2} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography><strong>ทะเบียนรถ:</strong> {car.car_registration} ({car.car_registration_province})</Typography>
+        {/* การ์ดข้อมูลรถยนต์ */}
+        <Paper elevation={2} sx={{ p: 3, borderRadius: 3 }}>
+          <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+            <DirectionsCarIcon sx={{ color: "#ea7f33" }} />
+            <Typography variant="h6" sx={{ fontWeight: "bold" }}>ข้อมูลรถยนต์</Typography>
+          </Stack>
+          <Grid container spacing={2}>
+            <DetailItem label="ทะเบียนรถ" value={`${car.car_registration} (${car.car_registration_province})`} />
+            <DetailItem label="ยี่ห้อ" value={car.brand_car} />
+            <DetailItem label="รุ่น/ประเภท" value={car.type_car} />
+            <DetailItem label="สี" value={car.color} />
           </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography><strong>ยี่ห้อ:</strong> {car.brand_car}</Typography>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography><strong>รุ่น/ประเภท:</strong> {car.type_car}</Typography>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography><strong>สี:</strong> {car.color}</Typography>
-          </Grid>
-        </Grid>
-
-        <Divider sx={{ my: 3 }} />
-
-        {/* รายละเอียดบริการ */}
-        <Typography variant="h6" sx={{ fontWeight: "bold", color: "#ea7f33", mb: 2 }}>
-          รายละเอียดการบริการ
-        </Typography>
-        <Grid container spacing={2} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography><strong>ช่องจอด:</strong> {service.parking_slot || "-"}</Typography>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography><strong>เวลาเข้า:</strong> {dayjs(service.entry_time).format("DD/MM/YYYY HH:mm")}</Typography>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography><strong>เวลาออก:</strong> {service.exit_time ? dayjs(service.exit_time).format("DD/MM/YYYY HH:mm") : "-"}</Typography>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography><strong>รวมระยะเวลา:</strong> {calculateDuration(service.entry_time, service.exit_time)}</Typography>
-          </Grid>
-
-          {/* บริการเพิ่มเติม */}
-          <Grid item xs={12}>
-            <Typography sx={{ fontWeight: "500", mb: 1 }}><strong>บริการเพิ่มเติม:</strong></Typography>
+        </Paper>
+        
+        {/* การ์ดสรุปบริการ */}
+        <Paper elevation={2} sx={{ p: 3, borderRadius: 3 }}>
+          <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+            <ReceiptLongIcon sx={{ color: "#ea7f33" }} />
+            <Typography variant="h6" sx={{ fontWeight: "bold" }}>สรุปบริการและค่าใช้จ่าย</Typography>
+          </Stack>
+          <Divider sx={{ my: 2 }} />
+          <Stack spacing={2}>
+            <Grid container spacing={2}>
+                <DetailItem label="ช่องจอด" value={service.parking_slot} />
+                <DetailItem label="เวลาเข้า" value={dayjs(service.entry_time).format("DD MMMM YYYY, HH:mm น.")} />
+                <DetailItem label="เวลาออก" value={service.exit_time ? dayjs(service.exit_time).format("DD MMMM YYYY, HH:mm น.") : "-"} />
+                <DetailItem label="รวมระยะเวลา" value={calculateDuration(service.entry_time, service.exit_time)} />
+            </Grid>
             <Box>
-              {service.services?.length > 0 ? (
-                service.services.map((s, idx) => (
-                  <Chip
-                    key={idx}
-                    label={getServiceName(s)}
-                    sx={{
-                      mr: 1,
-                      mb: 1,
-                      bgcolor: "#f3f3f3",
-                      border: "1px solid #ddd",
-                      fontSize: "0.85rem",
-                    }}
-                  />
-                ))
-              ) : (
-                <Typography color="text.secondary">ไม่มี</Typography>
-              )}
+              <Typography color="text.secondary" variant="body2">บริการเพิ่มเติม</Typography>
+              <Box sx={{ mt: 1 }}>
+                {service.services?.length > 0 ? (
+                  service.services.map((s, idx) => (
+                    <Chip key={idx} label={getServiceName(s)} size="small" sx={{ mr: 0.5, mb: 0.5 }}/>
+                  ))
+                ) : (<Typography variant="body1" sx={{ fontWeight: 500 }}>-</Typography>)}
+              </Box>
             </Box>
-          </Grid>
-        </Grid>
-
-        <Divider sx={{ my: 3 }} />
-
-        {/* สรุปค่าใช้จ่าย */}
-        <Box sx={{ bgcolor: "#fafafa", p: 3, borderRadius: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: "bold", color: "#ea7f33", mb: 2 }}>
-            สรุปค่าใช้จ่าย
-          </Typography>
-          <Typography variant="body1" sx={{ fontSize: "1.1rem", fontWeight: "500" }}>
-            ยอดรวมทั้งหมด: <strong>{service.total_price?.toFixed(2) || "0.00"} บาท</strong>
-          </Typography>
-          <Typography
-            sx={{
-              mt: 1,
-              fontWeight: "500",
-              color: service.is_paid ? "green" : "red",
-            }}
-          >
-            สถานะ: {service.is_paid ? "ชำระแล้ว" : "ยังไม่ชำระ"}
-          </Typography>
-        </Box>
-      </Paper>
+            <Divider sx={{ my: 1 }} />
+            <Box sx={{ textAlign: 'right' }}>
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                ยอดรวม: {service.total_price?.toFixed(2) || "0.00"} บาท
+              </Typography>
+               <Chip
+                  icon={service.is_paid ? <CheckCircleIcon /> : <CancelIcon />}
+                  label={service.is_paid ? "ชำระแล้ว" : "ยังไม่ชำระ"}
+                  color={service.is_paid ? "success" : "error"}
+                  sx={{ mt: 1, fontWeight: 'bold' }}
+              />
+            </Box>
+          </Stack>
+        </Paper>
+      </Stack>
     </Box>
   );
 }

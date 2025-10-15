@@ -81,7 +81,7 @@ function App() {
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="crm/car" element={<CarPage />} />
                   <Route path="crm/customer/details/:id" element={<DetailCustomer />} />
-                  <Route path="/manage/payment/:customerId/:carId/:serviceId" element={<PaymentPage />} />
+                  <Route path="/payment/:customerId/:carId/:serviceId" element={<PaymentPage />} />
                   <Route path="/report" element={<ReportPage />} />
                   <Route path="/report/details/:customerId/:serviceId" element={<ReportDetailPage />} />
                   <Route path="/report/income" element={<IncomeReportPage />} />

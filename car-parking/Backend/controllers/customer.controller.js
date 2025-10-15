@@ -3,6 +3,7 @@ const Car = require("../models/car.model");
 const ServiceHistory = require("../models/serviceHistory.model");
 const ParkingSlot = require("../models/parkingSlot.model"); 
 const Transaction = require("../models/transaction.model");
+const Zone = require("../models/zone.model");
 
 // สร้างลูกค้าใหม่
 exports.createCustomer = async (req, res) => {
@@ -70,7 +71,6 @@ exports.deleteCustomer = async (req, res) => {
 
 exports.getUnpaidServices = async (req, res) => {
   try {
-    // ดึงลูกค้า + รถ + service history
     const customers = await Customer.find().populate({
       path: "cars",
       populate: {
@@ -79,28 +79,49 @@ exports.getUnpaidServices = async (req, res) => {
       },
     });
 
-    // filter เอาเฉพาะ service ที่ unpaid
     const unpaid = [];
-    console.log(JSON.stringify(customers, null, 2));
-    customers.forEach((customer) => {
-      customer.cars.forEach((car) => {
-        car.service_history.forEach((service) => {
+    
+    // ใช้ for...of เพื่อให้สามารถใช้ await ข้างในได้
+    for (const customer of customers) {
+      for (const car of customer.cars) {
+        for (const service of car.service_history) {
+          
+          let parkingSlotName = null;
+          // ค้นหาชื่อช่องจอดและโซน ถ้ามี
+          if (service.parking_slot) {
+            try {
+              // ค้นหา slot โดยใช้ ID และ populate ชื่อ zone
+              const slot = await ParkingSlot.findById(
+                service.parking_slot
+              ).populate("zone", "name");
+
+              if (slot && slot.zone) {
+                // ประกอบร่างเป็นชื่อสวยงาม เช่น "A-1"
+                parkingSlotName = `${slot.zone.name}-${slot.number}`;
+              } else {
+                parkingSlotName = "N/A"; // ถ้าหาไม่เจอ
+              }
+            } catch (e) {
+              console.error("Could not find parking slot:", service.parking_slot);
+              parkingSlotName = "N/A";
+            }
+          }
+
           unpaid.push({
             customer_id: customer._id,
             customer_name: customer.customer_name,
             phone_number: customer.phone_number,
             car_id: car._id,
             car_registration: car.car_registration,
-            brand_car: car.brand_car,
             service_id: service._id,
             entry_time: service.entry_time,
-            parking_slot: service.parking_slot,
+            parking_slot: parkingSlotName, // ✨ ส่งชื่อที่ประกอบแล้วไปแทน ID
             services: service.services,
             total_price: service.total_price,
           });
-        });
-      });
-    });
+        }
+      }
+    }
 
     res.json(unpaid);
   } catch (err) {
