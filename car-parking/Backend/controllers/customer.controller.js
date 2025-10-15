@@ -1,6 +1,8 @@
 const Customer = require("../models/customer.model");
 const Car = require("../models/car.model");
 const ServiceHistory = require("../models/serviceHistory.model");
+const ParkingSlot = require("../models/parkingSlot.model"); 
+const Transaction = require("../models/transaction.model");
 
 // สร้างลูกค้าใหม่
 exports.createCustomer = async (req, res) => {
@@ -137,14 +139,28 @@ exports.getServiceDetail = async (req, res) => {
 exports.payService = async (req, res) => {
   try {
     const { serviceId } = req.params;
+    const { paymentMethod } = req.body; // ✨ รับค่า paymentMethod จาก body
 
-    // ดึง service history ตาม id
+    // 1. ดึงและอัปเดต Service History
     const service = await ServiceHistory.findById(serviceId);
     if (!service) return res.status(404).json({ error: "Service not found" });
-
-    // อัปเดตสถานะชำระเงิน
     service.is_paid = true;
     await service.save();
+
+    // 2. อัปเดต Parking Slot (ถ้ามี)
+    if (service.parking_slot) {
+      await ParkingSlot.findByIdAndUpdate(service.parking_slot, {
+        isOccupied: false,
+      });
+    }
+
+    // ✨ 3. อัปเดต Transaction ด้วยวิธีการชำระเงิน
+    if (paymentMethod) {
+      await Transaction.findOneAndUpdate(
+        { serviceHistory: serviceId }, // ค้นหา Transaction จาก serviceId
+        { payment_method: paymentMethod } // อัปเดต field payment_method
+      );
+    }
 
     res.json({
       message: "ชำระเงินเรียบร้อยแล้ว",

@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react";
 import dayjs from "dayjs";
+import axios from "axios"; // 🚀 Import axios
 import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
 import provincesData from "../mockupdataadress/provinces.json";
 import districtsData from "../mockupdataadress/districts.json";
 import subDistrictsData from "../mockupdataadress/sub_districts.json";
+import { CircularProgress } from "@mui/material";
 
-const parkingSections = ["A", "B", "C", "D"];
-const parkingNumbers = Array.from({ length: 100 }, (_, i) => i + 1);
+// 🚀 กำหนด API URL ส่วนกลาง
+const API_URL = "http://localhost:5000/api";
 
 export default function ServicePage() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -41,16 +43,20 @@ export default function ServicePage() {
   const [additionalPrice, setAdditionalPrice] = useState(0);
   const [dayPark, setDayPark] = useState("");
   const [exitTime, setExitTime] = useState("");
-  const [selectedParkingSlot, setSelectedParkingSlot] = useState(null);
-  const [occupiedSlots, setOccupiedSlots] = useState(new Set());
-  const [selectedSection, setSelectedSection] = useState("A");
+
+  // --- 🅿️ State สำหรับโซนและช่องจอด (ใหม่) ---
+  const [zones, setZones] = useState([]);
+  const [slots, setSlots] = useState([]);
+  const [selectedZoneId, setSelectedZoneId] = useState("");
+  const [selectedParkingSlot, setSelectedParkingSlot] = useState(null); // จะเก็บ _id ของ slot
+  const [loading, setLoading] = useState(false);
+
   const [provinceList, setProvinceList] = useState([]);
   const [amphoeList, setAmphoeList] = useState([]);
   const [districtList, setDistrictList] = useState([]);
   const [allAdditionalServices, setAllAdditionalServices] = useState([]);
   const [parkingRates, setParkingRates] = useState({ hourly: 0, daily: 0 });
   const [parkingEntryTime, setParkingEntryTime] = useState(null);
-  const [serviceHistories, setServiceHistories] = useState([]);
 
   const [carSettings, setCarSettings] = useState({
     brands: [],
@@ -58,62 +64,65 @@ export default function ServicePage() {
     types: [],
     colors: [],
   });
-  // 🆕 State สำหรับรุ่นรถที่ถูกกรองตามยี่ห้อ
   const [filteredModels, setFilteredModels] = useState([]);
+
   // ------------------ Fetch Data ------------------
-  const fetchCustomersAndServices = async () => {
+  const fetchInitialData = async () => {
+    setLoading(true);
     try {
       const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
 
-      // 🆕 ดึงข้อมูล Master Data ของรถยนต์
-      const carSettingsRes = await fetch(
-        "http://localhost:5000/api/car-settings",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      const carSettingsData = await carSettingsRes.json();
-      setCarSettings(carSettingsData);
+      // ดึงข้อมูล Master Data ของรถยนต์, ราคา, ลูกค้า
+      const [carSettingsRes, pricesRes, customersRes, zonesRes] =
+        await Promise.all([
+          axios.get(`${API_URL}/car-settings`, { headers }),
+          axios.get(`${API_URL}/prices`, { headers }),
+          axios.get(`${API_URL}/customers`, { headers }),
+          axios.get(`${API_URL}/zones`, { headers }), // 🅿️ ดึงโซน
+        ]);
 
-      // ราคาบริการ
-      const pricesRes = await fetch("http://localhost:5000/api/prices", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const pricesData = await pricesRes.json();
+      setCarSettings(carSettingsRes.data);
       setParkingRates({
-        daily: pricesData.dailyRate || 0,
-        hourly: pricesData.hourlyRate || 0,
+        daily: pricesRes.data.dailyRate || 0,
+        hourly: pricesRes.data.hourlyRate || 0,
       });
-      setAllAdditionalServices(pricesData.additionalServices || []);
+      setAllAdditionalServices(pricesRes.data.additionalServices || []);
+      setCustomerList(customersRes.data);
+      setZones(zonesRes.data); // 🅿️ ตั้งค่า State ของโซน
 
-      // ลูกค้า
-      const customersRes = await fetch("http://localhost:5000/api/customers", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const customersData = await customersRes.json();
-      setCustomerList(customersData);
-
-      // service histories
-      const serviceRes = await fetch(
-        "http://localhost:5000/api/serviceHistories",
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const serviceData = await serviceRes.json();
-      setServiceHistories(serviceData);
-
-      // occupied slots
-      const occupied = new Set();
-      serviceData.forEach((service) => {
-        // เฉพาะรายการที่ยังไม่ได้จ่าย
-        if (service.parking_slot && !service.is_paid) {
-          occupied.add(service.parking_slot);
-        }
-      });
-      setOccupiedSlots(occupied);
+      // 🅿️ ถ้ามีโซน ให้เลือกโซนแรกเป็น default
+      if (zonesRes.data.length > 0) {
+        setSelectedZoneId(zonesRes.data[0]._id);
+      }
     } catch (err) {
       console.error(err);
+      alert("ไม่สามารถโหลดข้อมูลเริ่มต้นได้");
+    } finally {
+      setLoading(false);
     }
   };
+
+  // 🅿️ Effect สำหรับดึงช่องจอดเมื่อมีการเลือกโซน (ใหม่)
+  useEffect(() => {
+    const fetchSlots = async () => {
+      if (!selectedZoneId) return;
+      try {
+        setLoading(true);
+        const token = localStorage.getItem("token");
+        const res = await axios.get(
+          `${API_URL}/parkingslots?zoneId=${selectedZoneId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setSlots(res.data);
+      } catch (err) {
+        console.error("Error fetching parking slots:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSlots();
+  }, [selectedZoneId]);
 
   // ------------------ Address Setup ------------------
   useEffect(() => {
@@ -127,14 +136,13 @@ export default function ServicePage() {
         })),
     }));
     setProvinceList(provincesWithAmphoe);
-    fetchCustomersAndServices();
+    fetchInitialData();
   }, []);
 
+  // ... (ส่วนที่เหลือของ useEffects เหมือนเดิม) ...
   useEffect(() => {
-    // ถ้ามีการเลือกยี่ห้อรถแล้ว
     if (vehicle.brand && carSettings.models.length > 0) {
       const brandId = vehicle.brand._id;
-      // กรองรุ่นรถตาม brandId ที่เลือก
       setFilteredModels(
         carSettings.models.filter((m) => m.brandId === brandId)
       );
@@ -161,7 +169,6 @@ export default function ServicePage() {
     }
   }, [address.district]);
 
-  // ------------------ Calculate Additional Services ------------------
   useEffect(() => {
     const addPrice = selectedServices.reduce((sum, id) => {
       const service = allAdditionalServices.find((s) => s.id === id);
@@ -170,7 +177,6 @@ export default function ServicePage() {
     setAdditionalPrice(addPrice);
   }, [selectedServices, allAdditionalServices]);
 
-  // ------------------ Calculate Parking ------------------
   const roundingMinuteThreshold = 15;
 
   const calculateDurationAndPrice = (entryTime, exitTime, rates) => {
@@ -220,7 +226,6 @@ export default function ServicePage() {
     }
   }, [showParkingForm, parkingEntryTime, parkingRates, exitTime]);
 
-  // ------------------ Customer Selection ------------------
   const handleSelectCustomer = (cust) => {
     if (!cust) return;
 
@@ -228,7 +233,6 @@ export default function ServicePage() {
     setCustomerName(cust.customer_name);
     setPhone(cust.phone_number);
 
-    // ตั้งค่าที่อยู่
     const foundProvince =
       provinceList.find((p) => p.name_th === cust.province) || null;
     let foundAmphoe = null;
@@ -265,7 +269,6 @@ export default function ServicePage() {
       zipcode: cust.zip_code || "",
     });
 
-    // 🆕 ดึงรถคันล่าสุดที่ลูกค้าเคยใช้
     if (cust.cars && cust.cars.length > 0) {
       const lastCar = cust.cars[cust.cars.length - 1];
 
@@ -279,7 +282,7 @@ export default function ServicePage() {
         type:
           carSettings.types.find((t) => t.name === lastCar.type_car) || null,
         color: carSettings.colors.find((c) => c.name === lastCar.color) || null,
-        _id: lastCar._id || null, // 🆕 เก็บ _id ของรถเดิม
+        _id: lastCar._id || null,
       });
     } else {
       setVehicle({
@@ -294,14 +297,12 @@ export default function ServicePage() {
     }
   };
 
-  // ------------------ Checkbox ------------------
   const handleCheckboxChange = (id) => {
     setSelectedServices((prev) =>
       prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
     );
   };
 
-  // ------------------ Clear All ------------------
   const clearAll = () => {
     setCustomerName("");
     setPhone("");
@@ -333,9 +334,9 @@ export default function ServicePage() {
     setExitTime("");
     setSelectedParkingSlot(null);
     setParkingEntryTime(null);
+    if (zones.length > 0) setSelectedZoneId(zones[0]._id);
   };
 
-  // ------------------ Navigation ------------------
   const handleProceed = () => setCurrentStep(2);
   const handleBack = () => setCurrentStep(1);
 
@@ -366,14 +367,19 @@ export default function ServicePage() {
 
     try {
       const token = localStorage.getItem("token");
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
 
-      // สร้าง service history ใหม่
+      // ✅ 1. สร้าง Service History
       const serviceHistoryPayload = {
         services: selectedServices,
         entry_time: parkingEntryTime
           ? dayjs(parkingEntryTime).toISOString()
           : null,
         exit_time: exitTime ? dayjs(exitTime).toISOString() : null,
+        // ✅ ส่ง _id ของ slot ที่เลือก
         parking_slot: showParkingForm ? selectedParkingSlot : null,
         parking_price: parkingData.price,
         day_park: parkingData.duration,
@@ -381,119 +387,70 @@ export default function ServicePage() {
         total_price: finalTotalPrice,
       };
 
-      const serviceHistoryRes = await fetch(
-        "http://localhost:5000/api/serviceHistories",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(serviceHistoryPayload),
-        }
+      const serviceHistoryRes = await axios.post(
+        `${API_URL}/serviceHistories`,
+        serviceHistoryPayload,
+        { headers }
       );
-      if (!serviceHistoryRes.ok)
-        throw new Error("Failed to save service history.");
-      const newServiceHistory = await serviceHistoryRes.json();
+      const newServiceHistory = serviceHistoryRes.data;
 
-      // ดึงลูกค้าทั้งหมดและหาเบอร์ตรงกัน
-      const existingCustomerRes = await fetch(
-        "http://localhost:5000/api/customers",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      const allCustomers = await existingCustomerRes.json();
+      // ... (ส่วนการจัดการลูกค้าและรถยนต์เหมือนเดิม) ...
+      const { data: allCustomers } = await axios.get(`${API_URL}/customers`, {
+        headers,
+      });
       let customerToUse = allCustomers.find((c) => c.phone_number === phone);
       let carToUse;
 
       if (customerToUse) {
-        // ลูกค้าเดิม
         if (vehicle._id) {
-          // รถเดิม → append service_history
-          const carRes = await fetch(
-            `http://localhost:5000/api/cars/${vehicle._id}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
+          const { data: carData } = await axios.get(
+            `${API_URL}/cars/${vehicle._id}`,
+            { headers }
           );
-          const carData = await carRes.json();
           const updatedServiceHistory = [
             ...(carData.service_history || []),
             newServiceHistory._id,
           ];
-
-          await fetch(`http://localhost:5000/api/cars/${vehicle._id}`, {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ service_history: updatedServiceHistory }),
-          });
-
+          await axios.put(
+            `${API_URL}/cars/${vehicle._id}`,
+            { service_history: updatedServiceHistory },
+            { headers }
+          );
           carToUse = { ...carData, service_history: updatedServiceHistory };
         } else {
-          // รถใหม่ → สร้าง car ใหม่
           const carPayload = {
             car_registration: vehicle.plate,
             car_registration_province: vehicle.province,
-            // ส่งเฉพาะชื่อ (String) ไปยัง Backend ตาม Car Model
             brand_car: vehicle.brand ? vehicle.brand.name : null,
             model_car: vehicle.model ? vehicle.model.name : null,
             type_car: vehicle.type ? vehicle.type.name : null,
             color: vehicle.color ? vehicle.color.name : null,
             service_history: [newServiceHistory._id],
           };
-          const carRes = await fetch("http://localhost:5000/api/cars", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(carPayload),
+          const { data } = await axios.post(`${API_URL}/cars`, carPayload, {
+            headers,
           });
-          carToUse = await carRes.json();
-
-          // เพิ่มรถใหม่เข้า customer
-          await fetch(
-            `http://localhost:5000/api/customers/${customerToUse._id}`,
-            {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                cars: [...(customerToUse.cars || []), carToUse._id],
-              }),
-            }
+          carToUse = data;
+          await axios.put(
+            `${API_URL}/customers/${customerToUse._id}`,
+            { cars: [...(customerToUse.cars || []), carToUse._id] },
+            { headers }
           );
         }
       } else {
-        // ลูกค้าใหม่ → สร้าง car + customer
         const carPayload = {
           car_registration: vehicle.plate,
           car_registration_province: vehicle.province,
-          brand_car: vehicle.brand,
-          model_car: vehicle.model,
-          type_car: vehicle.type,
-          color: vehicle.color,
           brand_car: vehicle.brand ? vehicle.brand.name : null,
           model_car: vehicle.model ? vehicle.model.name : null,
           type_car: vehicle.type ? vehicle.type.name : null,
           color: vehicle.color ? vehicle.color.name : null,
           service_history: [newServiceHistory._id],
         };
-        const carRes = await fetch("http://localhost:5000/api/cars", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(carPayload),
+        const { data: newCar } = await axios.post(`${API_URL}/cars`, carPayload, {
+          headers,
         });
-        carToUse = await carRes.json();
+        carToUse = newCar;
 
         const customerPayload = {
           customer_name: customerName,
@@ -508,59 +465,48 @@ export default function ServicePage() {
           country: address.country,
           cars: [carToUse._id],
         };
-        const customerRes = await fetch("http://localhost:5000/api/customers", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(customerPayload),
-        });
-        customerToUse = await customerRes.json();
+        const { data: newCustomer } = await axios.post(
+          `${API_URL}/customers`,
+          customerPayload,
+          { headers }
+        );
+        customerToUse = newCustomer;
+      }
+      
+      // ✅ 2. อัปเดตสถานะช่องจอดให้เป็น 'ไม่ว่าง'
+      if (showParkingForm && selectedParkingSlot) {
+        await axios.put(
+          `${API_URL}/parkingSlots/${selectedParkingSlot}`,
+          { isOccupied: true },
+          { headers }
+        );
       }
 
-      // สร้าง transaction
+      // ✅ 3. สร้าง Transaction
       const transactionPayload = {
         customer: customerToUse._id,
         car: carToUse._id,
         serviceHistory: newServiceHistory._id,
         total_price: finalTotalPrice,
-        transaction_id: Date.now(),
-        date: new Date().toISOString(),
       };
-      const transactionRes = await fetch(
-        "http://localhost:5000/api/transactions",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(transactionPayload),
-        }
-      );
-      if (!transactionRes.ok) throw new Error("Failed to save transaction.");
-      await transactionRes.json();
+      await axios.post(`${API_URL}/transactions`, transactionPayload, {
+        headers,
+      });
 
       alert("บันทึกข้อมูลสำเร็จ!");
       clearAll();
-      fetchCustomersAndServices();
+      fetchInitialData();
     } catch (err) {
       console.error(err);
-      alert("เกิดข้อผิดพลาด: " + err.message);
+      alert("เกิดข้อผิดพลาด: " + (err.response?.data?.message || err.message));
     }
   };
-  useEffect(() => {
-    fetchCustomersAndServices().then(() => {
-      console.log("✅ carSettings ที่โหลดมา:", carSettings);
-    });
-  }, []);
 
   return (
     <div className="flex min-h-screen bg-gray-50">
       <div className="flex-1 flex flex-col">
         <main className="flex-1 p-6 sm:p-10">
-          {/* Step 1: Customer Info */}
+          {/* ... (ส่วน Step 1 เหมือนเดิม) ... */}
           {currentStep === 1 && (
             <div className="max-w-6xl mx-auto bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm space-y-6">
               <h2 className="text-2xl font-bold text-[#ea7f33]">
@@ -576,7 +522,6 @@ export default function ServicePage() {
                       (c) => c.customer_name === newValue
                     );
                     handleSelectCustomer(foundCustomer);
-                    console.log("🚗 รถของลูกค้าที่เลือก:", cust.cars);
                   }}
                   renderInput={(params) => (
                     <TextField
@@ -615,7 +560,6 @@ export default function ServicePage() {
                 sx={{ mb: 2 }}
               />
 
-              {/* Address Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <TextField
                   fullWidth
@@ -734,6 +678,7 @@ export default function ServicePage() {
               </div>
             </div>
           )}
+
           {/* Step 2 */}
           {currentStep === 2 && (
             <div className="max-w-6xl mx-auto space-y-6">
@@ -750,6 +695,7 @@ export default function ServicePage() {
               </div>
 
               {/* Vehicle Info */}
+              {/* ... (ส่วนข้อมูลรถเหมือนเดิม) ... */}
               <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm space-y-4">
                 <h3 className="text-xl font-bold text-[#ea7f33]">
                   ข้อมูลรถคันนี้
@@ -878,7 +824,6 @@ export default function ServicePage() {
                   />
                 </div>
               </div>
-
               {/* Services */}
               <div className="flex gap-4 mt-4">
                 <button
@@ -914,6 +859,7 @@ export default function ServicePage() {
                   <h3 className="text-xl font-bold text-[#ea7f33]">
                     เช่าที่จอด
                   </h3>
+                  {/* ... (ส่วนเวลาเข้า-ออก เหมือนเดิม) ... */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <TextField
                       label="วันที่/เวลาเข้า"
@@ -936,55 +882,65 @@ export default function ServicePage() {
                       onChange={(e) => setExitTime(e.target.value)}
                     />
                   </div>
-
+                  {/* --- 🅿️ UI เลือกโซนและช่องจอด (ใหม่) --- */}
                   <div className="mt-6">
                     <h4 className="text-lg font-semibold mb-2">
                       เลือกช่องจอดรถ:
                     </h4>
-                    <div className="flex gap-2 mb-4">
-                      {parkingSections.map((section) => (
-                        <button
-                          key={section}
-                          className={`px-6 py-2 rounded-lg font-bold transition-colors ${
-                            selectedSection === section
-                              ? "bg-[#ea7f33] text-white shadow-md"
-                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                          }`}
-                          onClick={() => setSelectedSection(section)}
-                        >
-                          โซน {section}
-                        </button>
-                      ))}
+                    {/* ปุ่มเลือกโซน */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {zones
+                        .filter((z) => z.isActive) // แสดงเฉพาะโซนที่เปิดใช้งาน
+                        .map((zone) => (
+                          <button
+                            key={zone._id}
+                            className={`px-6 py-2 rounded-lg font-bold transition-colors ${
+                              selectedZoneId === zone._id
+                                ? "bg-[#ea7f33] text-white shadow-md"
+                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            }`}
+                            onClick={() => setSelectedZoneId(zone._id)}
+                          >
+                            {zone.name}
+                          </button>
+                        ))}
                     </div>
 
+                    {/* ตารางแสดงช่องจอด */}
                     <div className="border border-gray-300 rounded-lg p-4">
-                      <div className="grid grid-cols-10 sm:grid-cols-10 md:grid-cols-12 lg:grid-cols-15 xl:grid-cols-20 gap-2">
-                        {parkingNumbers.map((number) => {
-                          const slotId = `${selectedSection}-${number}`;
-                          const isOccupied = occupiedSlots.has(slotId);
-                          const isSelected = selectedParkingSlot === slotId;
-
-                          return (
-                            <button
-                              key={slotId}
-                              disabled={isOccupied} // ❌ ห้ามเลือกถ้ามีคนจองแล้ว
-                              onClick={() =>
-                                !isOccupied && setSelectedParkingSlot(slotId)
-                              } // ✅ เลือกได้เฉพาะที่ว่าง
-                              className={`p-2 rounded-md text-white font-bold transition 
-            ${
-              isOccupied
-                ? "bg-red-500 cursor-not-allowed"
-                : "bg-green-500 hover:bg-green-600 cursor-pointer"
-            }
-            ${isSelected ? "ring-2 ring-offset-2 ring-[#ea7f33]" : ""}
-          `}
-                            >
-                              {slotId}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      {loading ? (
+                        <CircularProgress />
+                      ) : (
+                        <div className="grid grid-cols-10 sm:grid-cols-10 md:grid-cols-12 lg:grid-cols-15 xl:grid-cols-20 gap-2">
+                          {slots.map((slot) => {
+                            const isSelected = selectedParkingSlot === slot._id;
+                            return (
+                              <button
+                                key={slot._id}
+                                disabled={slot.isOccupied}
+                                onClick={() =>
+                                  !slot.isOccupied &&
+                                  setSelectedParkingSlot(slot._id)
+                                }
+                                className={`p-2 rounded-md text-white font-bold transition 
+                                  ${
+                                    slot.isOccupied
+                                      ? "bg-red-500 cursor-not-allowed"
+                                      : "bg-green-500 hover:bg-green-600 cursor-pointer"
+                                  }
+                                  ${
+                                    isSelected
+                                      ? "ring-2 ring-offset-2 ring-[#ea7f33]"
+                                      : ""
+                                  }
+                                `}
+                              >
+                                {slot.number}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -992,13 +948,21 @@ export default function ServicePage() {
                     <div className="mt-4 text-center text-lg font-semibold text-gray-800">
                       คุณได้เลือกช่องจอด:{" "}
                       <span className="text-[#ea7f33]">
-                        {selectedParkingSlot}
+                        {
+                          slots.find((s) => s._id === selectedParkingSlot)
+                            ?.number
+                        }
+                      </span>
+                      {" "}ในโซน{" "}
+                      <span className="text-[#ea7f33]">
+                        {zones.find((z) => z._id === selectedZoneId)?.name}
                       </span>
                     </div>
                   )}
                 </div>
               )}
 
+              {/* ... (ส่วนบริการเสริมและสรุปราคา เหมือนเดิม) ... */}
               {showAdditionalForm && (
                 <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm mt-4 space-y-4">
                   <h3 className="text-xl font-bold text-[#ea7f33]">
