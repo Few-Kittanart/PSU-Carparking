@@ -6,13 +6,13 @@ import {
   CircularProgress,
   Paper,
   Typography,
-  IconButton,
   RadioGroup,
   FormControlLabel,
   Radio,
   FormControl,
   FormLabel,
   Box,
+  Stack, // 1. Import Stack
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -25,9 +25,9 @@ export default function PaymentPage() {
   const [serviceList, setServiceList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState("cash"); // ✨ State สำหรับเก็บวิธีชำระเงิน
+  const [paymentMethod, setPaymentMethod] = useState("cash"); 
 
-  // ดึงรายละเอียด service
+  // (useEffect ... ดึงข้อมูล serviceDetail ... เหมือนเดิม)
   useEffect(() => {
     const fetchServiceDetail = async () => {
       try {
@@ -49,7 +49,8 @@ export default function PaymentPage() {
     fetchServiceDetail();
   }, [customerId, carId, serviceId]);
 
-  // ดึงรายการบริการเพิ่มเติม
+
+  // (useEffect ... ดึงข้อมูล serviceList ... เหมือนเดิม)
   useEffect(() => {
     const fetchServiceList = async () => {
       try {
@@ -67,10 +68,10 @@ export default function PaymentPage() {
     fetchServiceList();
   }, []);
 
+
   const handlePay = async () => {
     try {
       const token = localStorage.getItem("token");
-      // ✨ หมายเหตุ: ส่ง paymentMethod ไปกับ body หาก Backend ต้องการเก็บข้อมูลนี้
       const res = await fetch(
         `http://localhost:5000/api/customers/${customerId}/cars/${carId}/services/${serviceId}/pay`,
         {
@@ -79,23 +80,21 @@ export default function PaymentPage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ paymentMethod })
+          body: JSON.stringify({ paymentMethod }),
         }
       );
       if (!res.ok) throw new Error("ชำระเงินไม่สำเร็จ");
-      
+
       alert("ชำระเงินเรียบร้อยแล้ว!");
 
-      // ✨ เด้งกลับไปหน้า ManagePage หลังจาก 1.5 วินาที
+      // 2. เปลี่ยนเป็น navigate(-1) (ย้อนกลับ) จะยืดหยุ่นกว่า
       setTimeout(() => {
-        navigate("/manage"); // <-- ไปยัง path ของ ManagePage
+        navigate(-1); // กลับไปหน้าก่อนหน้า (ManagePage)
       }, 1500);
-
     } catch (err) {
       alert("เกิดข้อผิดพลาด: " + err.message);
     }
   };
-
 
   if (loading)
     return (
@@ -122,130 +121,149 @@ export default function PaymentPage() {
       .filter(Boolean);
 
   return (
-    <div className="p-6 sm:p-10 space-y-6 bg-gray-100 min-h-screen">
-      <div className="flex items-center">
-        <IconButton onClick={() => navigate("/manage")}>
-          <ArrowBackIcon />
-        </IconButton>
-        <h1 className="text-2xl font-bold text-[#ea7f33] ml-4">
+    // 3. เปลี่ยน <div> (root) เป็น <Box> และลบ className ที่ซ้ำซ้อนกับ Layout
+    <Box>
+      {/* 4. เปลี่ยน Header ให้เหมือนหน้า DetailPage */}
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        sx={{ mb: 4 }}
+      >
+        <Typography variant="h4" sx={{ fontWeight: "bold", color: "#ea7f33" }}>
           หน้าชำระเงิน
-        </h1>
-      </div>
+        </Typography>
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate(-1)} // 5. เปลี่ยน onClick
+        >
+          กลับ
+        </Button>
+      </Stack>
 
-      <Paper className="p-6 rounded-lg" elevation={3}>
-        <Typography variant="h6" className="mb-2 text-[#ea7f33]">
-          ข้อมูลลูกค้า
-        </Typography>
-        <Typography>
-          <strong>ชื่อ-นามสกุล:</strong> {customer.customer_name}
-        </Typography>
-        <Typography>
-          <strong>เบอร์โทรศัพท์:</strong> {customer.phone_number}
-        </Typography>
-        <Typography>
-          <strong>รถ:</strong> {car.brand_car} / {car.car_registration}
-        </Typography>
-      </Paper>
-
-      {serviceHistory && !serviceHistory.is_paid ? (
+      {/* 6. ใช้ Stack คลุม Paper เพื่อให้มีระยะห่าง (spacing) ที่สม่ำเสมอ */}
+      <Stack spacing={4}>
         <Paper className="p-6 rounded-lg" elevation={3}>
           <Typography variant="h6" className="mb-2 text-[#ea7f33]">
-            บริการที่ต้องชำระ
+            ข้อมูลลูกค้า
           </Typography>
-          {serviceHistory.parking_slot && (
-            <>
-              <Typography>
-                <strong>ช่องจอด:</strong> {serviceHistory.parking_slot}
-              </Typography>
-              <Typography>
-                <strong>วันเวลาเข้า:</strong>{" "}
-                {dayjs(serviceHistory.entry_time).format("DD/MM/YYYY HH:mm")}
-              </Typography>
-              {serviceHistory.exit_time && (
-                <Typography>
-                  <strong>วันเวลาออก:</strong>{" "}
-                  {dayjs(serviceHistory.exit_time).format("DD/MM/YYYY HH:mm")}
-                </Typography>
-              )}
-              <Typography>
-                <strong>ราคาค่าจอด:</strong>{" "}
-                {serviceHistory.parking_price?.toFixed(2) || "0.00"} บาท
-              </Typography>
-            </>
-          )}
-
-          {serviceHistory.services?.length > 0 && (
-            <>
-              <Typography className="mt-2 font-semibold">
-                บริการเพิ่มเติม:
-              </Typography>
-              <ul className="list-disc pl-5">
-                {getServiceNames(serviceHistory.services).map((name, i) => (
-                  <li key={i}>{name}</li>
-                ))}
-              </ul>
-              <Typography>
-                <strong>ราคาบริการเสริม:</strong>{" "}
-                {serviceHistory.additional_price?.toFixed(2) || "0.00"} บาท
-              </Typography>
-            </>
-          )}
-
-          <Typography className="mt-4 text-2xl font-bold text-[#ea7f33]">
-            ยอดรวม: {serviceHistory.total_price?.toFixed(2) || "0.00"} บาท
+          <Typography>
+            <strong>ชื่อ-นามสกุล:</strong> {customer.customer_name}
           </Typography>
-
-          {/* ✨ UI สำหรับเลือกวิธีชำระเงิน */}
-          <FormControl component="fieldset" sx={{ mt: 3 }}>
-            <FormLabel component="legend">เลือกวิธีชำระเงิน</FormLabel>
-            <RadioGroup
-              row
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-            >
-              <FormControlLabel
-                value="cash"
-                control={<Radio />}
-                label="เงินสด"
-              />
-              <FormControlLabel
-                value="qr"
-                control={<Radio />}
-                label="สแกนจ่าย"
-              />
-            </RadioGroup>
-          </FormControl>
-          
-          {/* ✨ แสดง QR Code ถ้าเลือก "สแกนจ่าย" */}
-          {paymentMethod === 'qr' && (
-            <Box sx={{ mt: 2, p: 2, border: '1px dashed grey', borderRadius: 2, textAlign: 'center' }}>
-              <Typography>แสดง QR Code ที่นี่</Typography>
-              {/* คุณสามารถใส่ Component รูปภาพ QR Code ของคุณตรงนี้ */}
-                          </Box>
-          )}
-
-
-          <Button
-            variant="contained"
-            startIcon={<CheckCircleIcon />}
-            onClick={handlePay}
-            sx={{
-              mt: 3,
-              bgcolor: "#4CAF50",
-              "&:hover": { bgcolor: "#45a049" },
-              px: 6,
-              py: 1.5,
-              display: "block",
-            }}
-          >
-            ยืนยันการชำระเงิน
-          </Button>
+          <Typography>
+            <strong>เบอร์โทรศัพท์:</strong> {customer.phone_number}
+          </Typography>
+          <Typography>
+            <strong>รถ:</strong> {car.brand_car} / {car.car_registration}
+          </Typography>
         </Paper>
-      ) : (
-        <div className="p-6 text-center text-lg font-semibold text-gray-700">
-          รายการนี้ชำระเงินแล้ว
-        </div>
-      )}
-    </div>
+
+        {serviceHistory && !serviceHistory.is_paid ? (
+          <Paper className="p-6 rounded-lg" elevation={3}>
+            <Typography variant="h6" className="mb-2 text-[#ea7f33]">
+              บริการที่ต้องชำระ
+            </Typography>
+            {serviceHistory.parking_slot && (
+              <>
+                <Typography>
+                  <strong>ช่องจอด:</strong> {serviceHistory.parking_slot}
+                </Typography>
+                <Typography>
+                  <strong>วันเวลาเข้า:</strong>{" "}
+                  {dayjs(serviceHistory.entry_time).format("DD/MM/YYYY HH:mm")}
+                </Typography>
+                {serviceHistory.exit_time && (
+                  <Typography>
+                    <strong>วันเวลาออก:</strong>{" "}
+                    {dayjs(serviceHistory.exit_time).format("DD/MM/YYYY HH:mm")}
+                  </Typography>
+                )}
+                <Typography>
+                  <strong>ราคาค่าจอด:</strong>{" "}
+                  {serviceHistory.parking_price?.toFixed(2) || "0.00"} บาท
+                </Typography>
+              </>
+            )}
+
+            {serviceHistory.services?.length > 0 && (
+              <>
+                <Typography className="mt-2 font-semibold">
+                  บริการเพิ่มเติม:
+                </Typography>
+                <ul className="list-disc pl-5">
+                  {getServiceNames(serviceHistory.services).map((name, i) => (
+                    <li key={i}>{name}</li>
+                  ))}
+                </ul>
+                <Typography>
+                  <strong>ราคาบริการเสริม:</strong>{" "}
+                  {serviceHistory.additional_price?.toFixed(2) || "0.00"} บาท
+                </Typography>
+              </>
+            )}
+
+            <Typography className="mt-4 text-2xl font-bold text-[#ea7f33]">
+              ยอดรวม: {serviceHistory.total_price?.toFixed(2) || "0.00"} บาท
+            </Typography>
+
+            <FormControl component="fieldset" sx={{ mt: 3 }}>
+              <FormLabel component="legend">เลือกวิธีชำระเงิน</FormLabel>
+              <RadioGroup
+                row
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+              >
+                <FormControlLabel
+                  value="cash"
+                  control={<Radio />}
+                  label="เงินสด"
+                />
+                <FormControlLabel
+                  value="qr"
+                  control={<Radio />}
+                  label="สแกนจ่าย"
+                />
+              </RadioGroup>
+            </FormControl>
+
+            {paymentMethod === "qr" && (
+              <Box
+                sx={{
+                  mt: 2,
+                  p: 2,
+                  border: "1px dashed grey",
+                  borderRadius: 2,
+                  textAlign: "center",
+                }}
+              >
+                <Typography>แสดง QR Code ที่นี่</Typography>
+                {/* คุณสามารถใส่ Component รูปภาพ QR Code ของคุณตรงนี้ */}
+              </Box>
+            )}
+
+            <Button
+              variant="contained"
+              startIcon={<CheckCircleIcon />}
+              onClick={handlePay}
+              sx={{
+                mt: 3,
+                bgcolor: "#4CAF50",
+                "&:hover": { bgcolor: "#45a049" },
+                px: 6,
+                py: 1.5,
+                display: "block",
+              }}
+            >
+              ยืนยันการชำระเงิน
+            </Button>
+          </Paper>
+        ) : (
+          <div className="p-6 text-center text-lg font-semibold text-gray-700">
+            รายการนี้ชำระเงินแล้ว
+          </div>
+        )}
+      </Stack>
+    </Box>
   );
 }

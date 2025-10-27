@@ -19,6 +19,7 @@ import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import duration from "dayjs/plugin/duration";
 import "dayjs/locale/th";
+import { CSVLink } from "react-csv";
 
 dayjs.extend(duration);
 dayjs.locale("th");
@@ -35,12 +36,52 @@ export default function ReportPage() {
   });
   const navigate = useNavigate();
 
+  const [exportData, setExportData] = useState([]);
+  const [exportHeaders, setExportHeaders] = useState([]);
+
+  // State สำหรับเก็บข้อมูล Master (ตัวแปล)
+  const [serviceNameMap, setServiceNameMap] = useState({});
+  const [parkingSlotMap, setParkingSlotMap] = useState({});
+
   useEffect(() => {
     const fetchReports = async () => {
       try {
+        setLoading(true);
         const token = localStorage.getItem("token");
+        const headers = { Authorization: `Bearer ${token}` };
+
+        // Fetch Prices (สำหรับแปลชื่อ Service)
+        const pricesRes = await fetch("http://localhost:5000/api/prices", {
+          headers,
+        });
+        if (pricesRes.ok) {
+          const pricesData = await pricesRes.json();
+          const serviceMap = {};
+          pricesData.additionalServices.forEach((s) => {
+            serviceMap[s.id] = s.name;
+          });
+          setServiceNameMap(serviceMap);
+        }
+
+        // Fetch Parking Slots (สำหรับแปลชื่อช่องจอด)
+        const slotsRes = await fetch(
+          "http://localhost:5000/api/parkingSlots",
+          { headers }
+        );
+        if (slotsRes.ok) {
+          const slotsData = await slotsRes.json();
+          const slotMap = {};
+          slotsData.forEach((s) => {
+            slotMap[s._id] = s.zone
+              ? `${s.zone.name}-${s.number}`
+              : `Slot-${s.number}`;
+          });
+          setParkingSlotMap(slotMap);
+        }
+
+        // Fetch Customers (เหมือนเดิม)
         const res = await fetch("http://localhost:5000/api/customers", {
-          headers: { Authorization: `Bearer ${token}` },
+          headers,
         });
 
         if (!res.ok) {
@@ -128,61 +169,44 @@ export default function ReportPage() {
     }
   };
 
-  const handleExport = () => {
-    const header = [
-      "ID การบริการ",
-      "รหัสลูกค้า",
-      "ชื่อ-นามสกุล",
-      "เบอร์โทรศัพท์",
-      "ทะเบียนรถ",
-      "จังหวัด",
-      "ยี่ห้อ",
-      "รุ่น/ประเภท",
-      "สี",
-      "เวลาเข้า",
-      "เวลาออก",
-      "ระยะเวลา",
-      "ช่องจอด",
-      "บริการเพิ่มเติม",
-      "ยอดรวม",
-      "สถานะ",
+  // --- ✅ แก้ไขฟังก์ชันนี้ ---
+  const prepareExportData = () => {
+    const headers = [
+      // { label: "ID การบริการ", key: "service_id" },  // <-- ลบแล้ว
+      // { label: "รหัสลูกค้า", key: "customer_id" }, // <-- ลบแล้ว
+      { label: "ชื่อ-นามสกุล", key: "customer_name" },
+      { label: "เบอร์โทรศัพท์", key: "phone_number" },
+      { label: "ทะเบียนรถ", key: "car_registration" },
+      { label: "จังหวัด", key: "car_registration_province" },
+      { label: "ยี่ห้อ", key: "brand_car" },
+      { label: "รุ่น/ประเภท", key: "type_car" },
+      { label: "สี", key: "color" },
+      { label: "เวลาเข้า", key: "entry_time_formatted" },
+      { label: "เวลาออก", key: "exit_time_formatted" },
+      { label: "ระยะเวลา", key: "duration" },
+      { label: "ช่องจอด", key: "parking_slot_name" },
+      { label: "บริการเพิ่มเติม", key: "services_list" },
+      { label: "ยอดรวม", key: "total_price" },
+      { label: "สถานะ", key: "status" },
     ];
 
-    const rows = filteredData.map((row) => [
-      row.service_id,
-      row.customer_id,
-      row.customer_name,
-      row.phone_number,
-      row.car_registration,
-      row.car_registration_province,
-      row.brand_car,
-      row.type_car,
-      row.color,
-      dayjs(row.entry_time).format("YYYY-MM-DD HH:mm"),
-      row.exit_time ? dayjs(row.exit_time).format("YYYY-MM-DD HH:mm") : "-",
-      calculateDuration(row.entry_time, row.exit_time),
-      row.parking_slot,
-      row.services.join(", "),
-      row.total_price,
-      row.is_paid ? "ชำระแล้ว" : "ยังไม่ชำระ",
-    ]);
+    const data = filteredData.map((row) => ({
+      ...row,
+      entry_time_formatted: dayjs(row.entry_time).format("YYYY-MM-DD HH:mm"),
+      exit_time_formatted: row.exit_time
+        ? dayjs(row.exit_time).format("YYYY-MM-DD HH:mm")
+        : "-",
+      duration: calculateDuration(row.entry_time, row.exit_time),
+      parking_slot_name:
+        parkingSlotMap[row.parking_slot] || row.parking_slot || "-",
+      services_list: row.services
+        .map((id) => serviceNameMap[id] || `ID:${id}`)
+        .join("; "),
+      status: row.is_paid ? "ชำระแล้ว" : "ยังไม่ชำระ",
+    }));
 
-    const csvContent = [
-      header.join(","),
-      ...rows.map((e) => e.map((item) => `"${item}"`).join(",")),
-    ].join("\n");
-
-    const blob = new Blob(["\ufeff" + csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `report_${dayjs().format("YYYY-MM-DD")}.csv`);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    setExportHeaders(headers);
+    setExportData(data);
   };
 
   if (loading) {
@@ -237,18 +261,26 @@ export default function ReportPage() {
           }}
           className="w-full sm:w-auto flex-1"
         />
-        <Button
-          variant="contained"
-          onClick={handleExport}
-          startIcon={<ExportIcon />}
-          sx={{
-            bgcolor: "#4caf50",
-            "&:hover": { bgcolor: "#45a049" },
-            mt: { xs: 2, sm: 0 },
-          }}
+
+        <CSVLink
+          data={exportData}
+          headers={exportHeaders}
+          filename={`report_${dayjs().format("YYYY-MM-DD")}.csv`}
+          onClick={prepareExportData}
+          uFEFF={true}
         >
-          Export CSV
-        </Button>
+          <Button
+            variant="contained"
+            startIcon={<ExportIcon />}
+            sx={{
+              bgcolor: "#4caf50",
+              "&:hover": { bgcolor: "#45a049" },
+              mt: { xs: 2, sm: 0 },
+            }}
+          >
+            Export CSV
+          </Button>
+        </CSVLink>
       </div>
 
       {/* Report Table */}

@@ -26,30 +26,67 @@ exports.getExecutiveSummary = async (req, res) => {
   try {
     const { start, end } = prepareDateRange(req);
 
-    const transactions = await Transaction.find({
-      created_at: { $gte: start, $lte: end },
-    })
-      .populate("serviceHistory")
-      .populate("car");
+    // ✨ เปลี่ยนจากการใช้ .find() เป็น .aggregate() เพื่อให้กรองข้อมูลซับซ้อนได้
+    const transactions = await Transaction.aggregate([
+      // 1. ค้นหา Transaction ในช่วงวันที่ที่กำหนด
+      {
+        $match: {
+          created_at: { $gte: start, $lte: end },
+        },
+      },
+      // 2. เชื่อมข้อมูลกับ ServiceHistory
+      {
+        $lookup: {
+          from: "servicehistories",
+          localField: "serviceHistory",
+          foreignField: "_id",
+          as: "serviceDetails",
+        },
+      },
+      // 3. แตก Array
+      {
+        $unwind: "$serviceDetails",
+      },
+      // 4. ✨ กรองเอาเฉพาะรายการที่ "จ่ายเงินแล้ว"
+      {
+        $match: {
+          "serviceDetails.is_paid": true,
+        },
+      },
+      // 5. เชื่อมข้อมูลกับ Car (เผื่อต้องใช้ในอนาคต)
+      {
+        $lookup: {
+          from: "cars",
+          localField: "car",
+          foreignField: "_id",
+          as: "carDetails",
+        },
+      },
+      {
+        $unwind: "$carDetails",
+      },
+    ]);
 
     let totalRevenue = 0;
     const uniqueCars = new Set();
     let totalDuration = 0;
     let sessionCount = 0;
 
+    // ✨ Logic การคำนวณจะทำงานกับ Transaction ที่จ่ายเงินแล้วเท่านั้น
     transactions.forEach((t) => {
       totalRevenue += t.total_price || 0;
 
-      if (t.car && t.car.car_registration)
-        uniqueCars.add(t.car.car_registration);
+      if (t.carDetails && t.carDetails.car_registration) {
+        uniqueCars.add(t.carDetails.car_registration);
+      }
 
       if (
-        t.serviceHistory &&
-        t.serviceHistory.entry_time &&
-        t.serviceHistory.exit_time
+        t.serviceDetails &&
+        t.serviceDetails.entry_time &&
+        t.serviceDetails.exit_time
       ) {
-        const entry = new Date(t.serviceHistory.entry_time);
-        const exit = new Date(t.serviceHistory.exit_time);
+        const entry = new Date(t.serviceDetails.entry_time);
+        const exit = new Date(t.serviceDetails.exit_time);
         if (!isNaN(entry) && !isNaN(exit) && exit > entry) {
           totalDuration += exit - entry;
           sessionCount++;
@@ -57,13 +94,14 @@ exports.getExecutiveSummary = async (req, res) => {
       }
     });
 
+    // ส่วนการนับ Active Sessions ยังคงเหมือนเดิม เพราะไม่เกี่ยวกับรายรับ
     const activeSessions = await ServiceHistory.countDocuments({
       is_paid: false,
     });
 
     res.json({
       totalCars: uniqueCars.size,
-      totalRevenue,
+      totalRevenue, // ✨ ยอดนี้จะถูกต้องแล้ว
       activeSessions,
       averageParkingTime: formatDuration(
         sessionCount > 0 ? totalDuration / sessionCount : 0
@@ -219,46 +257,76 @@ exports.getMonthlyTrend = async (req, res) => {
 };
 
 // --- Top Customers ---
-exports.getTopCustomers = async (req,res) => {
-  try{
-    const { startDate, endDate, limit=5 } = req.query;
-    const start = new Date(startDate); start.setHours(0,0,0,0);
-    const end = new Date(endDate); end.setHours(23,59,59,999);
+exports.getTopCustomers = async (req, res) => {
+  try {
+    const { startDate, endDate, limit = 5 } = req.query;
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
 
     const top = await Transaction.aggregate([
-      { $match: { createdAt: { $gte: start, $lte: end } } }, // ใช้ createdAt
-      { $group: {
+      // 1. ค้นหา Transaction ในช่วงวันที่
+      {
+        $match: {
+          created_at: { $gte: start, $lte: end },
+        },
+      },
+      // ✨ 2. เชื่อมข้อมูลกับ ServiceHistory เพื่อเช็คสถานะ
+      {
+        $lookup: {
+          from: "servicehistories",
+          localField: "serviceHistory",
+          foreignField: "_id",
+          as: "serviceDetails",
+        },
+      },
+      { $unwind: "$serviceDetails" },
+      // ✨ 3. กรองเอาเฉพาะรายการที่ "จ่ายเงินแล้ว"
+      {
+        $match: {
+          "serviceDetails.is_paid": true,
+        },
+      },
+      // 4. จัดกลุ่มเพื่อนับ visit และยอดใช้จ่าย (จาก Transaction ที่จ่ายแล้วเท่านั้น)
+      {
+        $group: {
           _id: "$customer",
           totalSpent: { $sum: "$total_price" },
-          visits: { $sum: 1 }
-        }
+          visits: { $sum: 1 },
+        },
       },
-      { $sort: { totalSpent: -1 } },
+      // 5. จัดเรียงตามจำนวนครั้งที่มาสูงสุด
+      { $sort: { visits: -1 } },
       { $limit: parseInt(limit) },
-      { $lookup: {
+      // 6. เชื่อมข้อมูลกับ Customer เพื่อเอาชื่อมาแสดง
+      {
+        $lookup: {
           from: "customers",
           localField: "_id",
           foreignField: "_id",
-          as: "customerDetails"
-        }
+          as: "customerDetails",
+        },
       },
       { $unwind: "$customerDetails" },
-      { $project: {
+      {
+        $project: {
           _id: 0,
           name: "$customerDetails.customer_name",
           totalSpent: 1,
-          visits: 1
-        }
-      }
+          visits: 1,
+        },
+      },
     ]);
 
     res.json(top);
-  }catch(err){
+  } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Error loading top customers", error: err.message });
+    res
+      .status(500)
+      .json({ message: "Error loading top customers", error: err.message });
   }
 };
-
 
 // --- Top Services ---
 exports.getServicesByCount = async (req, res) => {
@@ -349,5 +417,71 @@ exports.getAlerts = async (req, res) => {
     res
       .status(500)
       .json({ message: "Error loading alerts", error: err.message });
+  }
+};
+
+// --- Revenue by Payment Method ---
+exports.getRevenueByPaymentMethod = async (req, res) => {
+  try {
+    const { start, end } = prepareDateRange(req);
+
+    const revenue = await Transaction.aggregate([
+      // ขั้นตอนที่ 1: ค้นหา Transaction ในช่วงวันที่ที่กำหนด
+      {
+        $match: {
+          created_at: { $gte: start, $lte: end },
+          payment_method: { $exists: true, $ne: null },
+        },
+      },
+
+      // ✨ ขั้นตอนที่ 2 (ใหม่): เชื่อมข้อมูลกับ ServiceHistory เพื่อเช็คสถานะการจ่ายเงิน
+      {
+        $lookup: {
+          from: "servicehistories", // ชื่อ collection ของ ServiceHistory
+          localField: "serviceHistory",
+          foreignField: "_id",
+          as: "serviceDetails",
+        },
+      },
+
+      // ✨ ขั้นตอนที่ 3 (ใหม่): แตก Array ที่ได้จาก $lookup
+      {
+        $unwind: "$serviceDetails",
+      },
+
+      // ✨ ขั้นตอนที่ 4 (ใหม่): กรองเอาเฉพาะรายการที่ "จ่ายเงินแล้ว"
+      {
+        $match: {
+          "serviceDetails.is_paid": true,
+        },
+      },
+
+      // ขั้นตอนที่ 5: จัดกลุ่มตามวิธีชำระเงินและรวมยอด (เหมือนเดิม)
+      {
+        $group: {
+          _id: "$payment_method",
+          totalRevenue: { $sum: "$total_price" },
+        },
+      },
+
+      // ขั้นตอนที่ 6: จัดรูปแบบผลลัพธ์ (เหมือนเดิม)
+      {
+        $project: {
+          name: "$_id",
+          value: "$totalRevenue",
+          _id: 0,
+        },
+      },
+    ]);
+
+    res.json(revenue);
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({
+        message: "Error loading revenue by payment method",
+        error: err.message,
+      });
   }
 };
