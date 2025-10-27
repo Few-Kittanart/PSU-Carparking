@@ -29,9 +29,14 @@ export default function DetailPage() {
 
   const [serviceDetail, setServiceDetail] = useState(null);
   const [serviceList, setServiceList] = useState([]);
+  
+  // ✅ 1. เพิ่ม State สำหรับเก็บ Map ช่องจอด
+  const [parkingSlotMap, setParkingSlotMap] = useState({});
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // ✅ 2. แก้ไข useEffect นี้
   useEffect(() => {
     const fetchServiceDetail = async () => {
       try {
@@ -39,10 +44,26 @@ export default function DetailPage() {
         const token = localStorage.getItem("token");
         const headers = { Authorization: `Bearer ${token}` };
 
+        // API 1: ดึงชื่อ Service (เหมือนเดิม)
         const priceRes = await fetch("http://localhost:5000/api/prices", { headers });
         const priceData = await priceRes.json();
         setServiceList(priceData.additionalServices || []);
 
+        // (เพิ่ม) API 2: ดึงข้อมูลช่องจอดทั้งหมดเพื่อ "แปล"
+        const slotsRes = await fetch("http://localhost:5000/api/parkingSlots", { headers });
+        if (slotsRes.ok) {
+          const slotsData = await slotsRes.json();
+          const slotMap = {};
+          slotsData.forEach(s => { 
+            // สร้างชื่อเต็มเช่น "A-1"
+            slotMap[s._id] = s.zone ? `${s.zone.name}-${s.number}` : `Slot-${s.number}`; 
+          });
+          setParkingSlotMap(slotMap); // <-- บันทึก Map ไว้
+        }
+        // (สิ้นสุดส่วนที่เพิ่ม)
+
+
+        // API 3: ดึงข้อมูล Service หลัก (เหมือนเดิม)
         const res = await fetch(
           `http://localhost:5000/api/customers/${customerId}/cars/${carId}/services/${serviceId}`,
           { headers }
@@ -67,6 +88,14 @@ export default function DetailPage() {
   const { customer, car, serviceHistory } = serviceDetail;
   const getServiceName = (id) => serviceList.find((s) => s.id === id)?.name || `ID:${id}`;
 
+  // ✅ 3. เพิ่มฟังก์ชันช่วยแปลช่องจอด
+  const getParkingSlotName = (slotId) => {
+    // ใช้ Map ที่ดึงมาในการแปล ID
+    // ถ้าไม่เจอใน Map ให้แสดง ID เดิม หรือ "-"
+    return parkingSlotMap[slotId] || slotId || "-"; 
+  };
+
+
   return (
     <Box sx={{ p: { xs: 2, md: 4 }, bgcolor: "#f9fafb", minHeight: "100vh" }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
@@ -78,7 +107,6 @@ export default function DetailPage() {
         </Button>
       </Stack>
 
-      {/* ✨ ใช้ Stack เรียงการ์ดทั้งหมดจากบนลงล่าง */}
       <Stack spacing={4}>
         {/* การ์ดข้อมูลลูกค้า */}
         <Paper elevation={2} sx={{ p: 3, borderRadius: 3 }}>
@@ -116,7 +144,12 @@ export default function DetailPage() {
           <Stack spacing={2}>
             <Grid container spacing={2}>
               {serviceHistory.parking_slot && (
-                <DetailItem label="ช่องจอด" value={serviceHistory.parking_slot} />
+                
+                // --- ✅ 4. แก้ไขจุดนี้ ---
+                <DetailItem 
+                  label="ช่องจอด" 
+                  value={getParkingSlotName(serviceHistory.parking_slot)} // <-- ใช้ฟังก์ชันช่วยแปล
+                />
               )}
               <DetailItem label="เวลาเข้า" value={dayjs(serviceHistory.entry_time).format("DD MMMM YYYY, HH:mm น.")} />
             </Grid>
