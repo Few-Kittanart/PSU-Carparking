@@ -1,5 +1,3 @@
-// src/pages/ManagePage.jsx
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
@@ -15,13 +13,12 @@ import {
   Tooltip,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import PrintIcon from "@mui/icons-material/Print"; 
+import PrintIcon from "@mui/icons-material/Print"; // ไอคอนพิมพ์
+import pdfMake from "pdfmake/build/pdfmake"; // pdfmake
+import pdfFonts from "../lib/pdfFonts"; // ไฟล์ฟอนต์ (ปรับ Path ถ้าจำเป็น)
+import { useSettings } from "../context/SettingContext"; // Context สำหรับ Settings
 
-import pdfMake from "pdfmake/build/pdfmake";
-import pdfFonts from "../lib/pdfFonts"; 
-
-import { useSettings } from "../context/SettingContext"; 
-
+// ตั้งค่าฟอนต์ให้ pdfmake
 pdfMake.fonts = pdfFonts;
 
 export default function ManagePage() {
@@ -30,9 +27,9 @@ export default function ManagePage() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("allServices");
   const navigate = useNavigate();
-
-  const { settings } = useSettings(); 
-  const [serviceNameMap, setServiceNameMap] = useState({}); 
+  const { settings } = useSettings(); // ดึง settings จาก Context
+  const [serviceNameMap, setServiceNameMap] = useState({}); // เก็บชื่อ Service
+  const [parkingSlotMap, setParkingSlotMap] = useState({}); // ✅ เพิ่ม State นี้เก็บชื่อช่องจอด
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -41,7 +38,7 @@ export default function ManagePage() {
         const token = localStorage.getItem("token");
         const headers = { Authorization: `Bearer ${token}` };
 
-        // API 1: ดึงรายการที่ยังไม่จ่าย
+        // API 1: ดึง Unpaid Services
         const unpaidRes = await fetch(
           "http://localhost:5000/api/customers/unpaid-services",
           { headers }
@@ -50,17 +47,33 @@ export default function ManagePage() {
         const unpaidData = await unpaidRes.json();
         setUnpaidServices(unpaidData);
 
-        // API 2: ดึงชื่อบริการ (จาก /api/prices)
-        const pricesRes = await fetch("http://localhost:5000/api/prices", {
-          headers,
-        });
+        // API 2: ดึง Prices (ชื่อ Service)
+        const pricesRes = await fetch("http://localhost:5000/api/prices", { headers });
         if (pricesRes.ok) {
           const pricesData = await pricesRes.json();
           const map = {};
+          // ✅ Store both name and price
           pricesData.additionalServices.forEach((s) => {
-            map[s.id] = s.name;
+             map[s.id] = { name: s.name, price: s.price };
           });
           setServiceNameMap(map);
+        }
+
+        // ✅ (เพิ่ม) API 3: ดึง Parking Slots เพื่อแปล ID
+        const slotsRes = await fetch(
+          "http://localhost:5000/api/parkingSlots",
+          { headers }
+        );
+        if (slotsRes.ok) {
+          const slotsData = await slotsRes.json();
+          const slotMap = {};
+          slotsData.forEach((s) => {
+            // สร้างชื่อเต็มเช่น "A-1"
+            slotMap[s._id] = s.zone
+              ? `${s.zone.name}-${s.number}`
+              : `Slot-${s.number}`;
+          });
+          setParkingSlotMap(slotMap); // <-- เก็บ Map ไว้
         }
       } catch (err) {
         setError(err.message);
@@ -71,205 +84,108 @@ export default function ManagePage() {
     fetchInitialData();
   }, []);
 
-  // (โค้ด handlePrint ... เหมือนเดิมทุกประการ)
-  const handlePrint = (service) => {
+  // ✅ เปลี่ยนชื่อฟังก์ชัน และปรับแก้การแสดงผล
+  const handleGenerateSlip = (service) => {
     if (!settings) {
       alert("ข้อมูล Setting (โลโก้/ชื่อบริษัท) ยังโหลดไม่เสร็จ โปรดรอสักครู่");
       return;
     }
 
-    // --- สร้างรายการบริการ (Services List) ---
+    // --- สร้างรายการบริการ ---
     const serviceItems = [];
+    const parkingSlotName = parkingSlotMap[service.parking_slot] || service.parking_slot; // <-- ✅ แปลชื่อช่องจอด
 
-    if (service.parking_slot) {
+    // ตรวจสอบว่ามีข้อมูลช่องจอดจริง ๆ (ไม่ใช่ "N/A" หรือค่าว่าง)
+    if (service.parking_slot && parkingSlotName !== 'N/A' && parkingSlotName) {
       serviceItems.push([
         { text: "ค่าบริการจอดรถ", style: "tableBody" },
-        { text: `(ช่อง ${service.parking_slot})`, style: "tableBody" },
+        { text: `(ช่อง ${parkingSlotName})`, style: "tableBody" },
         { text: "-", style: "tableBody", alignment: "right" },
       ]);
     }
 
     service.services.forEach((serviceId) => {
+      // ✅ Get service info (name and price)
+      const serviceInfo = serviceNameMap[serviceId];
       serviceItems.push([
         { text: "บริการเพิ่มเติม", style: "tableBody" },
-        {
-          text: `(${serviceNameMap[serviceId] || "ID: " + serviceId})`,
-          style: "tableBody",
-        },
-        { text: "-", style: "tableBody", alignment: "right" },
+        { text: `(${serviceInfo?.name || "ID: " + serviceId})`, style: "tableBody" },
+        // ✅ Display the price if available
+        { text: `${(serviceInfo?.price || 0).toFixed(2)}`, style: "tableBody", alignment: "right" },
       ]);
     });
+     // Add blank row if needed
+     if (service.parking_slot && parkingSlotName !== 'N/A' && service.services.length > 0) {
+        serviceItems.push(['\u00A0', '\u00A0', '\u00A0']);
+    }
 
-    // --- โครงสร้างเอกสาร (Doc Definition) ของ pdfmake ---
+    // --- PDF Definition ---
     const docDefinition = {
-      defaultStyle: {
-        font: "Sarabun", 
-        fontSize: 12,
-      },
+      defaultStyle: { font: "Sarabun", fontSize: 12 },
       content: [
-        {
+        // Header (Logo + Company Info) - as before
+         {
           columns: [
-            settings.logo?.main
-              ? {
-                  image: settings.logo.main, 
-                  width: 100,
-                }
-              : { text: "" },
+            settings.logo?.main ? { image: settings.logo.main, width: 100 } : { text: "" },
             {
               text: [
-                {
-                  text: `${settings.companyName || "ชื่อบริษัท"}\n`,
-                  style: "header",
-                },
-                {
-                  text: `${settings.address?.number || ""} ${
-                    settings.address?.street || ""
-                  }\n`,
-                  style: "subheader",
-                },
-                {
-                  text: `${settings.address?.tambon || ""} ${
-                    settings.address?.amphoe || ""
-                  }\n`,
-                  style: "subheader",
-                },
-                {
-                  text: `${settings.address?.province || ""} ${
-                    settings.address?.zipcode || ""
-                  }\n`,
-                  style: "subheader",
-                },
-                {
-                  text: `โทร: ${settings.phoneNumber || "-"} `,
-                  style: "subheader",
-                },
-                {
-                  text: `เลขผู้เสียภาษี: ${settings.taxId || "-"}`,
-                  style: "subheader",
-                },
-              ],
-              alignment: "right",
+                { text: `${settings.companyName || "ชื่อบริษัท"}\n`, style: "header" },
+                { text: `${settings.address?.number || ""} ${settings.address?.street || ""}\n`, style: "subheader" },
+                { text: `${settings.address?.tambon || ""} ${settings.address?.amphoe || ""}\n`, style: "subheader" },
+                { text: `${settings.address?.province || ""} ${settings.address?.zipcode || ""}\n`, style: "subheader" },
+                { text: `โทร: ${settings.phoneNumber || "-"} `, style: "subheader" },
+                { text: `เลขผู้เสียภาษี: ${settings.taxId || "-"}`, style: "subheader" },
+              ], alignment: "right",
             },
           ],
         },
         { canvas: [{ type: "line", x1: 0, y1: 10, x2: 515, y2: 10 }] },
-        {
-          text: "ใบแจ้งค่าบริการ (ชั่วคราว)",
-          style: "title",
-          alignment: "center",
-          margin: [0, 15, 0, 10],
-        },
+        // Title - as before
+        { text: "ใบแจ้งค่าบริการ (ชั่วคราว)", style: "title", alignment: "center", margin: [0, 15, 0, 10] },
+        // Customer Info - as before
         {
           text: [
-            { text: "ลูกค้า: ", bold: true },
-            `${service.customer_name}\n`,
-            { text: "เบอร์โทร: ", bold: true },
-            `${service.phone_number}\n`,
-            { text: "ทะเบียนรถ: ", bold: true },
-            `${service.car_registration}\n`,
-            { text: "เวลาเข้า: ", bold: true },
-            `${dayjs(service.entry_time).format("DD/MM/YYYY HH:mm น.")}`,
-          ],
-          margin: [0, 0, 0, 10],
+            { text: "ลูกค้า: ", bold: true }, `${service.customer_name}\n`,
+            { text: "เบอร์โทร: ", bold: true }, `${service.phone_number}\n`,
+            { text: "ทะเบียนรถ: ", bold: true }, `${service.car_registration}\n`,
+            { text: "เวลาเข้า: ", bold: true }, `${dayjs(service.entry_time).format("DD/MM/YYYY HH:mm น.")}`,
+          ], margin: [0, 0, 0, 10],
         },
+        // Service Table
         {
           table: {
-            headerRows: 1,
-            widths: ["30%", "40%", "30%"], 
+            headerRows: 1, widths: ["30%", "40%", "30%"],
             body: [
-              [
-                { text: "รายการ", style: "tableHeader", alignment: "left" },
-                { text: "รายละเอียด", style: "tableHeader", alignment: "left" },
-                { text: "ราคารวม", style: "tableHeader", alignment: "right" },
-              ],
+              [ { text: "รายการ", style: "tableHeader", alignment: "left" }, { text: "รายละเอียด", style: "tableHeader", alignment: "left" }, { text: "ราคา (บาท)", style: "tableHeader", alignment: "right" } ],
+              // ✅ Use the updated serviceItems
               ...serviceItems,
             ],
-          },
-          layout: "lightHorizontalLines", 
+          }, layout: "lightHorizontalLines",
         },
-        {
-          canvas: [
-            {
-              type: "line",
-              x1: 0,
-              y1: 5,
-              x2: 515,
-              y2: 5,
-              lineWidth: 0.5,
-              lineColor: "#cccccc",
-            },
-          ],
-          margin: [0, 10, 0, 0],
-        },
+        { canvas: [{ type: "line", x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 0.5, lineColor: '#cccccc' }], margin: [0, 10, 0, 0] },
+        // Totals - as before
         {
           table: {
             widths: ["*", "auto"],
             body: [
-              [
-                {
-                  text: "ยอดรวมทั้งสิ้น",
-                  style: "totalText",
-                  alignment: "right",
-                },
-                {
-                  text: `${service.total_price.toFixed(2)} บาท`,
-                  style: "totalAmount",
-                  alignment: "right",
-                },
-              ],
-              [
-                { text: "สถานะ", style: "totalText", alignment: "right" },
-                {
-                  text: "ยังไม่ชำระ",
-                  style: "totalAmount",
-                  color: "red",
-                  alignment: "right",
-                },
-              ],
+              [ { text: "ยอดรวมทั้งสิ้น", style: "totalText", alignment: "right" }, { text: `${service.total_price.toFixed(2)} บาท`, style: "totalAmount", alignment: "right" } ],
+              [ { text: "สถานะ", style: "totalText", alignment: "right" }, { text: "ยังไม่ชำระ", style: "totalAmount", color: "red", alignment: "right" } ],
             ],
-          },
-          layout: "noBorders",
-          margin: [0, 10, 0, 0],
+          }, layout: "noBorders", margin: [0, 10, 0, 0],
         },
       ],
+      // Styles - as before
       styles: {
-        header: {
-          fontSize: 16,
-          bold: true,
-        },
-        subheader: {
-          fontSize: 10,
-          color: "gray",
-        },
-        title: {
-          fontSize: 18,
-          bold: true,
-        },
-        tableHeader: {
-          bold: true,
-          fontSize: 13,
-          color: "black",
-        },
-        tableBody: {
-          fontSize: 12,
-        },
-        totalText: {
-          fontSize: 12,
-          bold: true,
-          margin: [0, 2, 0, 2],
-        },
-        totalAmount: {
-          fontSize: 14,
-          bold: true,
-          margin: [0, 2, 0, 2],
-        },
+        header: { fontSize: 16, bold: true }, subheader: { fontSize: 10, color: "gray" },
+        title: { fontSize: 18, bold: true }, tableHeader: { bold: true, fontSize: 13 },
+        tableBody: { fontSize: 12 }, totalText: { fontSize: 12, bold: true, margin: [0, 2, 0, 2] },
+        totalAmount: { fontSize: 14, bold: true, margin: [0, 2, 0, 2] },
       },
     };
-
     pdfMake.createPdf(docDefinition).open();
   };
 
-
+  // --- Loading และ Error UI ---
   if (loading)
     return (
       <div className="p-6 text-center text-lg font-semibold">
@@ -284,74 +200,58 @@ export default function ManagePage() {
       </div>
     );
 
-  // Filter tabs
+  // --- Filter Logic ---
   const parkingOnly = unpaidServices.filter(
-    (s) => s.parking_slot && s.services.length === 0
+    (s) => s.parking_slot && s.services.length === 0 && s.parking_slot !== 'N/A'
   );
   const additionalOnly = unpaidServices.filter(
-    (s) => !s.parking_slot && s.services.length > 0
+    (s) => (!s.parking_slot || s.parking_slot === 'N/A') && s.services.length > 0
   );
   const parkingAndAdditional = unpaidServices.filter(
-    (s) => s.parking_slot && s.services.length > 0
+    (s) => s.parking_slot && s.services.length > 0 && s.parking_slot !== 'N/A'
   );
 
+  // --- Render Table Function ---
   const renderTable = (data) => (
     <TableContainer component={Paper} className="shadow-lg">
       <Table stickyHeader>
         <TableHead>
           <TableRow>
-            {/* --- 1. เปลี่ยนหัวตาราง --- */}
-            <TableCell className="font-bold text-lg text-gray-700" align="center">
-              ลำดับ
-            </TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">
-              ชื่อ-นามสกุล
-            </TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">
-              เบอร์โทรศัพท์
-            </TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">
-              ทะเบียนรถ
-            </TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">
-              เวลาเข้า
-            </TableCell>
-            <TableCell className="font-bold text-lg text-gray-700 text-center">
-              ประเภทบริการ
-            </TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">
-              ยอดรวม
-            </TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">
-              ดำเนินการ
-            </TableCell>
+            <TableCell align="center" className="font-bold text-lg text-gray-700">ลำดับ</TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">ชื่อ-นามสกุล</TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">เบอร์โทรศัพท์</TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">ทะเบียนรถ</TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">เวลาเข้า</TableCell>
+            <TableCell className="font-bold text-lg text-gray-700 text-center">ประเภทบริการ</TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">ยอดรวม</TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">ดำเนินการ</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {data.length > 0 ? (
-            // 'index' ถูกส่งมาจาก .map() อยู่แล้ว
             data.map((service, index) => {
-              const hasParking = !!service.parking_slot;
+              const parkingSlotName = parkingSlotMap[service.parking_slot] || service.parking_slot; // ✅ แปลชื่อช่องจอด
+              // ตรวจสอบว่ามีข้อมูลช่องจอดจริง ๆ (ไม่ใช่ "N/A" หรือค่าว่าง)
+              const hasParking = !!service.parking_slot && parkingSlotName !== 'N/A' && parkingSlotName;
               const hasServices = service.services.length > 0;
               let serviceType, bgColor;
 
               if (hasParking && hasServices) {
-                serviceType = `${service.parking_slot} + บริการเพิ่มเติม`;
+                serviceType = `${parkingSlotName} + บริการเพิ่มเติม`; // ✅ ใช้ชื่อที่แปลแล้ว
                 bgColor = "bg-purple-500";
               } else if (hasParking) {
-                serviceType = service.parking_slot;
+                serviceType = parkingSlotName; // ✅ ใช้ชื่อที่แปลแล้ว
                 bgColor = "bg-orange-400";
               } else if (hasServices) {
                 serviceType = "บริการเพิ่มเติม";
                 bgColor = "bg-green-500";
               } else {
-                serviceType = "ไม่ระบุ";
+                serviceType = "ไม่ระบุ"; // กรณีไม่มีทั้งคู่ (ไม่น่าเกิด)
                 bgColor = "bg-gray-400";
               }
 
               return (
-                <TableRow key={service.service_id}>
-                  {/* --- 2. เปลี่ยนข้อมูลในเซลล์ --- */}
+                <TableRow key={service.service_id}> {/* ใช้ key จาก API */}
                   <TableCell align="center">{index + 1}</TableCell>
                   <TableCell>{service.customer_name}</TableCell>
                   <TableCell>{service.phone_number}</TableCell>
@@ -371,17 +271,18 @@ export default function ManagePage() {
                     <Tooltip title="ดูรายละเอียด">
                       <IconButton
                         onClick={() => {
+                          // ใช้ ID จริงจาก API ถ้ามี, หรือ ID ที่สร้างเองถ้าไม่มี
+                          const detailServiceId = service.service_id; // ใช้ ID ที่ API ส่งมา
                           navigate(
-                            `/manage/detail/${service.customer_id}/${service.car_id}/${service.service_id}`
+                            `/manage/detail/${service.customer_id}/${service.car_id}/${detailServiceId}`
                           );
                         }}
                       >
                         <SearchIcon />
                       </IconButton>
                     </Tooltip>
-
                     <Tooltip title="พิมพ์สลิป">
-                      <IconButton onClick={() => handlePrint(service)}>
+                      <IconButton onClick={() => handleGenerateSlip(service)}>
                         <PrintIcon color="primary" />
                       </IconButton>
                     </Tooltip>
@@ -391,7 +292,6 @@ export default function ManagePage() {
             })
           ) : (
             <TableRow>
-              {/* (ปรับ colSpan ให้ตรงกับจำนวนคอลัมน์ใหม่) */}
               <TableCell colSpan={8} align="center">
                 ไม่มีรายการประเภทนี้ในขณะนี้
               </TableCell>
@@ -402,10 +302,12 @@ export default function ManagePage() {
     </TableContainer>
   );
 
+  // --- Main JSX ---
   return (
     <div className="p-6 sm:p-10 space-y-8">
       <h2 className="text-3xl font-bold text-[#ea7f33]">จัดการบริการ</h2>
 
+      {/* Legend */}
       <div className="flex flex-wrap gap-4 text-sm font-medium ">
         <div className="flex items-center gap-2">
           <span className="w-4 h-4 rounded-full bg-orange-400"></span>
@@ -421,6 +323,7 @@ export default function ManagePage() {
         </div>
       </div>
 
+      {/* Tabs */}
       <div className="flex gap-4 border-b border-gray-300">
         <button
           onClick={() => setActiveTab("allServices")}
@@ -464,9 +367,9 @@ export default function ManagePage() {
         </button>
       </div>
 
+      {/* Render Table based on Active Tab */}
       {activeTab === "allServices" && renderTable(unpaidServices)}
-      {activeTab === "parkingAndAdditional" &&
-        renderTable(parkingAndAdditional)}
+      {activeTab === "parkingAndAdditional" && renderTable(parkingAndAdditional)}
       {activeTab === "parkingOnly" && renderTable(parkingOnly)}
       {activeTab === "additionalOnly" && renderTable(additionalOnly)}
     </div>
