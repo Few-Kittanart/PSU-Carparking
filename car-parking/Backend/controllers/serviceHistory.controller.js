@@ -1,4 +1,5 @@
 const ServiceHistory = require('../models/serviceHistory.model');
+const Transaction = require('../models/transaction.model');
 
 // สร้าง service history ใหม่
 exports.createServiceHistory = async (req, res) => {
@@ -35,25 +36,21 @@ exports.getServiceHistoryById = async (req, res) => {
 // แก้ไข service history
 exports.updateServiceHistory = async (req, res) => {
   try {
-    // 2. ค้นหาและอัปเดต ServiceHistory ด้วยข้อมูลใหม่จาก req.body
-    // (ข้อมูลใหม่นี้ถูกส่งมาจาก DetailPage.jsx)
+    // ค้นหาและอัปเดต ServiceHistory
     const service = await ServiceHistory.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    
     if (!service) return res.status(404).json({ error: 'Service history not found' });
 
-    // --- 🌟 3. ส่วนที่เพิ่มเข้ามา ---
-    // (หลังจากอัปเดต ServiceHistory แล้ว)
-    // ให้ไปค้นหา Transaction ที่เกี่ยวข้อง (โดยใช้ serviceId) 
-    // แล้วอัปเดต total_price ใน Transaction ให้ตรงกันด้วย
+    // อัปเดต Transaction ที่เกี่ยวข้อง
+    // บรรทัดที่ 42 (โดยประมาณ) จะทำงานได้เมื่อมี require ด้านบน
     await Transaction.findOneAndUpdate(
-      { serviceHistory: req.params.id }, // ค้นหา Transaction ที่มี serviceId นี้
-      { total_price: service.total_price } // อัปเดต total_price ให้ตรงกับ service ที่เพิ่งแก้
+      { serviceHistory: req.params.id },
+      { total_price: service.total_price }
     );
-    
-    // 4. ส่งข้อมูลที่อัปเดตแล้วกลับไป (เหมือนเดิม)
+
     res.json(service);
 
   } catch (err) {
+    console.error("Error updating Service History or Transaction:", err);
     res.status(400).json({ error: err.message });
   }
 };
