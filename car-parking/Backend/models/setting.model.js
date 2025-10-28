@@ -29,12 +29,15 @@ const settingSchema = new mongoose.Schema(
       bankName: { type: String, default: "" },
       accountNumber: { type: String, default: "" },
       showQrCode: { type: Boolean, default: false },
+      qrCodeImage: { type: String, default: null },
     },
     bank2: {
       show: { type: Boolean, default: false },
       accountName: { type: String, default: "" },
       bankName: { type: String, default: "" },
       accountNumber: { type: String, default: "" },
+      showQrCode: { type: Boolean, default: false },
+      qrCodeImage: { type: String, default: null },
     },
     promptPay: {
       show: { type: Boolean, default: false },
