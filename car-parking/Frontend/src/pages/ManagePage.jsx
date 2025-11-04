@@ -27,7 +27,7 @@ export default function ManagePage() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("allServices");
   const navigate = useNavigate();
-  const { settings } = useSettings(); // ดึง settings จาก Context
+  const { settings, loading: settingsLoading } = useSettings(); // ดึง settings และ loading จาก Context // ดึง settings จาก Context
   const [serviceNameMap, setServiceNameMap] = useState({}); // เก็บชื่อ Service
   const [parkingSlotMap, setParkingSlotMap] = useState({}); // ✅ เพิ่ม State นี้เก็บชื่อช่องจอด
 
@@ -48,22 +48,23 @@ export default function ManagePage() {
         setUnpaidServices(unpaidData);
 
         // API 2: ดึง Prices (ชื่อ Service)
-        const pricesRes = await fetch("http://localhost:5000/api/prices", { headers });
+        const pricesRes = await fetch("http://localhost:5000/api/prices", {
+          headers,
+        });
         if (pricesRes.ok) {
           const pricesData = await pricesRes.json();
           const map = {};
           // ✅ Store both name and price
           pricesData.additionalServices.forEach((s) => {
-             map[s.id] = { name: s.name, price: s.price };
+            map[s.id] = { name: s.name, price: s.price };
           });
           setServiceNameMap(map);
         }
 
         // ✅ (เพิ่ม) API 3: ดึง Parking Slots เพื่อแปล ID
-        const slotsRes = await fetch(
-          "http://localhost:5000/api/parkingSlots",
-          { headers }
-        );
+        const slotsRes = await fetch("http://localhost:5000/api/parkingSlots", {
+          headers,
+        });
         if (slotsRes.ok) {
           const slotsData = await slotsRes.json();
           const slotMap = {};
@@ -93,10 +94,11 @@ export default function ManagePage() {
 
     // --- สร้างรายการบริการ ---
     const serviceItems = [];
-    const parkingSlotName = parkingSlotMap[service.parking_slot] || service.parking_slot; // <-- ✅ แปลชื่อช่องจอด
+    const parkingSlotName =
+      parkingSlotMap[service.parking_slot] || service.parking_slot; // <-- ✅ แปลชื่อช่องจอด
 
     // ตรวจสอบว่ามีข้อมูลช่องจอดจริง ๆ (ไม่ใช่ "N/A" หรือค่าว่าง)
-    if (service.parking_slot && parkingSlotName !== 'N/A' && parkingSlotName) {
+    if (service.parking_slot && parkingSlotName !== "N/A" && parkingSlotName) {
       serviceItems.push([
         { text: "ค่าบริการจอดรถ", style: "tableBody" },
         { text: `(ช่อง ${parkingSlotName})`, style: "tableBody" },
@@ -109,14 +111,25 @@ export default function ManagePage() {
       const serviceInfo = serviceNameMap[serviceId];
       serviceItems.push([
         { text: "บริการเพิ่มเติม", style: "tableBody" },
-        { text: `(${serviceInfo?.name || "ID: " + serviceId})`, style: "tableBody" },
+        {
+          text: `(${serviceInfo?.name || "ID: " + serviceId})`,
+          style: "tableBody",
+        },
         // ✅ Display the price if available
-        { text: `${(serviceInfo?.price || 0).toFixed(2)}`, style: "tableBody", alignment: "right" },
+        {
+          text: `${(serviceInfo?.price || 0).toFixed(2)}`,
+          style: "tableBody",
+          alignment: "right",
+        },
       ]);
     });
-     // Add blank row if needed
-     if (service.parking_slot && parkingSlotName !== 'N/A' && service.services.length > 0) {
-        serviceItems.push(['\u00A0', '\u00A0', '\u00A0']);
+    // Add blank row if needed
+    if (
+      service.parking_slot &&
+      parkingSlotName !== "N/A" &&
+      service.services.length > 0
+    ) {
+      serviceItems.push(["\u00A0", "\u00A0", "\u00A0"]);
     }
 
     // --- PDF Definition ---
@@ -124,61 +137,145 @@ export default function ManagePage() {
       defaultStyle: { font: "Sarabun", fontSize: 12 },
       content: [
         // Header (Logo + Company Info) - as before
-         {
+        {
           columns: [
-            settings.logo?.main ? { image: settings.logo.main, width: 100 } : { text: "" },
+            settings.logo?.main
+              ? { image: settings.logo.main, width: 100 }
+              : { text: "" },
             {
               text: [
-                { text: `${settings.companyName || "ชื่อบริษัท"}\n`, style: "header" },
-                { text: `${settings.address?.number || ""} ${settings.address?.street || ""}\n`, style: "subheader" },
-                { text: `${settings.address?.tambon || ""} ${settings.address?.amphoe || ""}\n`, style: "subheader" },
-                { text: `${settings.address?.province || ""} ${settings.address?.zipcode || ""}\n`, style: "subheader" },
-                { text: `โทร: ${settings.phoneNumber || "-"} `, style: "subheader" },
-                { text: `เลขผู้เสียภาษี: ${settings.taxId || "-"}`, style: "subheader" },
-              ], alignment: "right",
+                {
+                  text: `${settings.companyName || "ชื่อบริษัท"}\n`,
+                  style: "header",
+                },
+                {
+                  text: `${settings.address?.number || ""} ${
+                    settings.address?.street || ""
+                  }\n`,
+                  style: "subheader",
+                },
+                {
+                  text: `${settings.address?.tambon || ""} ${
+                    settings.address?.amphoe || ""
+                  }\n`,
+                  style: "subheader",
+                },
+                {
+                  text: `${settings.address?.province || ""} ${
+                    settings.address?.zipcode || ""
+                  }\n`,
+                  style: "subheader",
+                },
+                {
+                  text: `โทร: ${settings.phoneNumber || "-"} `,
+                  style: "subheader",
+                },
+                {
+                  text: `เลขผู้เสียภาษี: ${settings.taxId || "-"}`,
+                  style: "subheader",
+                },
+              ],
+              alignment: "right",
             },
           ],
         },
         { canvas: [{ type: "line", x1: 0, y1: 10, x2: 515, y2: 10 }] },
         // Title - as before
-        { text: "ใบแจ้งค่าบริการ (ชั่วคราว)", style: "title", alignment: "center", margin: [0, 15, 0, 10] },
+        {
+          text: "ใบแจ้งค่าบริการ (ชั่วคราว)",
+          style: "title",
+          alignment: "center",
+          margin: [0, 15, 0, 10],
+        },
         // Customer Info - as before
         {
           text: [
-            { text: "ลูกค้า: ", bold: true }, `${service.customer_name}\n`,
-            { text: "เบอร์โทร: ", bold: true }, `${service.phone_number}\n`,
-            { text: "ทะเบียนรถ: ", bold: true }, `${service.car_registration}\n`,
-            { text: "เวลาเข้า: ", bold: true }, `${dayjs(service.entry_time).format("DD/MM/YYYY HH:mm น.")}`,
-          ], margin: [0, 0, 0, 10],
+            { text: "ลูกค้า: ", bold: true },
+            `${service.customer_name}\n`,
+            { text: "เบอร์โทร: ", bold: true },
+            `${service.phone_number}\n`,
+            { text: "ทะเบียนรถ: ", bold: true },
+            `${service.car_registration}\n`,
+            { text: "เวลาเข้า: ", bold: true },
+            `${dayjs(service.entry_time).format("DD/MM/YYYY HH:mm น.")}`,
+          ],
+          margin: [0, 0, 0, 10],
         },
         // Service Table
         {
           table: {
-            headerRows: 1, widths: ["30%", "40%", "30%"],
+            headerRows: 1,
+            widths: ["30%", "40%", "30%"],
             body: [
-              [ { text: "รายการ", style: "tableHeader", alignment: "left" }, { text: "รายละเอียด", style: "tableHeader", alignment: "left" }, { text: "ราคา (บาท)", style: "tableHeader", alignment: "right" } ],
+              [
+                { text: "รายการ", style: "tableHeader", alignment: "left" },
+                { text: "รายละเอียด", style: "tableHeader", alignment: "left" },
+                {
+                  text: "ราคา (บาท)",
+                  style: "tableHeader",
+                  alignment: "right",
+                },
+              ],
               // ✅ Use the updated serviceItems
               ...serviceItems,
             ],
-          }, layout: "lightHorizontalLines",
+          },
+          layout: "lightHorizontalLines",
         },
-        { canvas: [{ type: "line", x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 0.5, lineColor: '#cccccc' }], margin: [0, 10, 0, 0] },
+        {
+          canvas: [
+            {
+              type: "line",
+              x1: 0,
+              y1: 5,
+              x2: 515,
+              y2: 5,
+              lineWidth: 0.5,
+              lineColor: "#cccccc",
+            },
+          ],
+          margin: [0, 10, 0, 0],
+        },
         // Totals - as before
         {
           table: {
             widths: ["*", "auto"],
             body: [
-              [ { text: "ยอดรวมทั้งสิ้น", style: "totalText", alignment: "right" }, { text: `${service.total_price.toFixed(2)} บาท`, style: "totalAmount", alignment: "right" } ],
-              [ { text: "สถานะ", style: "totalText", alignment: "right" }, { text: "ยังไม่ชำระ", style: "totalAmount", color: "red", alignment: "right" } ],
+              [
+                {
+                  text: "ยอดรวมทั้งสิ้น",
+                  style: "totalText",
+                  alignment: "right",
+                },
+                {
+                  text: `${service.total_price.toFixed(2)} บาท`,
+                  style: "totalAmount",
+                  alignment: "right",
+                },
+              ],
+              [
+                { text: "สถานะ", style: "totalText", alignment: "right" },
+                {
+                  text: "ยังไม่ชำระ",
+                  style: "totalAmount",
+                  color: "red",
+                  alignment: "right",
+                },
+              ],
             ],
-          }, layout: "noBorders", margin: [0, 10, 0, 0],
+          },
+          layout: "noBorders",
+          margin: [0, 10, 0, 0],
         },
       ],
       // Styles - as before
       styles: {
-        header: { fontSize: 16, bold: true }, subheader: { fontSize: 10, color: "gray" },
-        title: { fontSize: 18, bold: true }, tableHeader: { bold: true, fontSize: 13 },
-        tableBody: { fontSize: 12 }, totalText: { fontSize: 12, bold: true, margin: [0, 2, 0, 2] },
+        header: { fontSize: 16, bold: true },
+        subheader: { fontSize: 10, color: "gray" },
+        title: { fontSize: 18, bold: true },
+        tableHeader: { bold: true, fontSize: 13 },
+        tableBody: { fontSize: 12 },
+        totalText: { fontSize: 12, bold: true, margin: [0, 2, 0, 2] },
         totalAmount: { fontSize: 14, bold: true, margin: [0, 2, 0, 2] },
       },
     };
@@ -186,7 +283,7 @@ export default function ManagePage() {
   };
 
   // --- Loading และ Error UI ---
-  if (loading)
+  if (loading || settingsLoading)
     return (
       <div className="p-6 text-center text-lg font-semibold">
         กำลังโหลดข้อมูล...
@@ -202,13 +299,14 @@ export default function ManagePage() {
 
   // --- Filter Logic ---
   const parkingOnly = unpaidServices.filter(
-    (s) => s.parking_slot && s.services.length === 0 && s.parking_slot !== 'N/A'
+    (s) => s.parking_slot && s.services.length === 0 && s.parking_slot !== "N/A"
   );
   const additionalOnly = unpaidServices.filter(
-    (s) => (!s.parking_slot || s.parking_slot === 'N/A') && s.services.length > 0
+    (s) =>
+      (!s.parking_slot || s.parking_slot === "N/A") && s.services.length > 0
   );
   const parkingAndAdditional = unpaidServices.filter(
-    (s) => s.parking_slot && s.services.length > 0 && s.parking_slot !== 'N/A'
+    (s) => s.parking_slot && s.services.length > 0 && s.parking_slot !== "N/A"
   );
 
   // --- Render Table Function ---
@@ -217,22 +315,45 @@ export default function ManagePage() {
       <Table stickyHeader>
         <TableHead>
           <TableRow>
-            <TableCell align="center" className="font-bold text-lg text-gray-700">ลำดับ</TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">ชื่อ-นามสกุล</TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">เบอร์โทรศัพท์</TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">ทะเบียนรถ</TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">เวลาเข้า</TableCell>
-            <TableCell className="font-bold text-lg text-gray-700 text-center">ประเภทบริการ</TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">ยอดรวม</TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">ดำเนินการ</TableCell>
+            <TableCell
+              align="center"
+              className="font-bold text-lg text-gray-700"
+            >
+              ลำดับ
+            </TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">
+              ชื่อ-นามสกุล
+            </TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">
+              เบอร์โทรศัพท์
+            </TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">
+              ทะเบียนรถ
+            </TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">
+              เวลาเข้า
+            </TableCell>
+            <TableCell className="font-bold text-lg text-gray-700 text-center">
+              ประเภทบริการ
+            </TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">
+              ยอดรวม
+            </TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">
+              ดำเนินการ
+            </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {data.length > 0 ? (
             data.map((service, index) => {
-              const parkingSlotName = parkingSlotMap[service.parking_slot] || service.parking_slot; // ✅ แปลชื่อช่องจอด
+              const parkingSlotName =
+                parkingSlotMap[service.parking_slot] || service.parking_slot; // ✅ แปลชื่อช่องจอด
               // ตรวจสอบว่ามีข้อมูลช่องจอดจริง ๆ (ไม่ใช่ "N/A" หรือค่าว่าง)
-              const hasParking = !!service.parking_slot && parkingSlotName !== 'N/A' && parkingSlotName;
+              const hasParking =
+                !!service.parking_slot &&
+                parkingSlotName !== "N/A" &&
+                parkingSlotName;
               const hasServices = service.services.length > 0;
               let serviceType, bgColor;
 
@@ -251,7 +372,9 @@ export default function ManagePage() {
               }
 
               return (
-                <TableRow key={service.service_id}> {/* ใช้ key จาก API */}
+                <TableRow key={service.service_id}>
+                  {" "}
+                  {/* ใช้ key จาก API */}
                   <TableCell align="center">{index + 1}</TableCell>
                   <TableCell>{service.customer_name}</TableCell>
                   <TableCell>{service.phone_number}</TableCell>
@@ -369,7 +492,8 @@ export default function ManagePage() {
 
       {/* Render Table based on Active Tab */}
       {activeTab === "allServices" && renderTable(unpaidServices)}
-      {activeTab === "parkingAndAdditional" && renderTable(parkingAndAdditional)}
+      {activeTab === "parkingAndAdditional" &&
+        renderTable(parkingAndAdditional)}
       {activeTab === "parkingOnly" && renderTable(parkingOnly)}
       {activeTab === "additionalOnly" && renderTable(additionalOnly)}
     </div>
