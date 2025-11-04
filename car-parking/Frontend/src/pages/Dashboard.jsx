@@ -117,7 +117,7 @@ const DashboardPage = () => {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">ภาพรวม Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-6 text-gray-800">Dashboard</h1>
 
       {/* Date Range */}
       <div className="flex flex-col md:flex-row gap-4 mb-6 p-4 bg-white rounded-xl shadow-md items-center">
@@ -216,7 +216,7 @@ const DashboardPage = () => {
         
         {/* Top Customers Table */}
         <div className="bg-white p-6 rounded-xl shadow-lg">
-          <h2 className="text-xl font-semibold mb-4 text-gray-700">5 ลูกค้าที่มาใช้บริารมากที่สุด</h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">5 ลูกค้าที่มาใช้บริการมากที่สุด</h2>
           {topCustomers && topCustomers.length > 0 ? (
             <div className="overflow-x-auto">
                 <table className="w-full text-left">

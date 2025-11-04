@@ -280,7 +280,7 @@ export default function ReportPage() {
               <TableCell className="font-bold">ลำดับ</TableCell>
               <TableCell className="font-bold">วันเข้ารับบริการ</TableCell>
               <TableCell className="font-bold">วันรับรถ</TableCell>
-              <TableCell className="font-bold">วัน/ชั่วโมง</TableCell>
+              {/* <TableCell className="font-bold">วัน/ชั่วโมง</TableCell> */}
               <TableCell className="font-bold">ทะเบียนรถ</TableCell>
               <TableCell className="font-bold">จังหวัด</TableCell>
               <TableCell className="font-bold">ยี่ห้อ</TableCell>
@@ -295,7 +295,7 @@ export default function ReportPage() {
                   <TableCell>{index + 1}</TableCell>
                   <TableCell> {dayjs(row.entry_time).format("DD/MM/YYYY")} </TableCell>
                   <TableCell> {row.exit_time ? dayjs(row.exit_time).format("DD/MM/YYYY") : "-"} </TableCell>
-                  <TableCell> {calculateDuration(row.entry_time, row.exit_time)} </TableCell>
+                  {/* <TableCell> {calculateDuration(row.entry_time, row.exit_time)} </TableCell> */}
                   <TableCell>{row.car_registration}</TableCell>
                   <TableCell>{row.car_registration_province}</TableCell>
                   <TableCell>{row.brand_car}</TableCell>
