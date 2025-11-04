@@ -73,7 +73,7 @@ export default function ManageParkingFull() {
   const fetchSlots = async (zoneId) => {
     try {
       const res = await axios.get(`${API}/parkingslots?zoneId=${zoneId}`);
-      setSlots(res.data); // ✅ โหลดใหม่ทุกครั้ง
+      setSlots(res.data);
     } catch (err) {
       console.error("Error fetching parking slots:", err);
     }
@@ -101,12 +101,11 @@ export default function ManageParkingFull() {
 
     try {
       if (editingZone) {
-        // 🔹 Update zone และ slots อัตโนมัติ
         await axios.put(`${API}/zones/${editingZone._id}`, zoneForm);
         showSnackbar("แก้ไข Zone สำเร็จ");
 
         if (selectedZone === editingZone._id) {
-          await fetchSlots(editingZone._id); // รีเฟรช slots ของ zone ที่แก้ไข
+          await fetchSlots(editingZone._id);
         }
       } else {
         await axios.post(`${API}/zones`, zoneForm);
@@ -114,7 +113,7 @@ export default function ManageParkingFull() {
       }
 
       setZoneOpen(false);
-      await fetchZones(); // รีเฟรชรายการโซน
+      await fetchZones();
     } catch (err) {
       showSnackbar(
         err.response?.data?.message || "บันทึก Zone ไม่สำเร็จ",

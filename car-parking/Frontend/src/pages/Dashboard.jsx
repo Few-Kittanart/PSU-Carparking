@@ -37,7 +37,6 @@ const DashboardPage = () => {
   const [error, setError] = useState(null);
   const [serviceNameMap, setServiceNameMap] = useState({});
 
-  // ✨ State ใหม่สำหรับเก็บข้อมูลรายรับตามวิธีชำระเงิน
   const [revenueByPaymentMethod, setRevenueByPaymentMethod] = useState([]);
 
   const [dateRange, setDateRange] = useState({
@@ -143,7 +142,6 @@ const DashboardPage = () => {
         ))}
       </div>
       
-      {/* ✨ ปรับ Layout เป็น 3 columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
 
         {/* Customer Segments Pie */}
@@ -178,7 +176,6 @@ const DashboardPage = () => {
           </ResponsiveContainer>
         </div>
 
-        {/* ✨ กราฟใหม่: Revenue by Payment Method */}
         <div className="bg-white p-6 rounded-xl shadow-lg">
           <h2 className="text-xl font-semibold mb-4 text-gray-700">สัดส่วนรายได้ (วิธีชำระเงิน)</h2>
           <ResponsiveContainer width="100%" height={300}>
@@ -194,8 +191,7 @@ const DashboardPage = () => {
           </ResponsiveContainer>
         </div>
       </div>
-      
-      {/* ส่วนที่เหลือของ Dashboard */}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         {/* Revenue by Day */}
         <div className="bg-white p-6 rounded-xl shadow-lg col-span-1 lg:col-span-2">

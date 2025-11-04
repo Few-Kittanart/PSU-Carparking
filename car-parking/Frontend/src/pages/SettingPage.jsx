@@ -160,7 +160,7 @@ export default function SettingPage() {
         setSettings((prev) => {
           let newSettings = { ...prev };
           if (type === "logo") {
-            newSettings.logo[bankNumber] = reader.result; // bankNumber here is 'main' or 'sub'
+            newSettings.logo[bankNumber] = reader.result;
           } else if (type === "qr" && bankNumber) {
             newSettings[`bank${bankNumber}`].qrCodeImage = reader.result;
           }
@@ -432,7 +432,6 @@ export default function SettingPage() {
           </AccordionSummary>
           <AccordionDetails>
             <Grid container spacing={3}>
-              {/* (TextFields เดิม ... accountName, bankName, accountNumber) */}
               <Grid item xs={12} md={6}>
                 {" "}
                 <TextField
@@ -476,8 +475,6 @@ export default function SettingPage() {
                   label="แสดงรูป QR Code (ในหน้าชำระเงิน)"
                 />
               </Grid>
-
-              {/* ✅ เพิ่มส่วนอัปโหลด QR Code สำหรับ Bank 1 */}
               <Grid item xs={12}>
                 <InputLabel sx={{ mb: 1, color: "text.secondary" }}>
                   รูป QR Code ธนาคาร 1
@@ -509,7 +506,6 @@ export default function SettingPage() {
                   )}
                 </Box>
               </Grid>
-              {/* (สิ้นสุดส่วนที่เพิ่ม) */}
             </Grid>
           </AccordionDetails>
         </Accordion>
@@ -545,7 +541,6 @@ export default function SettingPage() {
           </AccordionSummary>
           <AccordionDetails>
             <Grid container spacing={3}>
-              {/* (TextFields เดิม ... accountName, bankName, accountNumber) */}
               <Grid item xs={12} md={6}>
                 {" "}
                 <TextField
@@ -576,7 +571,6 @@ export default function SettingPage() {
                 />{" "}
               </Grid>
 
-              {/* ✅ เพิ่มส่วนอัปโหลด QR Code สำหรับ Bank 2 */}
               <Grid item xs={12}>
                 <InputLabel sx={{ mb: 1, color: "text.secondary" }}>
                   รูป QR Code ธนาคาร 2

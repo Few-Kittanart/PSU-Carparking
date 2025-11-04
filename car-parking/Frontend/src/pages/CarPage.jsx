@@ -26,11 +26,10 @@ export default function CarPage() {
     })
       .then((res) => res.json())
       .then((data) => {
-        // ✅ แปลงข้อมูลลูกค้าให้อยู่ในรูปแบบรายการรถ
         const cars = data.flatMap(customer =>
           customer.cars.map(car => ({
-            ...car, // ข้อมูลรถ
-            customer_id: customer.customer_id, // เพิ่มข้อมูลลูกค้า
+            ...car,
+            customer_id: customer.customer_id,
             customer_name: customer.customer_name,
             phone_number: customer.phone_number,
           }))

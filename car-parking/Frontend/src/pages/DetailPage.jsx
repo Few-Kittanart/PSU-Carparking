@@ -27,11 +27,10 @@ import CalculateIcon from "@mui/icons-material/Calculate";
 import SaveIcon from "@mui/icons-material/Save";
 import dayjs from "dayjs";
 import "dayjs/locale/th";
-import axios from "axios"; // Import axios
+import axios from "axios";
 
 dayjs.locale("th");
 
-// ฟังก์ชันคำนวณราคา
 const calculateDurationAndPrice = (
   startTime,
   endTime,
@@ -98,10 +97,10 @@ export default function DetailPage() {
   const [recalculatedTotalPrice, setRecalculatedTotalPrice] = useState(0);
   const [recalculatedDuration, setRecalculatedDuration] = useState("");
   const [isEditing, setIsEditing] = useState(false);
-  const [editableServices, setEditableServices] = useState([]); // เก็บ ID บริการที่แก้ไข
+  const [editableServices, setEditableServices] = useState([]);
   const [recalculatedAdditionalPrice, setRecalculatedAdditionalPrice] =
-    useState(0); // เก็บราคาบริการเสริมที่แก้ไข
-  const [selectedServiceToAdd, setSelectedServiceToAdd] = useState(""); // สำหรับ Dropdown
+    useState(0);
+  const [selectedServiceToAdd, setSelectedServiceToAdd] = useState("");
 
   useEffect(() => {
     const fetchServiceDetail = async () => {
@@ -179,20 +178,18 @@ export default function DetailPage() {
       editableExit,
       parkingRates
     );
-    const additionalPrice = recalculatedAdditionalPrice; // ใช้ State ใหม่
+    const additionalPrice = recalculatedAdditionalPrice;
     const newTotal = result.price + additionalPrice;
 
     setRecalculatedParkingPrice(result.price);
     setRecalculatedTotalPrice(newTotal);
     setRecalculatedDuration(result.duration);
-    setIsEditing(true); // ตั้งสถานะว่า "มีการแก้ไข"
+    setIsEditing(true);
   };
 
-  // 🔽 (4) เพิ่มฟังก์ชันใหม่นี้ทั้งหมด 🔽
   const handleAddService = (serviceId) => {
-    // ถ้าไม่เลือก หรือมีบริการนี้อยู่แล้ว (ตามโจทย์คือห้ามลบ)
     if (!serviceId || editableServices.includes(serviceId)) {
-      setSelectedServiceToAdd(""); // รีเซ็ต Dropdown
+      setSelectedServiceToAdd("");
       return;
     }
 
@@ -207,8 +204,8 @@ export default function DetailPage() {
     setEditableServices((prev) => [...prev, serviceId]);
     setRecalculatedAdditionalPrice(newAdditionalPrice);
     setRecalculatedTotalPrice(newTotal);
-    setIsEditing(true); // ตั้งสถานะว่ามีการแก้ไข
-    setSelectedServiceToAdd(""); // รีเซ็ต Dropdown
+    setIsEditing(true);
+    setSelectedServiceToAdd("");
   };
 
   // ฟังก์ชันสำหรับ "บันทึกการแก้ไข"
@@ -232,14 +229,13 @@ export default function DetailPage() {
         day_park: recalculatedDuration,
         parking_price: recalculatedParkingPrice,
         total_price: recalculatedTotalPrice,
-        // (ส่งค่าเดิมกลับไป)
         services: editableServices,
         additional_price: recalculatedAdditionalPrice,
 
         parking_slot: serviceDetail.serviceHistory.parking_slot,
       };
 
-      console.log("Payload sending to server:", payload); // (Debug log - เอาออกได้)
+      console.log("Payload sending to server:", payload);
 
       // เรียก API update
       const res = await axios.put(
@@ -248,13 +244,9 @@ export default function DetailPage() {
         { headers }
       );
 
-      // --- 🌟 ส่วนที่แก้ไข ---
-      const savedHistory = res.data; // ดึงข้อมูลที่บันทึกสำเร็จกลับมา
+      const savedHistory = res.data;
 
-      // 1. อัปเดต state หลัก (เหมือนเดิม)
       setServiceDetail((prev) => ({ ...prev, serviceHistory: savedHistory }));
-
-      // 2. (สำคัญ) อัปเดต state ที่ UI ใช้แสดงผล ให้ตรงกับข้อมูลที่บันทึกแล้ว
       setEditableEntry(
         dayjs(savedHistory.entry_time).format("YYYY-MM-DDTHH:mm")
       );
@@ -266,7 +258,7 @@ export default function DetailPage() {
       setRecalculatedDuration(savedHistory.day_park || "");
       // --- สิ้นสุดส่วนที่แก้ไข ---
 
-      setIsEditing(false); // ปิดสถานะแก้ไข
+      setIsEditing(false);
       setSuccess("บันทึกการแก้ไขเวลาและราคาเรียบร้อยแล้ว!");
     } catch (err) {
       console.error(err);
@@ -290,7 +282,7 @@ export default function DetailPage() {
       <Typography color="error" sx={{ p: 6, textAlign: "center" }}>
         เกิดข้อผิดพลาด: {error}
       </Typography>
-    ); // ไม่แสดง error ถ้ามี success
+    );
   if (!serviceDetail)
     return (
       <Typography sx={{ p: 6, textAlign: "center" }}>ไม่พบข้อมูล</Typography>
@@ -305,15 +297,11 @@ export default function DetailPage() {
     (s) => !editableServices.includes(s.id)
   );
 
-  // เช็คว่าบริการนี้มีการเช่าที่จอดหรือไม่
   const includesParking = !!serviceHistory.parking_slot;
 
 return (
-    // 1. Root Box: ยืด 100% ของพื้นที่ <main> ที่ App.jsx ส่งมา
-    //    และใช้ flex column เพื่อแบ่งส่วน (Title, Content)
+
     <Box sx={{ height: "100%", display: 'flex', flexDirection: 'column' }}>
-      
-      {/* 2. ส่วนหัว (Title) และ Alert: จะถูก "Fix" ไว้ด้านบน (ไม่เลื่อน) */}
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4, flexShrink: 0 }}>
         <Typography variant="h4" sx={{ fontWeight: "bold", color: "#ea7f33" }}>
           รายละเอียดบริการ ({serviceHistory.is_paid ? 'ชำระแล้ว' : 'ค้างชำระ'})
@@ -326,10 +314,7 @@ return (
       {success && <Alert severity="success" sx={{ mb: 2, flexShrink: 0 }} onClose={() => setSuccess(null)}>{success}</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2, flexShrink: 0 }} onClose={() => setError(null)}>{error}</Alert>}
 
-      {/* 3. Grid Container (2 Columns): ยืดเต็มพื้นที่ที่เหลือ (flex: 1) และซ่อนการเลื่อน */}
       <Grid container spacing={4} sx={{ flex: 1, overflow: 'hidden' }}>
-
-        {/* 4. COLUMN 1 (Left): "ยืดเต็มที่ และเลื่อนได้เอง" (overflowY: 'auto') */}
         <Grid item xs={12} md={7} sx={{ height: '100%', overflowY: 'auto' }}>
           <Stack spacing={4}>
             
@@ -438,14 +423,9 @@ return (
                 </Stack>
               </Paper>
             )}
-
-            {/* เพิ่ม Padding ด้านล่างสุดของคอลัมน์ซ้าย (กันโดนตัด) */}
             <Box sx={{ height: '2rem', flexShrink: 0 }} /> 
-
           </Stack>
         </Grid>
-
-        {/* 5. COLUMN 2 (Right): "ยืดเต็มที่ แต่ไม่ต้องเลื่อน" (นี่คือส่วนที่ Fix) */}
         <Grid item xs={12} md={5} sx={{ height: '100%' }}>
           <Paper elevation={2} sx={{ p: 3, borderRadius: 3 }}>
             <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
@@ -513,7 +493,7 @@ return (
               {!serviceHistory.is_paid && (
                 <Button
                   variant="contained" startIcon={<PaymentIcon />} fullWidth
-                  disabled={(includesParking && isEditing) || loading} // Disable ถ้าแก้เวลาจอดแล้วยังไม่เซฟ
+                  disabled={(includesParking && isEditing) || loading}
                   sx={{ mt: 2, py: 1.5, fontSize: '1rem', bgcolor: "#ea7f33", '&:hover': { bgcolor: '#d26d2a' } }}
                   onClick={() => navigate(`/payment/${customer._id}/${car._id}/${serviceHistory._id}`)}
                 >

@@ -13,7 +13,7 @@ import {
   Alert,
   Snackbar,
   Divider,
-  Autocomplete, // ◀️ (1) Import Autocomplete
+  Autocomplete,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import InfoIcon from "@mui/icons-material/Info";
@@ -22,13 +22,10 @@ import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Cancel";
 import axios from "axios";
-
-// ◀️ (2) Import ข้อมูลที่อยู่ (เหมือน ServicePage)
 import provincesData from "../mockupdataadress/provinces.json";
 import districtsData from "../mockupdataadress/districts.json";
 import subDistrictsData from "../mockupdataadress/sub_districts.json";
 
-// (Component ย่อยสำหรับแสดง Key-Value)
 const DetailItem = ({ label, value }) => (
   <Grid item xs={12} sm={6}>
     <Typography color="text.secondary" variant="body2">
@@ -51,7 +48,6 @@ export default function DetailCustomer() {
   const [error, setError] = useState(null);
   const [serviceHistories, setServiceHistories] = useState([]);
 
-  // (State สำหรับโหมดแก้ไข)
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
   const [saveLoading, setSaveLoading] = useState(false);
@@ -61,14 +57,11 @@ export default function DetailCustomer() {
     severity: "success",
   });
 
-  // ◀️ (3) เพิ่ม State สำหรับ List ที่อยู่ (เหมือน ServicePage)
   const [provinceList, setProvinceList] = useState([]);
   const [amphoeList, setAmphoeList] = useState([]);
-  const [districtList, setDistrictList] = useState([]); // (ตำบล)
+  const [districtList, setDistrictList] = useState([]);
 
-  // (useEffect ดึงข้อมูลลูกค้า)
   useEffect(() => {
-    // ◀️ (4) สร้าง List จังหวัดหลักทันทีที่โหลด
     const provincesWithAmphoe = provincesData.map((p) => ({
       ...p,
       amphure: districtsData
@@ -108,9 +101,6 @@ export default function DetailCustomer() {
 
     fetchCustomer();
   }, [id]);
-
-  // ◀️ (5) เพิ่ม useEffects สำหรับจัดการ Dropdown (เหมือน ServicePage)
-  // (เมื่อเลือกจังหวัด -> อัปเดตอำเภอ)
   useEffect(() => {
     if (formData.province) {
       setAmphoeList(formData.province.amphure);
@@ -120,7 +110,6 @@ export default function DetailCustomer() {
     setDistrictList([]);
   }, [formData.province]);
 
-  // (เมื่อเลือกอำเภอ -> อัปเดตตำบล)
   useEffect(() => {
     if (formData.amphoe) {
       setDistrictList(formData.amphoe.tambon);
@@ -128,34 +117,28 @@ export default function DetailCustomer() {
       setDistrictList([]);
     }
   }, [formData.amphoe]);
-
-  // (เมื่อเลือกตำบล -> อัปเดต Zipcode)
   useEffect(() => {
     if (formData.district) {
       setFormData((old) => ({ ...old, zip_code: formData.district.zip_code }));
     }
   }, [formData.district]);
 
-  // ◀️ (6) แก้ไข handleEditToggle ให้ "ค้นหา" Object ที่อยู่
   const handleEditToggle = () => {
     if (!isEditing) {
-      // (ถ้ากด "แก้ไข") ค้นหา Object จังหวัด/อำเภอ/ตำบล จากชื่อ (Text)
       const foundProvince =
         provinceList.find((p) => p.name_th === customer.province) || null;
 
       const amList = foundProvince ? foundProvince.amphure : [];
-      setAmphoeList(amList); // (ตั้งค่า List อำเภอให้พร้อม)
+      setAmphoeList(amList);
 
       const foundAmphoe =
-        amList.find((a) => a.name_th === customer.district) || null; // (customer.district คือ อำเภอ)
+        amList.find((a) => a.name_th === customer.district) || null;
 
       const distList = foundAmphoe ? foundAmphoe.tambon : [];
-      setDistrictList(distList); // (ตั้งค่า List ตำบลให้พร้อม)
+      setDistrictList(distList);
 
       const foundDistrict =
-        distList.find((t) => t.name_th === customer.canton) || null; // (customer.canton คือ ตำบล)
-
-      // (ตั้งค่า formData เริ่มต้น)
+        distList.find((t) => t.name_th === customer.canton) || null;
       setFormData({
         customer_name: customer.customer_name,
         phone_number: customer.phone_number,
@@ -164,43 +147,39 @@ export default function DetailCustomer() {
         road: customer.road || "",
         zip_code: customer.zip_code || "",
         country: customer.country || "ประเทศไทย",
-        // (ตั้งค่าเป็น Object ที่ค้นเจอ)
         province: foundProvince,
         amphoe: foundAmphoe,
-        district: foundDistrict, // (นี่คือตำบล)
+        district: foundDistrict,
       });
     }
-    setIsEditing(!isEditing); // สลับโหมด
+    setIsEditing(!isEditing);
   };
 
-  // (ฟังก์ชันอัปเดต formData เมื่อพิมพ์)
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ◀️ (7) แก้ไข handleSave ให้ "ดึงชื่อ" จาก Object
   const handleSave = async () => {
     setSaveLoading(true);
     setAlert({ open: false, message: "", severity: "success" });
     try {
-      // (แปลง Object กลับเป็น Text ก่อนส่ง)
       const payload = {
         ...formData,
         province: formData.province ? formData.province.name_th : "",
-        district: formData.amphoe ? formData.amphoe.name_th : "", // (DB district = UI amphoe)
-        canton: formData.district ? formData.district.name_th : "", // (DB canton = UI district/tambon)
+        district: formData.amphoe ? formData.amphoe.name_th : "",
+        canton: formData.district ? formData.district.name_th : "",
       };
 
       const token = localStorage.getItem("token");
       const res = await axios.put(
         `http://localhost:5000/api/customers/${id}`,
-        payload, // (ส่ง Payload ที่แปลงแล้ว)
+        payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setCustomer(res.data); // อัปเดต state หลัก
-      setIsEditing(false); // ปิดโหมดแก้ไข
+      setCustomer(res.data);
+      setIsEditing(false);
       setAlert({
         open: true,
         message: "บันทึกข้อมูลลูกค้าสำเร็จ",
@@ -219,7 +198,6 @@ export default function DetailCustomer() {
     }
   };
 
-  // --- (Loading / Error UI ... เหมือนเดิม) ---
   if (loading) {
     return (
       <div className="p-6 text-center text-lg font-semibold">กำลังโหลด...</div>
@@ -240,7 +218,6 @@ export default function DetailCustomer() {
     );
   }
 
-  // --- (JSX) ---
   return (
     <div className="p-6 space-y-6">
       {/* (Snackbar สำหรับ Alert) */}
@@ -277,9 +254,7 @@ export default function DetailCustomer() {
         </Button>
       </Stack>
 
-      {/* ◀️ (แก้ไข) การ์ด "ข้อมูลทั่วไป" */}
       <Paper elevation={2} sx={{ p: { xs: 2, md: 4 }, borderRadius: 3 }}>
-        {/* --- ส่วนหัวของการ์ด (มีปุ่มแก้ไข) --- */}
         <Stack
           direction="row"
           justifyContent="space-between"
@@ -328,11 +303,8 @@ export default function DetailCustomer() {
         </Stack>
         <Divider sx={{ mb: 3 }} />
 
-        {/* --- ส่วนเนื้อหา (สลับระหว่าง View / Edit) --- */}
         {isEditing ? (
-          // (โหมดแก้ไข: ◀️ จัด Layout ใหม่เป็น 2 -> 3 -> 3 -> 2)
           <Grid container spacing={2}>
-            {/* --- แถว 1 (2 คอลัมน์) --- */}
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
@@ -352,7 +324,6 @@ export default function DetailCustomer() {
               />
             </Grid>
 
-            {/* --- แถว 2 (3 คอลัมน์ Text) --- */}
             <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
@@ -381,7 +352,6 @@ export default function DetailCustomer() {
               />
             </Grid>
 
-            {/* --- แถว 3 (3 คอลัมน์ Autocomplete) --- */}
             <Grid item xs={12} md={4}>
               <Autocomplete
                 options={provinceList}
@@ -432,8 +402,6 @@ export default function DetailCustomer() {
                 disabled={!formData.amphoe}
               />
             </Grid>
-
-            {/* --- แถว 4 (2 คอลัมน์) --- */}
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
@@ -455,7 +423,6 @@ export default function DetailCustomer() {
             </Grid>
           </Grid>
         ) : (
-          // (โหมดแสดงผล: ◀️ เหมือนเดิม)
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 text-gray-700 ">
             <p>
               <strong>ชื่อ-นามสกุล:</strong> {customer.customer_name}
@@ -477,16 +444,13 @@ export default function DetailCustomer() {
         )}
       </Paper>
 
-      {/* (การ์ดประวัติการใช้บริการ ... เหมือนเดิม ไม่ต้องแก้ไข) */}
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
         <h3 className="text-xl font-semibold mb-4 text-[#ea7f33]">
           ประวัติการใช้บริการ
         </h3>
-        {/* ... (เนื้อหาตารางเหมือนเดิม) ... */}
         {customer.cars && customer.cars.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              {/* (thead ... เหมือนเดิม) */}
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">
@@ -509,7 +473,6 @@ export default function DetailCustomer() {
                   </th>
                 </tr>
               </thead>
-              {/* (tbody ... เหมือนเดิม) */}
               <tbody className="bg-white divide-y divide-gray-200">
                 {customer.cars.map((car) =>
                   (car.service_history || []).map((s, index) => {

@@ -11,20 +11,18 @@ import {
   MenuItem,
   Typography,
   IconButton,
-  // ไม่ต้องใช้ FormGroup, FormControlLabel, Checkbox เพราะย้าย Permissions ไปที่ ManageDepartments
+
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { Add, Edit, Delete } from "@mui/icons-material";
 import axios from "axios";
 
 const API_URL = "http://localhost:5000/api/users";
-const DEPT_API_URL = "http://localhost:5000/api/departments"; // API สำหรับดึงข้อมูลแผนก
-
-// NOTE: ลบ ALL_PERMISSIONS และฟังก์ชัน togglePermission ออกไปจากไฟล์นี้
+const DEPT_API_URL = "http://localhost:5000/api/departments";
 
 export default function ManageEmployees() {
   const [employees, setEmployees] = useState([]);
-  const [departments, setDepartments] = useState([]); // State สำหรับเก็บรายชื่อแผนก
+  const [departments, setDepartments] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [form, setForm] = useState({
@@ -34,8 +32,7 @@ export default function ManageEmployees() {
     last_name: "",
     phone_number_user: "",
     role: "user",
-    department: "", // จะใช้ชื่อแผนกเป็น String ตาม Department Model
-    // ลบ permissions ออกจาก form state
+    department: "",
   });
 
   // ------------------------- API Calls -------------------------
@@ -68,7 +65,7 @@ export default function ManageEmployees() {
 
   useEffect(() => {
     fetchEmployees();
-    fetchDepartments(); // เรียกดึงแผนกเมื่อ Component โหลด
+    fetchDepartments();
   }, []);
 
   // ------------------------- Handlers -------------------------
@@ -79,13 +76,12 @@ export default function ManageEmployees() {
     if (user) {
       setForm({
         username: user.username,
-        password: "", // ต้องรีเซ็ต Password เมื่อแก้ไข (ผู้ใช้กรอกใหม่ถ้าต้องการเปลี่ยน)
+        password: "",
         first_name: user.first_name,
         last_name: user.last_name,
         phone_number_user: user.phone_number_user,
         role: user.role,
         department: user.department || "",
-        // ลบ permissions ออก
       });
     } else {
       setForm({
@@ -96,7 +92,6 @@ export default function ManageEmployees() {
         phone_number_user: "",
         role: "user",
         department: "",
-        // ลบ permissions ออก
       });
     }
     setOpenDialog(true);
@@ -113,7 +108,6 @@ export default function ManageEmployees() {
       phone_number_user: "",
       role: "user",
       department: "",
-      // ลบ permissions ออก
     });
   };
 
@@ -122,7 +116,6 @@ export default function ManageEmployees() {
     const token = localStorage.getItem("token");
     const dataToSend = { ...form };
 
-    // ลบ password ออกจาก payload หากเป็นโหมดแก้ไขและผู้ใช้ไม่ได้กรอก password ใหม่
     if (editingUser && dataToSend.password === "") {
       delete dataToSend.password;
     }
@@ -229,18 +222,16 @@ export default function ManageEmployees() {
             fullWidth
             value={form.username}
             onChange={(e) => setForm({ ...form, username: e.target.value })}
-            // หากต้องการไม่ให้แก้ไข Username เมื่อเป็นการแก้ไข:
-            // disabled={!!editingUser} 
+
           />
           
           {/* ข้อมูล Password */}
-          {/* แสดงข้อความที่แตกต่างกันตามโหมดเพิ่ม/แก้ไข */}
           <TextField
             margin="dense"
             label={editingUser ? "Password (เว้นว่างหากไม่ต้องการเปลี่ยน)" : "Password"}
             type="password"
             fullWidth
-            required={!editingUser} // ต้องกรอกเมื่อเป็นการเพิ่มใหม่
+            required={!editingUser}
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
           />

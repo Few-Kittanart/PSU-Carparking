@@ -8,7 +8,6 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
-// Routes
 app.use("/api/parking", parkingRoutes);
 
 app.listen(PORT, () => {

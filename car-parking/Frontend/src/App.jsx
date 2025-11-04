@@ -55,10 +55,7 @@ function App() {
     <SettingProvider>
       <Router>
         <Routes>
-          {/* หน้า Login */}
           <Route path="/" element={<Login />} />
-
-          {/* หน้า Main ไม่มี Sidebar */}
           <Route
             path="/main"
             element={
@@ -67,8 +64,6 @@ function App() {
               </AppLayoutNoSidebar>
             }
           />
-
-          {/* หน้าที่มี Sidebar + Header + Footer */}
           <Route
             path="/*"
             element={

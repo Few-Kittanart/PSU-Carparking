@@ -13,12 +13,12 @@ import {
   Tooltip,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import PrintIcon from "@mui/icons-material/Print"; // ไอคอนพิมพ์
-import pdfMake from "pdfmake/build/pdfmake"; // pdfmake
-import pdfFonts from "../lib/pdfFonts"; // ไฟล์ฟอนต์ (ปรับ Path ถ้าจำเป็น)
-import { useSettings } from "../context/SettingContext"; // Context สำหรับ Settings
+import PrintIcon from "@mui/icons-material/Print";
+import pdfMake from "pdfmake/build/pdfmake";
+import pdfFonts from "../lib/pdfFonts";
+import { useSettings } from "../context/SettingContext";
 
-// ตั้งค่าฟอนต์ให้ pdfmake
+
 pdfMake.fonts = pdfFonts;
 
 export default function ManagePage() {
@@ -27,9 +27,9 @@ export default function ManagePage() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("allServices");
   const navigate = useNavigate();
-  const { settings, loading: settingsLoading } = useSettings(); // ดึง settings และ loading จาก Context // ดึง settings จาก Context
-  const [serviceNameMap, setServiceNameMap] = useState({}); // เก็บชื่อ Service
-  const [parkingSlotMap, setParkingSlotMap] = useState({}); // ✅ เพิ่ม State นี้เก็บชื่อช่องจอด
+  const { settings, loading: settingsLoading } = useSettings();
+  const [serviceNameMap, setServiceNameMap] = useState({});
+  const [parkingSlotMap, setParkingSlotMap] = useState({});
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -38,7 +38,6 @@ export default function ManagePage() {
         const token = localStorage.getItem("token");
         const headers = { Authorization: `Bearer ${token}` };
 
-        // API 1: ดึง Unpaid Services
         const unpaidRes = await fetch(
           "http://localhost:5000/api/customers/unpaid-services",
           { headers }
@@ -47,21 +46,19 @@ export default function ManagePage() {
         const unpaidData = await unpaidRes.json();
         setUnpaidServices(unpaidData);
 
-        // API 2: ดึง Prices (ชื่อ Service)
         const pricesRes = await fetch("http://localhost:5000/api/prices", {
           headers,
         });
         if (pricesRes.ok) {
           const pricesData = await pricesRes.json();
           const map = {};
-          // ✅ Store both name and price
+
           pricesData.additionalServices.forEach((s) => {
             map[s.id] = { name: s.name, price: s.price };
           });
           setServiceNameMap(map);
         }
 
-        // ✅ (เพิ่ม) API 3: ดึง Parking Slots เพื่อแปล ID
         const slotsRes = await fetch("http://localhost:5000/api/parkingSlots", {
           headers,
         });
@@ -69,12 +66,12 @@ export default function ManagePage() {
           const slotsData = await slotsRes.json();
           const slotMap = {};
           slotsData.forEach((s) => {
-            // สร้างชื่อเต็มเช่น "A-1"
+
             slotMap[s._id] = s.zone
               ? `${s.zone.name}-${s.number}`
               : `Slot-${s.number}`;
           });
-          setParkingSlotMap(slotMap); // <-- เก็บ Map ไว้
+          setParkingSlotMap(slotMap);
         }
       } catch (err) {
         setError(err.message);
@@ -85,7 +82,6 @@ export default function ManagePage() {
     fetchInitialData();
   }, []);
 
-  // ✅ เปลี่ยนชื่อฟังก์ชัน และปรับแก้การแสดงผล
   const handleGenerateSlip = (service) => {
     if (!settings) {
       alert("ข้อมูล Setting (โลโก้/ชื่อบริษัท) ยังโหลดไม่เสร็จ โปรดรอสักครู่");
@@ -95,9 +91,8 @@ export default function ManagePage() {
     // --- สร้างรายการบริการ ---
     const serviceItems = [];
     const parkingSlotName =
-      parkingSlotMap[service.parking_slot] || service.parking_slot; // <-- ✅ แปลชื่อช่องจอด
+      parkingSlotMap[service.parking_slot] || service.parking_slot;
 
-    // ตรวจสอบว่ามีข้อมูลช่องจอดจริง ๆ (ไม่ใช่ "N/A" หรือค่าว่าง)
     if (service.parking_slot && parkingSlotName !== "N/A" && parkingSlotName) {
       serviceItems.push([
         { text: "ค่าบริการจอดรถ", style: "tableBody" },
@@ -107,7 +102,6 @@ export default function ManagePage() {
     }
 
     service.services.forEach((serviceId) => {
-      // ✅ Get service info (name and price)
       const serviceInfo = serviceNameMap[serviceId];
       serviceItems.push([
         { text: "บริการเพิ่มเติม", style: "tableBody" },
@@ -115,7 +109,6 @@ export default function ManagePage() {
           text: `(${serviceInfo?.name || "ID: " + serviceId})`,
           style: "tableBody",
         },
-        // ✅ Display the price if available
         {
           text: `${(serviceInfo?.price || 0).toFixed(2)}`,
           style: "tableBody",
@@ -123,7 +116,6 @@ export default function ManagePage() {
         },
       ]);
     });
-    // Add blank row if needed
     if (
       service.parking_slot &&
       parkingSlotName !== "N/A" &&
@@ -136,7 +128,6 @@ export default function ManagePage() {
     const docDefinition = {
       defaultStyle: { font: "Sarabun", fontSize: 12 },
       content: [
-        // Header (Logo + Company Info) - as before
         {
           columns: [
             settings.logo?.main
@@ -348,7 +339,7 @@ export default function ManagePage() {
           {data.length > 0 ? (
             data.map((service, index) => {
               const parkingSlotName =
-                parkingSlotMap[service.parking_slot] || service.parking_slot; // ✅ แปลชื่อช่องจอด
+                parkingSlotMap[service.parking_slot] || service.parking_slot;
               // ตรวจสอบว่ามีข้อมูลช่องจอดจริง ๆ (ไม่ใช่ "N/A" หรือค่าว่าง)
               const hasParking =
                 !!service.parking_slot &&
@@ -358,16 +349,16 @@ export default function ManagePage() {
               let serviceType, bgColor;
 
               if (hasParking && hasServices) {
-                serviceType = `${parkingSlotName} + บริการเพิ่มเติม`; // ✅ ใช้ชื่อที่แปลแล้ว
+                serviceType = `${parkingSlotName} + บริการเพิ่มเติม`;
                 bgColor = "bg-purple-500";
               } else if (hasParking) {
-                serviceType = parkingSlotName; // ✅ ใช้ชื่อที่แปลแล้ว
+                serviceType = parkingSlotName;
                 bgColor = "bg-orange-400";
               } else if (hasServices) {
                 serviceType = "บริการเพิ่มเติม";
                 bgColor = "bg-green-500";
               } else {
-                serviceType = "ไม่ระบุ"; // กรณีไม่มีทั้งคู่ (ไม่น่าเกิด)
+                serviceType = "ไม่ระบุ"; // กรณีไม่มีทั้งคู่
                 bgColor = "bg-gray-400";
               }
 
@@ -394,8 +385,7 @@ export default function ManagePage() {
                     <Tooltip title="ดูรายละเอียด">
                       <IconButton
                         onClick={() => {
-                          // ใช้ ID จริงจาก API ถ้ามี, หรือ ID ที่สร้างเองถ้าไม่มี
-                          const detailServiceId = service.service_id; // ใช้ ID ที่ API ส่งมา
+                          const detailServiceId = service.service_id;
                           navigate(
                             `/manage/detail/${service.customer_id}/${service.car_id}/${detailServiceId}`
                           );
