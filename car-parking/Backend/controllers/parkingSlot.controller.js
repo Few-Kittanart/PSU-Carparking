@@ -1,5 +1,5 @@
-// controllers/parkingSlot.controller.js
 const ParkingSlot = require("../models/parkingSlot.model");
+const Zone = require("../models/zone.model");
 
 exports.getParkingSlots = async (req, res) => {
   try {
@@ -57,16 +57,18 @@ exports.deleteParkingSlot = async (req, res) => {
   }
 };
 
-// อัปเดตสถานะ occupied
 exports.updateParkingSlot = async (req, res) => {
   try {
     const { id } = req.params;
-    const { isOccupied } = req.body;
+
     const slot = await ParkingSlot.findByIdAndUpdate(
       id,
-      { isOccupied },
+      req.body,
       { new: true }
     );
+    
+    if (!slot) return res.status(404).json({ message: "Slot not found" });
+
     res.json(slot);
   } catch (err) {
     res.status(500).json({ message: err.message });

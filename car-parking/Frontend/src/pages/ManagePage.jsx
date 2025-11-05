@@ -301,109 +301,85 @@ export default function ManagePage() {
   );
 
   // --- Render Table Function ---
+  // --- Render Table Function ---
   const renderTable = (data) => (
     <TableContainer component={Paper} className="shadow-lg">
       <Table stickyHeader>
         <TableHead>
           <TableRow>
-            <TableCell
-              align="center"
-              className="font-bold text-lg text-gray-700"
-            >
-              ลำดับ
-            </TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">
-              ชื่อ-นามสกุล
-            </TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">
-              เบอร์โทรศัพท์
-            </TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">
-              ทะเบียนรถ
-            </TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">
-              เวลาเข้า
-            </TableCell>
-            <TableCell className="font-bold text-lg text-gray-700 text-center">
-              ประเภทบริการ
-            </TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">
-              ยอดรวม
-            </TableCell>
-            <TableCell className="font-bold text-lg text-gray-700">
-              ดำเนินการ
-            </TableCell>
+            <TableCell align="center" className="font-bold text-lg text-gray-700">ลำดับ</TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">ชื่อ-นามสกุล</TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">เบอร์โทรศัพท์</TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">ทะเบียนรถ</TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">เวลาเข้า</TableCell>
+            <TableCell className="font-bold text-lg text-gray-700 text-center">ประเภทบริการ</TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">ยอดรวม</TableCell>
+            <TableCell className="font-bold text-lg text-gray-700">ดำเนินการ</TableCell>
           </TableRow>
         </TableHead>
+        
         <TableBody>
-          {data.length > 0 ? (
-            data.map((service, index) => {
-              const parkingSlotName =
-                parkingSlotMap[service.parking_slot] || service.parking_slot;
-              // ตรวจสอบว่ามีข้อมูลช่องจอดจริง ๆ (ไม่ใช่ "N/A" หรือค่าว่าง)
-              const hasParking =
-                !!service.parking_slot &&
-                parkingSlotName !== "N/A" &&
-                parkingSlotName;
-              const hasServices = service.services.length > 0;
-              let serviceType, bgColor;
+          {data.map((service, index) => {
+            const parkingSlotName = parkingSlotMap[service.parking_slot] || service.parking_slot;
+            const hasParking = !!service.parking_slot && parkingSlotName !== 'N/A' && parkingSlotName;
+            const hasServices = service.services.length > 0;
+            let serviceType, bgColor;
 
-              if (hasParking && hasServices) {
-                serviceType = `${parkingSlotName} + บริการเพิ่มเติม`;
-                bgColor = "bg-purple-500";
-              } else if (hasParking) {
-                serviceType = parkingSlotName;
-                bgColor = "bg-orange-400";
-              } else if (hasServices) {
-                serviceType = "บริการเพิ่มเติม";
-                bgColor = "bg-green-500";
-              } else {
-                serviceType = "ไม่ระบุ"; // กรณีไม่มีทั้งคู่
-                bgColor = "bg-gray-400";
-              }
+            if (hasParking && hasServices) {
+              serviceType = `${parkingSlotName} + บริการเพิ่มเติม`;
+              bgColor = "bg-purple-500";
+            } else if (hasParking) {
+              serviceType = parkingSlotName;
+              bgColor = "bg-orange-400";
+            } else if (hasServices) {
+              serviceType = "บริการเพิ่มเติม";
+              bgColor = "bg-green-500";
+            } else {
+              serviceType = "ไม่ระบุ";
+              bgColor = "bg-gray-400";
+            }
 
-              return (
-                <TableRow key={service.service_id}>
-                  {" "}
-                  {/* ใช้ key จาก API */}
-                  <TableCell align="center">{index + 1}</TableCell>
-                  <TableCell>{service.customer_name}</TableCell>
-                  <TableCell>{service.phone_number}</TableCell>
-                  <TableCell>{service.car_registration}</TableCell>
-                  <TableCell>
-                    {dayjs(service.entry_time).format("DD/MM/YYYY HH:mm")}
-                  </TableCell>
-                  <TableCell>
-                    <div
-                      className={`text-center py-2 px-3 rounded-full text-white font-semibold ${bgColor}`}
+            return (
+              <TableRow key={service.service_id}>
+                <TableCell align="center">{index + 1}</TableCell>
+                <TableCell>{service.customer_name}</TableCell>
+                <TableCell>{service.phone_number}</TableCell>
+                <TableCell>{service.car_registration}</TableCell>
+                <TableCell>
+                  {dayjs(service.entry_time).format("DD/MM/YYYY HH:mm")}
+                </TableCell>
+                <TableCell>
+                  <div
+                    className={`text-center py-2 px-3 rounded-full text-white font-semibold ${bgColor}`}
+                  >
+                    {serviceType}
+                  </div>
+                </TableCell>
+                <TableCell>{service.total_price.toFixed(2)} บาท</TableCell>
+                <TableCell>
+                  <Tooltip title="ดูรายละเอียด">
+                    <IconButton
+                      onClick={() => {
+                        const detailServiceId = service.service_id;
+                        navigate(
+                          `/manage/detail/${service.customer_id}/${service.car_id}/${detailServiceId}`
+                        );
+                      }}
                     >
-                      {serviceType}
-                    </div>
-                  </TableCell>
-                  <TableCell>{service.total_price.toFixed(2)} บาท</TableCell>
-                  <TableCell>
-                    <Tooltip title="ดูรายละเอียด">
-                      <IconButton
-                        onClick={() => {
-                          const detailServiceId = service.service_id;
-                          navigate(
-                            `/manage/detail/${service.customer_id}/${service.car_id}/${detailServiceId}`
-                          );
-                        }}
-                      >
-                        <SearchIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="พิมพ์สลิป">
-                      <IconButton onClick={() => handleGenerateSlip(service)}>
-                        <PrintIcon color="primary" />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              );
-            })
-          ) : (
+                      <SearchIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="พิมพ์สลิป">
+                    <IconButton onClick={() => handleGenerateSlip(service)}>
+                      <PrintIcon color="primary" />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+
+          {data.length === 0 && (
             <TableRow>
               <TableCell colSpan={8} align="center">
                 ไม่มีรายการประเภทนี้ในขณะนี้
@@ -411,6 +387,7 @@ export default function ManagePage() {
             </TableRow>
           )}
         </TableBody>
+
       </Table>
     </TableContainer>
   );

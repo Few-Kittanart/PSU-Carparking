@@ -112,7 +112,7 @@ function BrandManager({ settings, setSettings, setAlert }) {
                             </IconButton>
                         }
                     >
-                        <ListItemText primary={brand.name} secondary={`ID: ${brand._id}`} />
+                        <ListItemText primary={brand.name} />
                     </ListItem>
                 ))}
             </List>
