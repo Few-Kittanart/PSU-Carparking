@@ -9,7 +9,6 @@ export default function Sidebar() {
   const [permissions, setPermissions] = useState([]);
 
   useEffect(() => {
-    // ดึงข้อมูล user ที่เก็บอยู่ใน Local Storage
     const userString = localStorage.getItem("user");
     if (userString) {
       try {
@@ -29,53 +28,49 @@ export default function Sidebar() {
   };
 
   const menuItems = [
-    { label: "การใช้บริการ", icon: <FaCar />, path: "/service", permission: "การใช้บริการ" }, // <--- แก้ไขชื่อสิทธิ์
+    { label: "การใช้บริการ", icon: <FaCar />, path: "/service", permission: "การใช้บริการ" },
     {
       label: "การจัดการ",
       icon: <FaTools />,
       subMenu: [
-        { label: "จัดการบริการ", path: "/manage", permission: "จัดการบริการ" }, // <--- แก้ไขชื่อสิทธิ์
+        { label: "จัดการบริการ", path: "/manage", permission: "จัดการบริการ" },
         {
           label: "ลูกค้าสัมพันธ์",
           subMenu: [
-            { label: "ลูกค้า", path: "/crm/customer", permission: "ลูกค้า" }, // <--- แก้ไขชื่อสิทธิ์
-            { label: "รถลูกค้า", path: "/crm/car", permission: "รถลูกค้า" }, // <--- แก้ไขชื่อสิทธิ์
+            { label: "ลูกค้า", path: "/crm/customer", permission: "ลูกค้า" },
+            { label: "รถลูกค้า", path: "/crm/car", permission: "รถลูกค้า" },
           ],
         },
       ],
     },
-    { label: "แดชบอร์ด", icon: <FaTools />, path: "/dashboard", permission: "แดชบอร์ด" }, // <--- แก้ไขชื่อสิทธิ์
+    { label: "แดชบอร์ด", icon: <FaTools />, path: "/dashboard", permission: "แดชบอร์ด" },
     {
       label: "รายงาน",
       icon: <FaFileAlt />,
       subMenu: [
-        { label: "รายงานการบริการ", path: "/report", permission: "รายงานการบริการ" }, // <--- แก้ไขชื่อสิทธิ์
-        { label: "รายงานรายได้", path: "/report/income", permission: "รายงานรายได้" }, // <--- แก้ไขชื่อสิทธิ์
+        { label: "รายงานการบริการ", path: "/report", permission: "รายงานการบริการ" },
+        { label: "รายงานรายได้", path: "/report/income", permission: "รายงานรายได้" },
       ],
     },
     {
       label: "ข้อมูลระบบ",
       icon: <FaCog />,
       subMenu: [
-        { label: "ตั้งค่าระบบ", path: "/settings", permission: "ตั้งค่าระบบ" }, // <--- แก้ไขชื่อสิทธิ์
-        { label: "ตั้งค่าราคา", path: "/system/prices", permission: "ตั้งค่าราคา" }, // <--- แก้ไขชื่อสิทธิ์
-        { label: "ตั้งค่าเกี่ยวกับรถ", path: "/system/cars", permission: "ตั้งค่ารถ" }, // <--- แก้ไขชื่อสิทธิ์
+        { label: "ตั้งค่าระบบ", path: "/settings", permission: "ตั้งค่าระบบ" },
+        { label: "ตั้งค่าราคา", path: "/system/prices", permission: "ตั้งค่าราคา" },
+        { label: "ตั้งค่าเกี่ยวกับรถ", path: "/system/cars", permission: "ตั้งค่ารถ" },
         { label: "ตั้งค่าลานจอดรถ", path: "/system/parking", permission: "ตั้งค่าที่จอด" },
-        { label: "จัดการพนักงาน", path: "/system/employees", permission: "ตั้งค่าพนักงาน" }, // <--- แก้ไขชื่อสิทธิ์
-        { label: "ตั้งค่าแผนก", path: "/system/departments", permission: "ตั้งค่าแผนก" }, // <--- แก้ไขชื่อสิทธิ์
+        { label: "จัดการพนักงาน", path: "/system/employees", permission: "ตั้งค่าพนักงาน" },
+        { label: "ตั้งค่าแผนก", path: "/system/departments", permission: "ตั้งค่าแผนก" },
       ],
     },
   ];
 
-  // ฟังก์ชันเช็คว่า user มี permission หรือไม่ (ใช้โค้ดเดิม)
   const hasPermission = (item) => {
-    // ถ้าไม่มี permission หรือมี subMenu โดยที่ subMenu มีบางอันที่มี permission ก็จะแสดง
     if (!item.permission && !item.subMenu) return true; 
     
-    // ตรวจสอบ permission ตรงๆ
     if (item.permission && permissions.includes(item.permission)) return true;
-    
-    // ถ้ามี subMenu ให้วนเช็คว่ามี subMenu ตัวใดตัวหนึ่งที่มีสิทธิ์หรือไม่
+
     if (item.subMenu) return item.subMenu.some(hasPermission); 
     
     return false;
@@ -105,7 +100,6 @@ export default function Sidebar() {
             >
               {item.icon && <span className="mr-3">{item.icon}</span>}
               {item.label}
-              {/* ใช้ SVG หรือไอคอน Arrow ที่ชัดเจนกว่า '▾' และ '▸' ถ้าใช้ Tailwind CSS */}
               {item.subMenu && <span className="ml-auto transform transition-transform duration-200">{openMenu[item.label] ? "▾" : "▸"}</span>}
             </div>
           )}

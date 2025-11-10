@@ -13,6 +13,12 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Typography,
+  Box, // ◀️ เพิ่ม
+  FormControl, // ◀️ เพิ่ม
+  InputLabel, // ◀️ เพิ่ม
+  MenuItem, // ◀️ เพิ่ม
+  Select, // ◀️ เพิ่ม
+  Stack, // ◀️ เพิ่ม
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import ExportIcon from "@mui/icons-material/Download";
@@ -30,10 +36,15 @@ export default function IncomeReportPage() {
     startDate: "",
     endDate: "",
     groupBy: "day", // day, month, year, all
-    paymentMethod: "all", // all, cash, transfer
   });
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+
+  // 🔽 (แก้ไข 2 บรรทัดนี้) 🔽
+  const [currentPage, setCurrentPage] = useState(
+    () => Number(sessionStorage.getItem("incomeReportPage")) || 1
+  );
+  const [itemsPerPage, setItemsPerPage] = useState(
+    () => Number(sessionStorage.getItem("incomeReportItemsPerPage")) || 10
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,16 +58,25 @@ export default function IncomeReportPage() {
 
         const data = await res.json();
 
-        // แปลงข้อมูลสำหรับรายงาน
-        const transactions = data.map((t) => ({
-          id: t._id,
-          // ✅ ใช้วันที่ของการทำรายการ (วันที่จ่ายเงิน)
-          date: t.date,
-          parking_lot: t.serviceHistory?.parking_slot || "ไม่ระบุ",
-          total_price: t.serviceHistory?.total_price || 0,
-          is_paid: t.serviceHistory?.is_paid || false,
-          payment_method: t.payment_method || "unknown",
-        }));
+        // 🔽 (2) แก้ไข Logic การประมวลผลข้อมูล
+        const transactions = data.flatMap((t) => {
+          // 2.1 ตรวจสอบว่ามี serviceHistory และ "จ่ายเงินแล้ว" หรือไม่
+          if (t.serviceHistory && t.serviceHistory.is_paid) {
+            // 2.2 ถ้าจ่ายแล้ว, ใช้วันที่อัปเดต serviceHistory เป็น "วันที่รับเงิน"
+            return [
+              {
+                id: t._id,
+                date: t.serviceHistory.updatedAt, // ◀️ (สำคัญ!) ใช้วันที่จ่ายเงินจริง
+                parking_lot: t.serviceHistory?.parking_slot || "ไม่ระบุ",
+                total_price: t.serviceHistory?.total_price || 0,
+                is_paid: true,
+                payment_method: t.payment_method || "unknown",
+              },
+            ];
+          }
+          // 2.3 ถ้ายังไม่จ่าย "ไม่ต้องเอามารวมในรายงานรายได้"
+          return [];
+        });
 
         setAllData(transactions);
       } catch (err) {
@@ -72,7 +92,7 @@ export default function IncomeReportPage() {
   useEffect(() => {
     let temp = [...allData];
 
-    // Filter by date range
+    // Filter by date range (เหมือนเดิม)
     if (filters.startDate) {
       temp = temp.filter((t) =>
         dayjs(t.date).isAfter(dayjs(filters.startDate).startOf("day"))
@@ -84,12 +104,10 @@ export default function IncomeReportPage() {
       );
     }
 
-    // Filter by payment method
-    if (filters.paymentMethod !== "all") {
-      temp = temp.filter((t) => t.payment_method === filters.paymentMethod);
-    }
+    // 🔽 (ลบ) Filter by payment method (เราไม่ต้องการแล้ว)
+    // if (filters.paymentMethod !== "all") { ... }
 
-    // Grouping
+    // 🔽 (แก้ไข) Grouping Logic
     const groupedData = {};
     const format =
       filters.groupBy === "day"
@@ -99,27 +117,35 @@ export default function IncomeReportPage() {
         : "YYYY";
 
     temp.forEach((t) => {
-      // ✅ group ตามวันที่ของ transaction (date)
       const groupKey = dayjs(t.date).format(format);
 
       if (!groupedData[groupKey]) {
         groupedData[groupKey] = {
           entryDate: groupKey,
-          parkingLot: t.parking_lot,
           servicesCount: 0,
           exitCount: 0,
           total_price: 0,
+          total_cash: 0, // ◀️ เพิ่ม
+          total_qr: 0, // ◀️ เพิ่ม
         };
       }
 
       groupedData[groupKey].servicesCount += 1;
 
-      // จำนวนรถที่ออก นับเฉพาะที่ is_paid === true
       if (t.is_paid) {
         groupedData[groupKey].exitCount += 1;
       }
 
-      groupedData[groupKey].total_price += t.total_price || 0;
+      // ◀️ (แก้ไข) Logic การบวกยอด
+      const price = t.total_price || 0;
+      groupedData[groupKey].total_price += price;
+
+      if (t.payment_method === "cash") {
+        groupedData[groupKey].total_cash += price;
+      } else if (t.payment_method === "qr") {
+        // (สมมติว่าใน DB เก็บเป็น 'qr')
+        groupedData[groupKey].total_qr += price;
+      }
     });
 
     const finalData = Object.values(groupedData).sort(
@@ -130,21 +156,36 @@ export default function IncomeReportPage() {
     setCurrentPage(1);
   }, [allData, filters]);
 
+  useEffect(() => {
+    sessionStorage.setItem("incomeReportPage", currentPage);
+  }, [currentPage]);
+
+  // (จำจำนวนต่อหน้า)
+  useEffect(() => {
+    sessionStorage.setItem("incomeReportItemsPerPage", itemsPerPage);
+  }, [itemsPerPage]);
+
   const handleExport = () => {
+    // 🔽 (4.1) แก้ไข Headers ให้ตรงกับตาราง
     const header = [
       "วันที่/เดือน/ปี",
-      "ลานจอด",
       "จำนวนที่ใช้บริการ",
       "จำนวนรถที่ออก",
-      "รายได้ทั้งหมด",
+      "รายได้ (เงินสด)",
+      "รายได้ (สแกนจ่าย)",
+      "รายได้รวม",
     ];
+
+    // 🔽 (4.2) แก้ไข Rows ให้ดึงข้อมูลจาก groupedData (filteredData)
     const rows = filteredData.map((row) => [
       row.entryDate,
-      row.parkingLot,
       row.servicesCount,
       row.exitCount,
-      row.total_price,
+      row.total_cash.toFixed(2),
+      row.total_qr.toFixed(2),
+      row.total_price.toFixed(2),
     ]);
+
     const csvContent = [
       header.join(","),
       ...rows.map((e) => e.map((item) => `"${item}"`).join(",")),
@@ -158,12 +199,17 @@ export default function IncomeReportPage() {
     link.setAttribute("href", url);
     link.setAttribute(
       "download",
-      `income_report_${dayjs().format("YYYY-MM-DD")}.csv`
+      `income_report_${filters.groupBy}_${dayjs().format("YYYY-MM-DD")}.csv` // (เพิ่ม groupBy ในชื่อไฟล์)
     );
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleItemsPerPageChange = (event) => {
+    setItemsPerPage(event.target.value);
+    setCurrentPage(1); // กลับไปหน้า 1 เมื่อเปลี่ยนจำนวน
   };
 
   const getPageData = () => {
@@ -220,19 +266,6 @@ export default function IncomeReportPage() {
           <ToggleButton value="month">รายเดือน</ToggleButton>
           <ToggleButton value="year">รายปี</ToggleButton>
         </ToggleButtonGroup>
-        <ToggleButtonGroup
-          value={filters.paymentMethod}
-          exclusive
-          onChange={(e, newPaymentMethod) => {
-            if (newPaymentMethod)
-              setFilters({ ...filters, paymentMethod: newPaymentMethod });
-          }}
-          size="small"
-        >
-          <ToggleButton value="all">ทั้งหมด</ToggleButton>
-          <ToggleButton value="cash">เงินสด</ToggleButton>
-          <ToggleButton value="transfer">โอนจ่าย</ToggleButton>
-        </ToggleButtonGroup>
         <Button
           variant="contained"
           onClick={handleExport}
@@ -256,7 +289,9 @@ export default function IncomeReportPage() {
               <TableCell className="font-bold">วันที่/เดือน/ปี</TableCell>
               <TableCell className="font-bold">จำนวนที่ใช้บริการ</TableCell>
               <TableCell className="font-bold">จำนวนรถที่ออก</TableCell>
-              <TableCell className="font-bold">รายได้</TableCell>
+              <TableCell className="font-bold">รายได้ (เงินสด)</TableCell>
+              <TableCell className="font-bold">รายได้ (สแกนจ่าย)</TableCell>
+              <TableCell className="font-bold">รายได้รวม</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -269,7 +304,9 @@ export default function IncomeReportPage() {
                   <TableCell>{row.entryDate}</TableCell>
                   <TableCell>{row.servicesCount}</TableCell>
                   <TableCell>{row.exitCount}</TableCell>
-                  <TableCell>{row.total_price} บาท</TableCell>
+                  <TableCell>{row.total_cash.toFixed(2)}</TableCell>
+                  <TableCell>{row.total_qr.toFixed(2)}</TableCell>
+                  <TableCell>{row.total_price.toFixed(2)} บาท</TableCell>
                 </TableRow>
               ))
             ) : (
@@ -284,23 +321,52 @@ export default function IncomeReportPage() {
       </TableContainer>
 
       {/* Pagination */}
-      <div className="flex justify-center items-center gap-4 mt-4">
-        <Button
-          disabled={currentPage === 1}
-          onClick={() => setCurrentPage(currentPage - 1)}
-        >
-          ย้อนกลับ
-        </Button>
-        <Typography>
-          หน้า {currentPage} จาก {pageCount}
-        </Typography>
-        <Button
-          disabled={currentPage === pageCount}
-          onClick={() => setCurrentPage(currentPage + 1)}
-        >
-          ถัดไป
-        </Button>
-      </div>
+      {/* 🔽 (6) เปลี่ยน UI ส่วนนี้ทั้งหมด 🔽 */}
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          mt: 2, 
+          p: 2, 
+          bgcolor: 'background.paper',
+          borderRadius: 1 
+        }}
+      >
+        {/* (ตัวเลือกจำนวนต่อหน้า) */}
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>แสดง</InputLabel>
+          <Select
+            value={itemsPerPage}
+            label="แสดง"
+            onChange={handleItemsPerPageChange}
+          >
+            <MenuItem value={5}>5 รายการ</MenuItem>
+            <MenuItem value={10}>10 รายการ</MenuItem>
+            <MenuItem value={15}>15 รายการ</MenuItem>
+            <MenuItem value={20}>20 รายการ</MenuItem>
+          </Select>
+        </FormControl>
+
+        {/* (ตัวบอกหน้าและปุ่ม) */}
+        <Stack direction="row" spacing={2} alignItems="center">
+          <Typography>
+            หน้า {currentPage} จาก {pageCount}
+          </Typography>
+          <Button
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(currentPage - 1)}
+          >
+            ย้อนกลับ
+          </Button>
+          <Button
+            disabled={currentPage === pageCount}
+            onClick={() => setCurrentPage(currentPage + 1)}
+          >
+            ถัดไป
+          </Button>
+        </Stack>
+      </Box>
     </div>
   );
 }

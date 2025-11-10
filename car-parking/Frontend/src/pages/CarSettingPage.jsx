@@ -1,5 +1,3 @@
-// components/CarSettingPage.jsx
-
 import React, { useState, useEffect } from 'react';
 import { 
     Container, 
@@ -25,10 +23,8 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import { HexColorPicker } from 'react-colorful'; // *ต้องติดตั้ง: npm install react-colorful*
+import { HexColorPicker } from 'react-colorful';
 
-
-// ฟังก์ชันหลักสำหรับเรียกใช้ API
 const apiCall = async (method, path, body) => {
     const token = localStorage.getItem("token");
     const response = await fetch(`http://localhost:5000/api/car-settings${path}`, {
@@ -46,9 +42,6 @@ const apiCall = async (method, path, body) => {
     return data;
 };
 
-// ----------------------------------------------------
-// 1. Component ย่อยสำหรับจัดการยี่ห้อ (Brand)
-// ----------------------------------------------------
 function BrandManager({ settings, setSettings, setAlert }) {
     const [newBrandName, setNewBrandName] = useState('');
     const [loading, setLoading] = useState(false);
@@ -73,7 +66,6 @@ function BrandManager({ settings, setSettings, setAlert }) {
         setLoading(true);
         try {
             await apiCall('DELETE', `/brands/${brandId}`);
-            // อัปเดต State: ลบ Brand และ Models ที่เกี่ยวข้องออก
             setSettings(prev => ({
                 ...prev,
                 brands: prev.brands.filter(b => b._id !== brandId),
@@ -120,7 +112,7 @@ function BrandManager({ settings, setSettings, setAlert }) {
                             </IconButton>
                         }
                     >
-                        <ListItemText primary={brand.name} secondary={`ID: ${brand._id}`} />
+                        <ListItemText primary={brand.name} />
                     </ListItem>
                 ))}
             </List>
@@ -128,9 +120,6 @@ function BrandManager({ settings, setSettings, setAlert }) {
     );
 }
 
-// ----------------------------------------------------
-// 2. Component ย่อยสำหรับจัดการรุ่น (Model)
-// ----------------------------------------------------
 function ModelManager({ settings, setSettings, setAlert }) {
     const [newModelName, setNewModelName] = useState('');
     const [selectedBrandId, setSelectedBrandId] = useState('');
@@ -172,7 +161,6 @@ function ModelManager({ settings, setSettings, setAlert }) {
         }
     };
 
-    // Group models by brand name for display
     const modelsByBrand = settings.models.reduce((acc, model) => {
         const brand = settings.brands.find(b => b._id === model.brandId);
         const brandName = brand ? brand.name : 'ไม่พบยี่ห้อ';
@@ -252,9 +240,6 @@ function ModelManager({ settings, setSettings, setAlert }) {
     );
 }
 
-// ----------------------------------------------------
-// 3. Component ย่อยสำหรับจัดการประเภท (Type)
-// ----------------------------------------------------
 function TypeManager({ settings, setSettings, setAlert }) {
     const [newTypeName, setNewTypeName] = useState('');
     const [loading, setLoading] = useState(false);
@@ -331,9 +316,6 @@ function TypeManager({ settings, setSettings, setAlert }) {
     );
 }
 
-// ----------------------------------------------------
-// 4. Component ย่อยสำหรับจัดการสี (Color)
-// ----------------------------------------------------
 function ColorManager({ settings, setSettings, setAlert }) {
     const [newColorName, setNewColorName] = useState('');
     const [newColorHex, setNewColorHex] = useState('#FFFFFF');
@@ -440,10 +422,6 @@ function ColorManager({ settings, setSettings, setAlert }) {
     );
 }
 
-// ----------------------------------------------------
-// 5. Component หลัก (CarSettingPage)
-// ----------------------------------------------------
-
 export default function CarSettingPage() {
     const [settings, setSettings] = useState(null); 
     const [loading, setLoading] = useState(true);
@@ -458,7 +436,7 @@ export default function CarSettingPage() {
     const fetchSettings = async () => {
         setLoading(true);
         try {
-            const data = await apiCall('GET', ''); // path เป็น '' เพราะ apiCall จะเติม /car-settings ให้
+            const data = await apiCall('GET', '');
             setSettings(data);
         } catch (error) {
             console.error('Error fetching settings:', error);

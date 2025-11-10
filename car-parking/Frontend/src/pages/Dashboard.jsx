@@ -37,7 +37,6 @@ const DashboardPage = () => {
   const [error, setError] = useState(null);
   const [serviceNameMap, setServiceNameMap] = useState({});
 
-  // ✨ State ใหม่สำหรับเก็บข้อมูลรายรับตามวิธีชำระเงิน
   const [revenueByPaymentMethod, setRevenueByPaymentMethod] = useState([]);
 
   const [dateRange, setDateRange] = useState({
@@ -117,7 +116,7 @@ const DashboardPage = () => {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">ภาพรวม Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-6 text-gray-800">Dashboard</h1>
 
       {/* Date Range */}
       <div className="flex flex-col md:flex-row gap-4 mb-6 p-4 bg-white rounded-xl shadow-md items-center">
@@ -143,7 +142,6 @@ const DashboardPage = () => {
         ))}
       </div>
       
-      {/* ✨ ปรับ Layout เป็น 3 columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
 
         {/* Customer Segments Pie */}
@@ -178,7 +176,6 @@ const DashboardPage = () => {
           </ResponsiveContainer>
         </div>
 
-        {/* ✨ กราฟใหม่: Revenue by Payment Method */}
         <div className="bg-white p-6 rounded-xl shadow-lg">
           <h2 className="text-xl font-semibold mb-4 text-gray-700">สัดส่วนรายได้ (วิธีชำระเงิน)</h2>
           <ResponsiveContainer width="100%" height={300}>
@@ -194,8 +191,7 @@ const DashboardPage = () => {
           </ResponsiveContainer>
         </div>
       </div>
-      
-      {/* ส่วนที่เหลือของ Dashboard */}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         {/* Revenue by Day */}
         <div className="bg-white p-6 rounded-xl shadow-lg col-span-1 lg:col-span-2">
@@ -216,7 +212,7 @@ const DashboardPage = () => {
         
         {/* Top Customers Table */}
         <div className="bg-white p-6 rounded-xl shadow-lg">
-          <h2 className="text-xl font-semibold mb-4 text-gray-700">5 ลูกค้าที่มาใช้บริารมากที่สุด</h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">5 ลูกค้าที่มาใช้บริการมากที่สุด</h2>
           {topCustomers && topCustomers.length > 0 ? (
             <div className="overflow-x-auto">
                 <table className="w-full text-left">

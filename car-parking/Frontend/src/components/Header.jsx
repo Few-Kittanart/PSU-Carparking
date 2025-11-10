@@ -7,17 +7,15 @@ export default function Header() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    // ลบข้อมูลการล็อกอินออกจาก localStorage
+
     localStorage.removeItem("token");
     localStorage.removeItem("user");
 
-    // เคลียร์ประวัติการนำทางเพื่อป้องกันการกดย้อนกลับ
     window.history.pushState(null, null, window.location.href);
     window.addEventListener('popstate', function(event) {
       window.history.pushState(null, null, window.location.href);
     });
 
-    // นำทางไปยังหน้า Login
     navigate("/");
   };
   

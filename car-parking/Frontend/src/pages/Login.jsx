@@ -1,13 +1,12 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom"; // import useNavigate
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const navigate = useNavigate(); // สร้าง navigate
+  const navigate = useNavigate();
 
-  // ข้อมูล test account
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -20,13 +19,12 @@ export default function Login() {
         }
       );
 
-      // ตัวอย่างการเรียกใช้งานใน Login.jsx
       const { token, user } = response.data;
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
 
       alert("ล็อกอินสำเร็จ!");
-      navigate("/main"); // เปลี่ยนหน้า
+      navigate("/main");
     } catch (error) {
       console.error(error);
       alert("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");

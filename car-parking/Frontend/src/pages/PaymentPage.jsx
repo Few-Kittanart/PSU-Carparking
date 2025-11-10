@@ -18,12 +18,9 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useSettings } from "../context/SettingContext";
-
-// ✅ 1. Import pdfMake และ pdfFonts
 import pdfMake from "pdfmake/build/pdfmake";
-import pdfFonts from "../lib/pdfFonts"; // (ปรับ Path ให้ถูกต้อง)
+import pdfFonts from "../lib/pdfFonts";
 
-// ✅ 2. ตั้งค่า Font
 pdfMake.fonts = pdfFonts;
 
 
@@ -40,7 +37,6 @@ export default function PaymentPage() {
   const { settings, loading: settingsLoading } = useSettings();
 
   useEffect(() => {
-    // (useEffect ดึงข้อมูล ... เหมือนเดิม)
     const fetchInitialData = async () => {
       try {
         setLoading(true);
@@ -73,14 +69,12 @@ export default function PaymentPage() {
     fetchInitialData();
   }, [customerId, carId, serviceId]);
 
-  // ✅ 3. สร้างฟังก์ชันสร้างใบเสร็จ PDF
   const handleGenerateReceipt = (paidServiceHistory, methodUsed) => {
     if (!settings) {
       console.error("Settings not loaded yet for receipt generation.");
-      return; // ไม่สร้าง PDF ถ้า settings ยังไม่พร้อม
+      return;
     }
 
-    // --- สร้างรายการบริการ (เหมือนใน ManagePage) ---
     const serviceItems = [];
     if (paidServiceHistory.parking_slot) {
       serviceItems.push([
@@ -100,7 +94,6 @@ export default function PaymentPage() {
         { text: `${(serviceInfo?.price || 0).toFixed(2)}`, style: "tableBody", alignment: "right" }, // แสดงราคาย่อย
       ]);
     });
-     // เพิ่มแถวว่าง ถ้ามีทั้งจอดและบริการเสริม
      if (paidServiceHistory.parking_slot && paidServiceHistory.services.length > 0) {
         serviceItems.push(['\u00A0', '\u00A0', '\u00A0']); // แถวว่าง
     }
@@ -208,8 +201,6 @@ export default function PaymentPage() {
     pdfMake.createPdf(docDefinition).open();
   };
 
-
-  // ✅ 4. แก้ไข handlePay ให้เรียก handleGenerateReceipt
   const handlePay = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -225,20 +216,18 @@ export default function PaymentPage() {
       );
 
       if (!res.ok) {
-         const errorData = await res.json(); // อ่าน error message จาก backend
+         const errorData = await res.json();
          throw new Error(errorData.error || "ชำระเงินไม่สำเร็จ");
       }
 
-      const updatedServiceData = await res.json(); // รับข้อมูล service ล่าสุดกลับมา
+      const updatedServiceData = await res.json();
 
-      // --- 🌟 เรียกสร้างใบเสร็จหลังจากจ่ายสำเร็จ ---
-      // ส่งข้อมูล service ที่เพิ่งอัปเดต (updatedServiceData.service) และวิธีที่จ่าย (paymentMethod) ไป
       handleGenerateReceipt(updatedServiceData.service, paymentMethod);
 
       alert("ชำระเงินเรียบร้อยแล้ว!");
 
       setTimeout(() => {
-        navigate("/manage"); // กลับไปหน้า Manage
+        navigate("/manage");
       }, 1500);
 
     } catch (err) {

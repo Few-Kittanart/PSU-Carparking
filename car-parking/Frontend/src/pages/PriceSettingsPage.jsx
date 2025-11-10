@@ -9,7 +9,6 @@ export default function PriceSettingsPage() {
   const [newServiceName, setNewServiceName] = useState("");
   const [newServicePrice, setNewServicePrice] = useState(0);
 
-  // จำลองการดึงข้อมูลราคาจาก API
   useEffect(() => {
     const fetchPrices = async () => {
       try {

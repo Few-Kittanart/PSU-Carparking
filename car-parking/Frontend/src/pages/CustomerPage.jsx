@@ -84,7 +84,6 @@ export default function CustomerPage() {
                   <IconButton
                     color="primary"
                     title="รายละเอียด"
-                    // ✅ เปลี่ยนเส้นทางไปที่หน้ารายละเอียดลูกค้าใหม่
                     onClick={() => navigate(`/crm/customer/details/${row._id}`)}
                   >
                     <InfoIcon />

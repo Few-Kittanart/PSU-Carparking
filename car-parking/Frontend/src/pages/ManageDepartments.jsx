@@ -41,10 +41,9 @@ export default function ManageDepartments() {
   const [editingDept, setEditingDept] = useState(null);
   const [form, setForm] = useState({
     department_name: "",
-    permissions: [], // <--- เพิ่ม permissions ใน form state
+    permissions: [],
   });
 
-  // โหลดข้อมูลจาก backend
   const fetchDepartments = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -67,12 +66,12 @@ export default function ManageDepartments() {
     if (dept) {
       setForm({
         department_name: dept.department_name,
-        permissions: dept.permissions || [], // <--- โหลด permissions
+        permissions: dept.permissions || [],
       });
     } else {
       setForm({
         department_name: "",
-        permissions: [], // <--- ค่าเริ่มต้น
+        permissions: [],
       });
     }
     setOpenDialog(true);

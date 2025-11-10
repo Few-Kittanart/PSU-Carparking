@@ -17,7 +17,6 @@ import "dayjs/locale/th";
 dayjs.extend(duration);
 dayjs.locale("th");
 
-// Component ย่อยสำหรับแสดง Key-Value
 const DetailItem = ({ label, value }) => (
   <Grid item xs={12} sm={6}>
     <Typography color="text.secondary" variant="body2">{label}</Typography>
@@ -36,7 +35,6 @@ export default function ReportDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ใช้ Logic การดึงข้อมูลแบบเดิม
   useEffect(() => {
     const fetchDetail = async () => {
       try {
@@ -105,7 +103,6 @@ export default function ReportDetailPage() {
         </Button>
       </Stack>
 
-      {/* ✨ ใช้ Stack เรียงการ์ดทั้งหมดจากบนลงล่าง */}
       <Stack spacing={4}>
         {/* การ์ดข้อมูลลูกค้า */}
         <Paper elevation={2} sx={{ p: 3, borderRadius: 3 }}>
